@@ -40,6 +40,12 @@ openclaw_enhanced.db
 .extract_cache/
 obsidian_vault/
 
+# Web UI
+frontend/node_modules/
+frontend/dist/
+__pycache__/
+*.pyc
+
 # OS
 .DS_Store
 Thumbs.db
