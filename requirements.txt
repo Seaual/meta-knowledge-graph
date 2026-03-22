@@ -1,0 +1,23 @@
+# OpenClaw Dependencies
+
+# Core
+requests>=2.31.0
+pydantic>=2.6.0
+
+# CLI
+typer>=0.9.0
+rich>=13.7.0
+
+# PDF Processing
+pymupdf>=1.24.0
+
+# Neo4j (optional)
+neo4j>=5.0.0
+
+# LLM APIs (optional - choose one)
+# anthropic>=0.18.0
+# google-generativeai>=0.4.0
+# openai>=1.0.0
+
+# Environment
+python-dotenv>=1.0.0
