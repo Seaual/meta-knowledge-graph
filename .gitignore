@@ -41,6 +41,7 @@ openclaw_enhanced.db
 obsidian_vault/
 backend.log
 research/
+.superpowers/
 
 # Web UI
 frontend/node_modules/
