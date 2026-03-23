@@ -1,5 +1,3 @@
-import { Node, Edge } from 'reactflow'
-
 // 层级配置
 export const LEVEL_CONFIG = {
   field: { level: 0, radius: 80, nodeSize: 18, opacity: 1.0 },
