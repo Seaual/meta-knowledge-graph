@@ -27,7 +27,7 @@ import {
   getNodePath,
   getDescendants,
   findRoots,
-  LEVEL_CONFIG,
+  getLevelStyle,
   Category,
   ConceptNode as LayoutConceptNode,
 } from '../lib/radialLayout'
@@ -513,7 +513,7 @@ function GraphCanvas() {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
 
   // New state: level filter
-  const [levelRange, setLevelRange] = useState<LevelRange>({ min: 0, max: 5 })
+  const [levelRange, setLevelRange] = useState<LevelRange>({ min: 0, max: 6 })
 
   // New state: drill-down path
   const [drillPath, setDrillPath] = useState<BreadcrumbItem[]>([])
@@ -607,7 +607,7 @@ function GraphCanvas() {
         .filter(n => visibleIds.has(n.id))
         .map(concept => {
           const pos = positions.get(concept.id)!
-          const levelCfg = LEVEL_CONFIG[concept.category] || LEVEL_CONFIG.method
+          const levelStyle = getLevelStyle(pos.level)
 
           return {
             id: concept.id,
@@ -618,8 +618,8 @@ function GraphCanvas() {
               category: concept.category,
               paperCount: concept.paper_count,
               level: pos.level,
-              nodeSize: levelCfg.nodeSize,
-              opacity: levelCfg.opacity,
+              nodeSize: levelStyle.nodeSize,
+              opacity: levelStyle.opacity,
               dimmed: false,
             },
           }

@@ -1,12 +1,40 @@
-// 层级配置
+// 层级配置 - 根据计算深度获取样式
+export const LEVEL_STYLES = [
+  { nodeSize: 18, opacity: 1.0 },   // Level 0
+  { nodeSize: 16, opacity: 0.95 },  // Level 1
+  { nodeSize: 14, opacity: 0.90 },  // Level 2
+  { nodeSize: 12, opacity: 0.85 },  // Level 3
+  { nodeSize: 10, opacity: 0.80 },  // Level 4
+  { nodeSize: 8, opacity: 0.75 },   // Level 5
+  { nodeSize: 6, opacity: 0.70 },   // Level 6
+]
+
+// Category to level mapping (ideal case)
+export const CATEGORY_LEVEL = {
+  field: 0,
+  direction: 1,
+  subdirection: 2,
+  task: 3,
+  method: 4,
+  technique: 5,
+} as const
+
+// Legacy LEVEL_CONFIG for backwards compatibility
 export const LEVEL_CONFIG = {
   field: { level: 0, radius: 80, nodeSize: 18, opacity: 1.0 },
-  direction: { level: 1, radius: 140, nodeSize: 14, opacity: 0.95 },
-  subdirection: { level: 2, radius: 200, nodeSize: 11, opacity: 0.85 },
-  task: { level: 3, radius: 260, nodeSize: 9, opacity: 0.75 },
-  method: { level: 4, radius: 320, nodeSize: 7, opacity: 0.65 },
-  technique: { level: 5, radius: 380, nodeSize: 5, opacity: 0.55 },
+  direction: { level: 1, radius: 140, nodeSize: 16, opacity: 0.95 },
+  subdirection: { level: 2, radius: 200, nodeSize: 14, opacity: 0.90 },
+  task: { level: 3, radius: 260, nodeSize: 12, opacity: 0.85 },
+  method: { level: 4, radius: 320, nodeSize: 10, opacity: 0.80 },
+  technique: { level: 5, radius: 380, nodeSize: 8, opacity: 0.75 },
 } as const
+
+/**
+ * Get style for a given level (handles levels beyond LEVEL_CONFIG)
+ */
+export function getLevelStyle(level: number): { nodeSize: number; opacity: number } {
+  return LEVEL_STYLES[Math.min(level, LEVEL_STYLES.length - 1)]
+}
 
 export type Category = keyof typeof LEVEL_CONFIG
 
