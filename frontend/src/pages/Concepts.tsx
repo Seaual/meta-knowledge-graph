@@ -26,6 +26,7 @@ import {
   filterByLevel,
   getNodePath,
   getDescendants,
+  findRoots,
   LEVEL_CONFIG,
   Category,
   ConceptNode as LayoutConceptNode,
@@ -82,6 +83,96 @@ const CATEGORY_CONFIG = {
   task: { label: '任务', color: '#96CEB4', bgColor: '#DCFCE7', textColor: '#166534' },
   method: { label: '方法', color: '#FFA726', bgColor: '#FFEDD5', textColor: '#9A3412' },
   technique: { label: '技术', color: '#FFD93D', bgColor: '#FEF9C3', textColor: '#854D0E' },
+}
+
+// ============================================
+// Sector Background Components
+// ============================================
+
+interface SectorBackgroundProps {
+  centerX: number
+  centerY: number
+  roots: { id: string; category: string }[]
+  maxRadius: number
+}
+
+function SectorBackgrounds({ centerX, centerY, roots, maxRadius }: SectorBackgroundProps) {
+  if (roots.length === 0) return null
+
+  const sectorAngle = (2 * Math.PI) / roots.length
+
+  return (
+    <g className="sector-backgrounds">
+      {roots.map((root, index) => {
+        const startAngle = index * sectorAngle
+        const endAngle = (index + 1) * sectorAngle
+        const color = CATEGORY_CONFIG[root.category as keyof typeof CATEGORY_CONFIG]?.color || '#94A3B8'
+
+        const startOuter = {
+          x: centerX + maxRadius * Math.cos(startAngle),
+          y: centerY + maxRadius * Math.sin(startAngle),
+        }
+        const endOuter = {
+          x: centerX + maxRadius * Math.cos(endAngle),
+          y: centerY + maxRadius * Math.sin(endAngle),
+        }
+
+        const largeArc = sectorAngle > Math.PI ? 1 : 0
+
+        const path = [
+          `M ${centerX} ${centerY}`,
+          `L ${startOuter.x} ${startOuter.y}`,
+          `A ${maxRadius} ${maxRadius} 0 ${largeArc} 1 ${endOuter.x} ${endOuter.y}`,
+          'Z',
+        ].join(' ')
+
+        return (
+          <path
+            key={root.id}
+            d={path}
+            fill={color}
+            fillOpacity={0.08}
+            stroke={color}
+            strokeOpacity={0.2}
+            strokeWidth={1}
+            strokeDasharray="4 4"
+          />
+        )
+      })}
+    </g>
+  )
+}
+
+function RadialRings({
+  centerX,
+  centerY,
+  maxRadius,
+  levels
+}: {
+  centerX: number
+  centerY: number
+  maxRadius: number
+  levels: number
+}) {
+  const rings = []
+  for (let i = 0; i <= levels; i++) {
+    const radius = 60 * (i + 1)
+    if (radius <= maxRadius) {
+      rings.push(
+        <circle
+          key={i}
+          cx={centerX}
+          cy={centerY}
+          r={radius}
+          fill="none"
+          stroke="#E2E8F0"
+          strokeWidth={1}
+          strokeDasharray={i === 0 ? "none" : "4 4"}
+        />
+      )
+    }
+  }
+  return <g className="radial-rings">{rings}</g>
 }
 
 // ============================================
@@ -404,6 +495,13 @@ function GraphCanvas() {
 
     return { conceptNodes, parentMap, childrenMap }
   }, [allConcepts, allGraphData])
+
+  // 计算根概念列表用于扇区背景
+  const rootConcepts = useMemo(() => {
+    if (!layoutData || !allGraphData) return []
+    const roots = findRoots(layoutData.conceptNodes, allGraphData.edges)
+    return roots.map(r => ({ id: r.id, category: r.category }))
+  }, [layoutData, allGraphData])
 
   useEffect(() => {
     loadGraph()
@@ -749,6 +847,26 @@ function GraphCanvas() {
         selectionMode={SelectionMode.Partial}
         onlyRenderVisibleElements
       >
+        {/* 背景层：扇区和同心环 */}
+        {viewMode === 'radial' && !focusedNodeId && (
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: '100%', height: '100%', zIndex: 0 }}
+          >
+            <SectorBackgrounds
+              centerX={containerRef.current?.clientWidth ? containerRef.current.clientWidth / 2 : 600}
+              centerY={containerRef.current?.clientHeight ? containerRef.current.clientHeight / 2 : 400}
+              roots={rootConcepts}
+              maxRadius={400}
+            />
+            <RadialRings
+              centerX={containerRef.current?.clientWidth ? containerRef.current.clientWidth / 2 : 600}
+              centerY={containerRef.current?.clientHeight ? containerRef.current.clientHeight / 2 : 400}
+              maxRadius={400}
+              levels={5}
+            />
+          </svg>
+        )}
         <Background color="#E2E8F0" gap={30} />
         <Controls showInteractive={false} className="!bg-white !shadow-lg !rounded-xl !border-0" />
         <MiniMap
