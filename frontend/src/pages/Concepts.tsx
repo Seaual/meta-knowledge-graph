@@ -176,6 +176,49 @@ function RadialRings({
 }
 
 // ============================================
+// Node Tooltip Component
+// ============================================
+
+function NodeTooltip({ node, position }: { node: Node | null; position: { x: number; y: number } }) {
+  if (!node) return null
+
+  const config = CATEGORY_CONFIG[node.data?.category as keyof typeof CATEGORY_CONFIG]
+
+  return (
+    <div
+      className="absolute z-50 pointer-events-none"
+      style={{
+        left: position.x + 20,
+        top: position.y - 10,
+        transform: 'translateY(-50%)',
+      }}
+    >
+      <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs">
+        <div className="font-semibold mb-1">{node.data?.label}</div>
+        <div className="flex items-center gap-2 text-gray-300">
+          <span
+            className="w-2 h-2 rounded-full"
+            style={{ backgroundColor: config?.color || '#94A3B8' }}
+          />
+          <span>{config?.label || '概念'}</span>
+          <span className="text-gray-500">|</span>
+          <span>{node.data?.paperCount || 0} 篇论文</span>
+        </div>
+      </div>
+      {/* Arrow */}
+      <div
+        className="absolute left-0 top-1/2 -translate-x-1 -translate-y-1/2 w-0 h-0"
+        style={{
+          borderTop: '6px solid transparent',
+          borderBottom: '6px solid transparent',
+          borderRight: '6px solid #111827',
+        }}
+      />
+    </div>
+  )
+}
+
+// ============================================
 // Custom Node Components
 // ============================================
 
@@ -465,6 +508,10 @@ function GraphCanvas() {
   const [viewMode, setViewMode] = useState<'radial' | 'detail'>('radial')
   const [currentConcept, setCurrentConcept] = useState<Concept | null>(null)
 
+  // Tooltip state
+  const [tooltipNode, setTooltipNode] = useState<Node | null>(null)
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
+
   // New state: level filter
   const [levelRange, setLevelRange] = useState<LevelRange>({ min: 0, max: 5 })
 
@@ -733,9 +780,20 @@ function GraphCanvas() {
   )
 
   const onNodeMouseEnter = useCallback(
-    (_event: React.MouseEvent, node: Node) => {
+    (event: React.MouseEvent, node: Node) => {
       if (viewMode !== 'radial') return
 
+      // Show tooltip
+      const bounds = containerRef.current?.getBoundingClientRect()
+      if (bounds) {
+        setTooltipPosition({
+          x: event.clientX - bounds.left,
+          y: event.clientY - bounds.top,
+        })
+      }
+      setTooltipNode(node)
+
+      // Highlight related nodes
       if (layoutData) {
         const { childrenMap } = layoutData
         const path = getNodePath(node.id, layoutData.parentMap)
@@ -754,6 +812,8 @@ function GraphCanvas() {
   )
 
   const onNodeMouseLeave = useCallback(() => {
+    setTooltipNode(null) // Hide tooltip
+
     if (!selectedConcept) {
       setNodes(nds =>
         nds.map(n => ({
@@ -769,6 +829,16 @@ function GraphCanvas() {
       )
     }
   }, [selectedConcept, setNodes, setEdges])
+
+  const onNodeMouseMove = useCallback((event: React.MouseEvent) => {
+    const bounds = containerRef.current?.getBoundingClientRect()
+    if (bounds) {
+      setTooltipPosition({
+        x: event.clientX - bounds.left,
+        y: event.clientY - bounds.top,
+      })
+    }
+  }, [])
 
   const onPaneClick = useCallback(() => {
     if (viewMode === 'radial') {
@@ -837,6 +907,7 @@ function GraphCanvas() {
         onNodeDoubleClick={onNodeDoubleClick}
         onNodeMouseEnter={onNodeMouseEnter}
         onNodeMouseLeave={onNodeMouseLeave}
+        onNodeMouseMove={onNodeMouseMove}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -898,6 +969,9 @@ function GraphCanvas() {
             <ConceptLabel node={node} />
           </div>
         ))}
+
+      {/* Node Tooltip */}
+      <NodeTooltip node={tooltipNode} position={tooltipPosition} />
 
       {/* Legend */}
       <Legend />
