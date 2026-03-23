@@ -32,7 +32,7 @@
 ### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/meta-knowledge-graph.git
+git clone https://github.com/Seaual/meta-knowledge-graph.git
 cd meta-knowledge-graph
 ```
 

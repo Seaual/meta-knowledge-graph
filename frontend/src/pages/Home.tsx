@@ -28,7 +28,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">OpenClaw</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Meta Knowledge Graph</h1>
         <p className="mt-2 text-gray-600">学术知识图谱引擎</p>
       </div>
 
@@ -78,7 +78,7 @@ export default function Home() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">快速操作</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Link
             to="/papers"
             className="flex items-center p-4 border rounded-lg hover:bg-gray-50"
@@ -98,17 +98,6 @@ export default function Home() {
             <div>
               <p className="font-medium">浏览概念</p>
               <p className="text-sm text-gray-500">查看概念层级树</p>
-            </div>
-          </Link>
-
-          <Link
-            to="/graph"
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50"
-          >
-            <Network className="h-6 w-6 text-purple-500 mr-3" />
-            <div>
-              <p className="font-medium">图谱可视化</p>
-              <p className="text-sm text-gray-500">交互式图谱浏览</p>
             </div>
           </Link>
         </div>
