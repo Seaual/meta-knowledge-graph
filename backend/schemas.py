@@ -13,6 +13,8 @@ class PaperBase(BaseModel):
     title: str
     abstract: Optional[str] = None
     authors: List[str] = []
+    keywords: List[str] = []
+    contributions: List[str] = []
     published_date: Optional[str] = None
     pdf_path: Optional[str] = None
     status: str = "pending"
@@ -22,6 +24,8 @@ class PaperCreate(BaseModel):
     title: str
     abstract: Optional[str] = None
     authors: List[str] = []
+    keywords: List[str] = []
+    contributions: List[str] = []
 
 
 class PaperResponse(PaperBase):
@@ -93,3 +97,10 @@ class ProcessResponse(BaseModel):
     success: bool
     message: str
     concept_tree: Optional[dict] = None
+
+
+# Skill submission schema
+class SkillConceptSubmission(BaseModel):
+    """Skill 提交的概念提取结果"""
+    concept_tree: dict
+    raw_response: Optional[str] = None

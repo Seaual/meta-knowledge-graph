@@ -39,10 +39,13 @@ openclaw_enhanced.db
 .env
 .extract_cache/
 obsidian_vault/
+backend.log
+research/
 
 # Web UI
 frontend/node_modules/
 frontend/dist/
+frontend/package-lock.json
 __pycache__/
 *.pyc
 

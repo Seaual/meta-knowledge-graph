@@ -7,11 +7,11 @@ from typing import List
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from meta_knowledge_graph.database import Database
-from meta_knowledge_graph.graph import KnowledgeGraph
-from .schemas import GraphStats, GraphData, GraphNode, GraphEdge
+from openclaw.database import Database
+from openclaw.graph import KnowledgeGraph
+from backend.schemas import GraphStats, GraphData, GraphNode, GraphEdge
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 

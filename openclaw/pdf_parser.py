@@ -25,6 +25,8 @@ class PaperContent:
     full_text: str
     sections: Dict[str, str]
     metadata: Dict
+    keywords: List[str] = field(default_factory=list)
+    contributions: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -76,13 +78,34 @@ class ConceptTree:
         }
 
     def _to_slug(self, text: str) -> str:
-        """转换为 slug ID"""
+        """转换为 slug ID（支持中文）"""
         import re
+        import hashlib
+
+        # 尝试转换为拼音
+        try:
+            from pypinyin import lazy_pinyin
+            slug = '-'.join(lazy_pinyin(text))
+            slug = slug.lower()
+            slug = re.sub(r'[^a-z0-9-]', '', slug)
+            slug = re.sub(r'-+', '-', slug)
+            slug = slug.strip('-')
+            if slug:
+                return slug[:100]
+        except ImportError:
+            pass
+
+        # 回退：使用文本的 hash 作为 ID
         slug = text.lower()
         slug = re.sub(r'[\s_]+', '-', slug)
         slug = re.sub(r'[^a-z0-9-]', '', slug)
         slug = slug.strip('-')
-        return slug[:100]
+
+        if slug:
+            return slug[:100]
+
+        # 如果是纯中文或其他非拉丁字符，使用 hash
+        return hashlib.md5(text.encode()).hexdigest()[:12]
 
 
 @dataclass
@@ -179,52 +202,148 @@ class PDFParser:
         text = first_page.get_text()
 
         lines = [line.strip() for line in text.split('\n') if line.strip()]
-        if lines:
-            return lines[0]
 
-        return doc.metadata.get('title', '')
+        # 收集标题行
+        title_lines = []
+
+        for line in lines[:5]:
+            # 跳过期刊标识行
+            if any(x in line.lower() for x in ['downloaded', 'redistribution', 'siam', 'ieee', 'acm', 'vol.', 'pp.', 'copyright', 'editorial']):
+                continue
+            # 跳过过短的行（但保留可能是标题一部分的）
+            if len(line) < 3:
+                continue
+            title_lines.append(line)
+            # 如果遇到明显的标题结束标志
+            if any(x in line.lower() for x in ['abstract', 'introduction', 'keywords']):
+                break
+            # 收集前几行作为标题
+            if len(title_lines) >= 2:
+                break
+
+        if title_lines:
+            # 合并标题行
+            return ' '.join(title_lines)
+
+        return doc.metadata.get('title', lines[0] if lines else 'Unknown')
 
     def _extract_authors(self, doc: fitz.Document) -> List[str]:
-        """提取作者"""
-        if doc.metadata.get('author'):
-            return [a.strip() for a in doc.metadata['author'].split(',')]
-
+        """提取作者 - 改进版"""
         first_page = doc[0]
         text = first_page.get_text()
         lines = [line.strip() for line in text.split('\n') if line.strip()]
 
         authors = []
-        for i in range(1, min(4, len(lines))):
-            line = lines[i]
-            if ' ' in line and len(line) < 200:
-                if any(x in line.lower() for x in ['university', 'institute', 'lab', 'dept']):
-                    continue
-                authors.append(line)
 
-        return authors[:5]
+        # 方法1: 从 PDF 元数据获取
+        if doc.metadata.get('author'):
+            meta_authors = [a.strip() for a in doc.metadata['author'].split(',')]
+            # 检查是否像人名（不是机构名）
+            for a in meta_authors:
+                if len(a) > 2 and not any(x in a.lower() for x in ['university', 'institute', 'lab', 'department', 'dept', 'college', 'school']):
+                    authors.append(a)
+            if authors:
+                return authors[:10]
+
+        # 方法2: 查找作者模式
+        # 作者通常在标题之后，摘要之前
+        title_found = False
+        for i, line in enumerate(lines[:15]):
+            # 跳过期刊标识
+            if any(x in line.lower() for x in ['downloaded', 'redistribution', 'siam', 'ieee', 'acm']):
+                continue
+
+            # 检测作者名模式
+            # 模式1: "LastName, FirstName" 或 "FirstName LastName"
+            # 模式2: 多个作者用逗号或 "and" 分隔
+
+            # 跳过机构行
+            if any(x in line.lower() for x in ['university', 'institute', 'lab', 'department', 'dept', 'college', 'school', '@', 'email']):
+                continue
+
+            # 跳过摘要、引言等标题
+            if any(x in line.lower() for x in ['abstract', 'introduction', 'keywords', 'key words']):
+                break
+
+            # 可能是作者行
+            # 检查是否有名字特征（首字母大写，包含空格）
+            if ' ' in line and len(line) < 100 and len(line) > 5:
+                # 检查是否像人名
+                words = line.split()
+                if len(words) >= 2 and len(words) <= 10:
+                    # 检查每个词首字母是否大写（英文名特征）
+                    name_like = sum(1 for w in words if w[0].isupper() or w[0].isdigit())
+                    if name_like >= len(words) * 0.5:
+                        # 可能是作者行，尝试分割
+                        # 处理 "A, B, and C" 或 "A and B" 格式
+                        import re
+                        # 分割作者
+                        parts = re.split(r',\s*(?:and\s+)?|\s+and\s+', line)
+                        for p in parts:
+                            p = p.strip()
+                            if p and len(p) > 2:
+                                # 检查不是机构
+                                if not any(x in p.lower() for x in ['university', 'institute', 'lab', 'dept']):
+                                    authors.append(p)
+
+        return authors[:10]
 
     def _extract_abstract(self, full_text: str) -> str:
-        """提取摘要"""
+        """提取摘要 - 改进版"""
         text_lower = full_text.lower()
 
-        keywords = ['abstract', 'abstract:', 'summary']
-        for kw in keywords:
-            idx = text_lower.find(kw)
-            if idx != -1:
-                start = idx + len(kw)
-                end_markers = ['1 introduction', '1.', 'introduction', '\n\n\n']
-                end = len(full_text)
-                for marker in end_markers:
-                    marker_idx = text_lower.find(marker, start)
-                    if marker_idx != -1 and marker_idx < end:
-                        end = marker_idx
+        # 常见的摘要标记
+        abstract_markers = ['abstract', 'abstract:', 'a b s t r a c t', 'summary', '摘要']
 
-                abstract = full_text[start:end].strip()
-                abstract = '\n'.join([l for l in abstract.split('\n')
-                                     if l.strip() and len(l.strip()) > 10])
-                return abstract[:2000]
+        for marker in abstract_markers:
+            idx = text_lower.find(marker)
+            if idx == -1:
+                continue
 
-        return full_text[:500]
+            start = idx + len(marker)
+
+            # 跳过冒号和空格
+            while start < len(full_text) and full_text[start] in ': \n\t':
+                start += 1
+
+            # 查找摘要结束位置
+            end = len(full_text)
+            end_markers = [
+                '\n1 introduction', '\n1. introduction', '\nintroduction',
+                '\n1 ', '\nkeywords', '\nkey words', '\n关键词',
+                '\n\n\n\n'  # 多个空行
+            ]
+
+            for end_marker in end_markers:
+                marker_idx = text_lower.find(end_marker, start)
+                if marker_idx != -1 and marker_idx < end:
+                    end = marker_idx
+
+            abstract = full_text[start:end].strip()
+
+            # 清理摘要
+            # 移除开头的数字（页码等）
+            lines = abstract.split('\n')
+            cleaned_lines = []
+            for line in lines:
+                line = line.strip()
+                # 跳过空行
+                if not line:
+                    continue
+                # 跳过纯数字行或过短行
+                if line.isdigit() or len(line) < 20:
+                    continue
+                # 跳过期刊标识
+                if any(x in line.lower() for x in ['downloaded', 'redistribution', 'siam']):
+                    continue
+                cleaned_lines.append(line)
+
+            if cleaned_lines:
+                abstract = ' '.join(cleaned_lines)
+                return abstract[:3000]
+
+        # 如果找不到摘要，返回前 1000 字符
+        return full_text[:1000]
 
     def _extract_sections(self, full_text: str) -> Dict[str, str]:
         """提取章节"""
@@ -317,13 +436,15 @@ class LLMConceptExtractor:
         return f"""
 你是一名学术知识图谱构建助手。请从这篇论文中提取概念层级结构和研究信息。
 
+**重要：所有概念名称必须使用中文！**
+
 ## 论文信息
 标题：{paper_content.title}
 作者：{', '.join(paper_content.authors[:3]) if paper_content.authors else 'Unknown'}
 摘要：{paper_content.abstract[:500]}...
 
 ## 论文全文
-{paper_content.full_text[:100000]}  # 限制长度，避免超出上下文
+{paper_content.full_text[:50000]}  # 限制长度，避免超出上下文
 
 ## 任务要求
 
@@ -341,6 +462,7 @@ class LLMConceptExtractor:
 - 子节点应该是更具体的研究方向、方法或技术
 - 层级应该反映"包含关系"或"从属关系"
 - 同一概念可以出现在不同分支下（如果论文涉及多个方向）
+- **所有概念名称必须翻译成中文**
 
 **层级示例：**
 ```
@@ -348,15 +470,15 @@ class LLMConceptExtractor:
 └── 机器学习 (field)
     └── 强化学习 (direction)
         └── 多智能体强化学习 (direction)
-            ├── MAPPO (method)
-            └── QMIX (method)
+            ├── 近端策略优化 (method)
+            └── QMIX算法 (method)
 ```
 
 **类别定义：**
 - field: 大领域/学科（如"人工智能"、"机器学习"）
 - direction: 研究方向（如"强化学习"、"计算机视觉"）
-- method: 具体方法/算法（如"PPO"、"BERT"）
-- technique: 技术细节（如"注意力机制"、"clip 机制"）
+- method: 具体方法/算法（如"近端策略优化"、"注意力机制"）
+- technique: 技术细节（如"梯度裁剪"、"正则化"）
 - detail: 实现细节/参数
 
 ### 4. 提取方法论
@@ -380,12 +502,12 @@ class LLMConceptExtractor:
     "research_questions": ["问题 1", "问题 2"],
     "contributions": ["贡献 1", "贡献 2"],
     "concept_tree": {{
-        "concept": "根概念",
+        "concept": "根概念（中文）",
         "category": "field",
         "confidence": 0.95,
         "children": [
             {{
-                "concept": "子概念",
+                "concept": "子概念（中文）",
                 "category": "direction",
                 "confidence": 0.9,
                 "children": [...]
@@ -398,7 +520,7 @@ class LLMConceptExtractor:
 }}
 ```
 
-只输出 JSON，不要其他内容。
+只输出 JSON，不要其他内容。所有概念名称必须使用中文！
 """
 
     def _parse_response(self, response: str, original_content: PaperContent) -> LLMExtractedContent:
@@ -555,3 +677,78 @@ class OpenAICompatibleClient(LLMClient):
             max_tokens=4096
         )
         return response.choices[0].message.content
+
+    def generate(self, prompt: str) -> str:
+        """生成响应"""
+        return self.extract_concepts(prompt)
+
+
+class ClaudeCLIClient(LLMClient):
+    """使用 Claude CLI 的客户端（利用 Claude Code 已配置的 API）"""
+
+    def __init__(self, model: str = None):
+        self.model = model  # None means use default model
+        self._check_cli_available()
+
+    def _check_cli_available(self):
+        """检查 Claude CLI 是否可用"""
+        import subprocess
+        try:
+            result = subprocess.run(
+                ["claude", "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            if result.returncode != 0:
+                raise RuntimeError("Claude CLI not available")
+        except FileNotFoundError:
+            raise RuntimeError("Claude CLI not found. Please install Claude Code first.")
+        except Exception as e:
+            raise RuntimeError(f"Claude CLI check failed: {e}")
+
+    def extract_concepts(self, prompt: str) -> str:
+        """使用 Claude CLI 提取概念"""
+        return self.generate(prompt)
+
+    def generate(self, prompt: str) -> str:
+        """使用 Claude CLI 生成响应"""
+        import subprocess
+        import tempfile
+        import os
+
+        # 创建临时文件存储 prompt（避免命令行长度限制）
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
+            f.write(prompt)
+            prompt_file = f.name
+
+        try:
+            # 构建命令
+            cmd = ["claude", "-p"]
+            if self.model:
+                cmd.extend(["--model", self.model])
+
+            # 从文件读取输入
+            with open(prompt_file, 'r', encoding='utf-8') as f:
+                prompt_content = f.read()
+
+            result = subprocess.run(
+                cmd,
+                input=prompt_content,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                encoding='utf-8',
+                errors='replace'
+            )
+
+            if result.returncode != 0:
+                error_msg = result.stdout or result.stderr or "Unknown error"
+                raise RuntimeError(f"Claude CLI error: {error_msg}")
+
+            return result.stdout.strip()
+
+        finally:
+            # 清理临时文件
+            if os.path.exists(prompt_file):
+                os.unlink(prompt_file)

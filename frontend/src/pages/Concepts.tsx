@@ -15,15 +15,15 @@ import ReactFlow, {
   EdgeProps,
   getSmoothStepPath,
   SelectionMode,
+  Panel,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { Search, FileText, X, ArrowLeft, BookOpen } from 'lucide-react'
+import { Search, FileText, X, ArrowLeft, BookOpen, GitBranch, Zap } from 'lucide-react'
 import { conceptsApi, graphApi, papersApi } from '../lib/api'
 import {
   computeRadialLayout,
   buildParentMap,
   buildChildrenMap,
-  filterByLevel,
   getNodePath,
   getDescendants,
   findRoots,
@@ -31,6 +31,7 @@ import {
   Category,
   ConceptNode as LayoutConceptNode,
 } from '../lib/radialLayout'
+import { computeForceLayout } from '../lib/forceLayout'
 import { LevelFilter, LevelRange } from '../components/LevelFilter'
 import { Breadcrumb, BreadcrumbItem } from '../components/Breadcrumb'
 
@@ -508,6 +509,9 @@ function GraphCanvas() {
   const [viewMode, setViewMode] = useState<'radial' | 'detail'>('radial')
   const [currentConcept, setCurrentConcept] = useState<Concept | null>(null)
 
+  // Layout mode: radial or force
+  const [layoutMode, setLayoutMode] = useState<'radial' | 'force'>('force')
+
   // Tooltip state
   const [tooltipNode, setTooltipNode] = useState<Node | null>(null)
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
@@ -561,53 +565,60 @@ function GraphCanvas() {
         graphApi.data(),
       ])
 
+      console.log('Loaded concepts:', conceptsRes.data.length)
+      console.log('Loaded graph nodes:', graphRes.data.nodes.length)
+      console.log('Loaded graph edges:', graphRes.data.edges.length)
+
       setAllConcepts(conceptsRes.data)
       setAllGraphData(graphRes.data)
-      setLoading(false)
     } catch (err) {
       console.error('Failed to load graph:', err)
       setLoading(false)
     }
   }
 
-  const renderRadialView = useCallback(
-    (focusId?: string | null) => {
-      if (!layoutData || !allGraphData) return
+  // Render layout based on mode
+  useEffect(() => {
+    if (!layoutData || !allGraphData) {
+      console.log('renderLayout: missing data', { layoutData: !!layoutData, allGraphData: !!allGraphData })
+      return
+    }
 
-      const { conceptNodes, childrenMap } = layoutData
+    const { conceptNodes, childrenMap } = layoutData
+    console.log('renderLayout: conceptNodes=', conceptNodes.length, 'edges=', allGraphData.edges.length, 'mode=', layoutMode)
 
-      // Determine layout scope
-      let targetNodes = conceptNodes
-      let targetEdges = allGraphData.edges
+    // Determine layout scope
+    let targetNodes = conceptNodes
+    let targetEdges = allGraphData.edges
 
-      if (focusId) {
-        // Drill-down mode: only show this node's subtree
-        const descendants = getDescendants(focusId, childrenMap)
-        const visibleIds = new Set([focusId, ...descendants])
-        targetNodes = conceptNodes.filter(n => visibleIds.has(n.id))
-        targetEdges = allGraphData.edges.filter(
-          e => visibleIds.has(e.source) && visibleIds.has(e.target)
-        )
-      }
+    if (focusedNodeId) {
+      const descendants = getDescendants(focusedNodeId, childrenMap)
+      const visibleIds = new Set([focusedNodeId, ...descendants])
+      targetNodes = conceptNodes.filter(n => visibleIds.has(n.id))
+      targetEdges = allGraphData.edges.filter(
+        e => visibleIds.has(e.source) && visibleIds.has(e.target)
+      )
+    }
 
-      // Compute layout
-      const width = containerRef.current?.clientWidth || 1200
-      const height = containerRef.current?.clientHeight || 800
-      const positions = computeRadialLayout(targetNodes, targetEdges, {
-        centerX: width / 2,
-        centerY: height / 2,
-        ringSpacing: 60,
+    const width = containerRef.current?.clientWidth || 1200
+    const height = containerRef.current?.clientHeight || 800
+
+    // Helper to create React Flow nodes - filters by level using the levels map
+    const createFlowNodes = (positions: Map<string, { x: number; y: number }>, levels: Map<string, number>) => {
+      // Filter nodes by level range using the levels map
+      const visibleIds = new Set<string>()
+      levels.forEach((level, id) => {
+        if (level >= levelRange.min && level <= levelRange.max) {
+          visibleIds.add(id)
+        }
       })
 
-      // Filter by level range
-      const visibleIds = filterByLevel(positions, levelRange.min, levelRange.max)
-
-      // Create React Flow nodes
-      const flowNodes: Node[] = targetNodes
+      return targetNodes
         .filter(n => visibleIds.has(n.id))
         .map(concept => {
           const pos = positions.get(concept.id)!
-          const levelStyle = getLevelStyle(pos.level)
+          const level = levels.get(concept.id) || 0
+          const levelStyle = getLevelStyle(level)
 
           return {
             id: concept.id,
@@ -617,17 +628,19 @@ function GraphCanvas() {
               label: concept.text,
               category: concept.category,
               paperCount: concept.paper_count,
-              level: pos.level,
+              level,
               nodeSize: levelStyle.nodeSize,
               opacity: levelStyle.opacity,
               dimmed: false,
             },
           }
         })
+    }
 
-      // Create React Flow edges
-      const flowEdges: Edge[] = targetEdges
-        .filter(e => visibleIds.has(e.source) && visibleIds.has(e.target))
+    // Helper to create edges - only includes edges between visible nodes
+    const createFlowEdges = (visibleNodeIds: Set<string>) => {
+      return targetEdges
+        .filter(e => visibleNodeIds.has(e.source) && visibleNodeIds.has(e.target))
         .map((edge, index) => ({
           id: `e-${index}`,
           source: edge.source,
@@ -635,24 +648,70 @@ function GraphCanvas() {
           type: 'network',
           data: { highlighted: false, dimmed: false },
         }))
+    }
+
+    if (layoutMode === 'radial') {
+      // Radial layout
+      const positions = computeRadialLayout(targetNodes, targetEdges, {
+        centerX: width / 2,
+        centerY: height / 2,
+        ringSpacing: 60,
+      })
+
+      // Get levels from positions
+      const levels = new Map<string, number>()
+      positions.forEach((pos, id) => levels.set(id, pos.level))
+
+      const flowNodes = createFlowNodes(positions, levels)
+      const visibleIds = new Set(flowNodes.map(n => n.id))
+      const flowEdges = createFlowEdges(visibleIds)
 
       setNodes(flowNodes)
       setEdges(flowEdges)
       setViewMode('radial')
       setSelectedPaper(null)
-      setFocusedNodeId(focusId || null)
+      setLoading(false)
 
       setTimeout(() => fitView({ padding: 0.2 }), 100)
-    },
-    [layoutData, allGraphData, levelRange, fitView, setNodes, setEdges]
-  )
+    } else {
+      // Force layout
+      const forceNodes: any[] = targetNodes.map(n => ({ id: n.id }))
+      const forceEdges = targetEdges.map(e => ({ source: e.source, target: e.target }))
 
-  // Re-render when level range changes
-  useEffect(() => {
-    if (layoutData && allGraphData) {
-      renderRadialView(focusedNodeId)
+      computeForceLayout(forceNodes, forceEdges, {
+        width,
+        height,
+        nodeStrength: -200,
+        linkDistance: 100,
+        collideRadius: 30,
+      }).then(positions => {
+        // Compute depth for each node
+        const parentMap = buildParentMap(targetEdges)
+        const depthCache = new Map<string, number>()
+        targetNodes.forEach(n => {
+          let depth = 0
+          let current = n.id
+          while (parentMap.has(current)) {
+            depth++
+            current = parentMap.get(current)!
+          }
+          depthCache.set(n.id, depth)
+        })
+
+        const flowNodes = createFlowNodes(positions, depthCache)
+        const visibleIds = new Set(flowNodes.map(n => n.id))
+        const flowEdges = createFlowEdges(visibleIds)
+
+        setNodes(flowNodes)
+        setEdges(flowEdges)
+        setViewMode('radial')
+        setSelectedPaper(null)
+        setLoading(false)
+
+        setTimeout(() => fitView({ padding: 0.2 }), 100)
+      })
     }
-  }, [levelRange, layoutData, allGraphData, focusedNodeId, renderRadialView])
+  }, [levelRange, layoutData, allGraphData, focusedNodeId, fitView, layoutMode])
 
   const onNodeClick = useCallback(
     async (_event: React.MouseEvent, node: Node) => {
@@ -672,7 +731,8 @@ function GraphCanvas() {
             }]
           })
 
-          renderRadialView(node.id)
+          // Trigger drill-down by setting focused node
+          setFocusedNodeId(node.id)
         }
 
         // Highlight related nodes
@@ -717,7 +777,7 @@ function GraphCanvas() {
         }
       }
     },
-    [viewMode, allConcepts, layoutData, renderRadialView, setNodes, setEdges]
+    [viewMode, allConcepts, layoutData, setNodes, setEdges]
   )
 
   const onNodeDoubleClick = useCallback(
@@ -864,22 +924,20 @@ function GraphCanvas() {
     setDrillPath([])
     setFocusedNodeId(null)
     setSelectedConcept(null)
-    renderRadialView(null)
-  }, [renderRadialView])
+  }, [])
 
   const handleBreadcrumbClick = useCallback(
     (id: string, index: number) => {
       setDrillPath(prev => prev.slice(0, index + 1))
-      renderRadialView(id)
+      setFocusedNodeId(id)
     },
-    [renderRadialView]
+    []
   )
 
   const handleHomeClick = useCallback(() => {
     setDrillPath([])
     setFocusedNodeId(null)
-    renderRadialView(null)
-  }, [renderRadialView])
+  }, [])
 
   const handleLevelChange = useCallback((range: LevelRange) => {
     setLevelRange(range)
@@ -919,7 +977,7 @@ function GraphCanvas() {
         onlyRenderVisibleElements
       >
         {/* 背景层：扇区和同心环 */}
-        {viewMode === 'radial' && !focusedNodeId && (
+        {viewMode === 'radial' && !focusedNodeId && layoutMode === 'radial' && (
           <svg
             className="absolute inset-0 pointer-events-none"
             style={{ width: '100%', height: '100%', zIndex: 0 }}
@@ -940,6 +998,34 @@ function GraphCanvas() {
         )}
         <Background color="#E2E8F0" gap={30} />
         <Controls showInteractive={false} className="!bg-white !shadow-lg !rounded-xl !border-0" />
+
+        {/* Layout Toggle Button */}
+        <Panel position="top-right" className="!m-2">
+          <div className="bg-white/90 backdrop-blur rounded-xl shadow-lg p-1 flex gap-1">
+            <button
+              onClick={() => setLayoutMode('force')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                layoutMode === 'force'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              力导向
+            </button>
+            <button
+              onClick={() => setLayoutMode('radial')}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                layoutMode === 'radial'
+                  ? 'bg-blue-500 text-white'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <GitBranch className="w-4 h-4" />
+              放射状
+            </button>
+          </div>
+        </Panel>
         <MiniMap
           nodeColor={(node) => {
             if (node.type === 'paper') return '#3B82F6'

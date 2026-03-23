@@ -1,108 +1,188 @@
-# OpenClaw
+# Meta Knowledge Graph
 
-学术知识图谱引擎：PDF → LLM 概念提取 → SQLite/Neo4j 图谱 → Obsidian 导出
+一个基于 LLM 的学术知识图谱引擎，支持从 PDF 论文自动提取概念层级结构，并以交互式力导向图可视化展示。
 
-## 核心流程
+## 功能特性
 
-```
-PDF 论文 ──→ LLM 概念提取 ──→ SQLite/Neo4j ──→ Obsidian
-```
+- **PDF 论文解析** - 自动提取论文标题、作者、摘要等元数据
+- **LLM 概念提取** - 使用 Claude/Gemini/Qwen 等大语言模型从论文中提取层次化概念结构
+- **知识图谱可视化** - 类似 Obsidian/Neo4j 的力导向图交互式展示
+- **研究点发现** - 基于知识图谱分析，发现潜在研究方向和创新点
+- **中文概念支持** - 所有概念统一使用中文，便于知识关联
 
-## 安装
+## 技术栈
+
+### 后端
+- Python 3.10+
+- FastAPI - Web 框架
+- SQLite - 数据存储
+- PyMuPDF - PDF 解析
+- Claude CLI / Anthropic API / Google AI / DashScope - LLM 接口
+
+### 前端
+- React 18
+- TypeScript
+- Vite
+- TailwindCSS
+- force-graph - Canvas 力导向图渲染
+- d3-force - 物理引擎
+
+## 快速开始
+
+### 1. 克隆项目
 
 ```bash
+git clone https://github.com/your-username/meta-knowledge-graph.git
+cd meta-knowledge-graph
+```
+
+### 2. 后端配置
+
+```bash
+# 创建虚拟环境
+python -m venv venv
+source venv/bin/activate  # Linux/Mac
+# 或 venv\Scripts\activate  # Windows
+
+# 安装依赖
 pip install -r requirements.txt
 ```
 
-## 配置
+### 3. 配置 LLM
 
-创建 `.env` 文件，配置 LLM API（三选一）：
-
-```bash
-# Anthropic Claude
-ANTHROPIC_API_KEY=sk-ant-xxx
-
-# Google Gemini
-GOOGLE_API_KEY=xxx
-
-# DashScope/OpenAI 兼容
-DASHSCOPE_API_KEY=xxx
-```
-
-Neo4j 配置（可选）：
+复制环境变量模板并配置：
 
 ```bash
-NEO4J_URI=bolt://localhost:7687
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=password
+cp .env.example .env
 ```
 
-## 使用
+编辑 `.env` 文件，填入你的 API Key（三选一）：
+
+```env
+# 方式一：Claude API（推荐）
+ANTHROPIC_API_KEY=sk-ant-...
+
+# 方式二：Google AI Studio
+GOOGLE_API_KEY=...
+
+# 方式三：阿里云 DashScope
+DASHSCOPE_API_KEY=...
+```
+
+**或者**，如果你已安装 [Claude Code CLI](https://github.com/anthropics/claude-code)，系统会自动使用已配置的 API，无需额外配置。
+
+### 4. 前端配置
 
 ```bash
-# 初始化数据库
-python -m openclaw init
-
-# 处理单篇论文
-python -m openclaw process paper.pdf
-
-# 批量处理
-python -m openclaw batch ./papers
-
-# 查看图谱
-python -m openclaw tree
-python -m openclaw ls
-python -m openclaw search "机器学习"
-
-# 导出到 Obsidian
-python -m openclaw export ./obsidian_vault
-
-# 从 Neo4j 导出
-python -m openclaw export ./vault --neo4j
+cd frontend
+npm install
 ```
 
-## 命令
+### 5. 启动服务
 
-| 命令 | 说明 |
-|------|------|
-| `init` | 初始化数据库 |
-| `process <pdf>` | 处理单篇 PDF |
-| `batch <folder>` | 批量处理文件夹 |
-| `tree` | 查看知识图谱树 |
-| `ls [concept]` | 列出概念 |
-| `cd <concept>` | 导航到概念 |
-| `search <query>` | 搜索概念 |
-| `stats` | 统计信息 |
-| `export <vault>` | 导出到 Obsidian |
-| `neo4j-test` | 测试 Neo4j 连接 |
-| `neo4j-migrate` | 迁移到 Neo4j |
+```bash
+# 启动后端（项目根目录）
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 
-## 目录结构
-
-```
-openclaw/
-├── cli.py           # CLI 入口
-├── database.py      # SQLite 数据库
-├── pdf_parser.py    # PDF 解析 + LLM 提取
-├── graph.py         # 知识图谱操作
-├── neo4j_graph.py   # Neo4j 集成
-└── obsidian_exporter.py  # Obsidian 导出
+# 启动前端（新终端，frontend 目录）
+npm run dev
 ```
 
-## 概念层级
+访问 http://localhost:5173 即可使用。
 
-LLM 自动提取概念并分层：
+## 使用说明
 
-| 层级 | 类型 | 示例 |
+### 上传论文
+
+1. 进入「论文」页面
+2. 点击上传按钮，选择 PDF 文件
+3. 论文将出现在「待处理」列表中
+
+### 处理论文
+
+1. 在论文列表中点击「处理」按钮
+2. 系统将调用 LLM 提取概念树
+3. 处理完成后，概念将自动添加到知识图谱
+
+### 浏览知识图谱
+
+1. 进入「概念」页面
+2. 力导向图展示所有概念及其层级关系
+3. 拖拽节点调整位置，滚轮缩放
+4. 使用左下角滑块调节节点斥力
+
+### 发现研究点
+
+1. 点击任意概念节点
+2. 在右上角面板点击「发现研究点」
+3. 系统将分析该概念的上游/下游/边缘节点
+4. LLM 生成 3-5 个潜在研究方向
+
+## 项目结构
+
+```
+meta-knowledge-graph/
+├── backend/                 # FastAPI 后端
+│   ├── main.py             # 应用入口
+│   ├── routes/             # API 路由
+│   │   ├── papers.py       # 论文相关 API
+│   │   ├── concepts.py     # 概念相关 API
+│   │   └── graph.py        # 图谱数据 API
+│   └── schemas.py          # Pydantic 模型
+├── frontend/                # React 前端
+│   ├── src/
+│   │   ├── pages/          # 页面组件
+│   │   ├── lib/            # 工具库
+│   │   └── App.tsx         # 应用入口
+│   └── package.json
+├── openclaw/                # 核心库
+│   ├── database.py         # 数据库操作
+│   ├── graph.py            # 图谱操作
+│   └── pdf_parser.py       # PDF 解析 & LLM 提取
+├── papers/                  # 论文存储
+│   ├── pending/            # 待处理
+│   └── processed/          # 已处理
+└── openclaw.db              # SQLite 数据库
+```
+
+## API 文档
+
+启动后端后访问 http://localhost:8000/docs 查看 Swagger API 文档。
+
+### 主要接口
+
+| 接口 | 方法 | 描述 |
 |------|------|------|
-| L0 | 领域 | 人工智能、机器学习 |
-| L1 | 方向 | 强化学习、计算机视觉 |
-| L2 | 任务 | 多智能体、离线学习 |
-| L3 | 方法 | PPO、QMIX、BERT |
-| L4 | 细节 | clip机制、注意力头 |
+| `/api/papers/` | GET | 获取所有论文 |
+| `/api/papers/upload` | POST | 上传 PDF |
+| `/api/papers/process` | POST | 处理论文提取概念 |
+| `/api/concepts/` | GET | 获取所有概念 |
+| `/api/concepts/{id}/research-points` | GET | 发现研究点 |
+| `/api/graph/data` | GET | 获取图谱数据 |
 
-## 后续计划
+## 概念层级定义
 
-- [ ] Web 界面
-- [ ] 可视化图谱
-- [ ] RAG 问答
+| 类别 | 英文 | 描述 | 示例 |
+|------|------|------|------|
+| 大领域 | field | 学科/领域 | 运筹学、人工智能 |
+| 研究方向 | direction | 具体方向 | 车辆路径问题、强化学习 |
+| 子方向 | subdirection | 细分方向 | 随机需求VRP、多智能体强化学习 |
+| 任务 | task | 研究任务 | 应急配送、灾后救援 |
+| 方法 | method | 方法/算法 | 模拟退火、分支切割算法 |
+| 技术 | technique | 技术细节 | 值函数近似、梯度裁剪 |
+
+## 开发计划
+
+- [ ] 支持更多 LLM 后端（DeepSeek、OpenRouter 等）
+- [ ] 概念合并与去重优化
+- [ ] 导出为 Obsidian/Notion 格式
+- [ ] 协作功能（多人编辑知识图谱）
+- [ ] Neo4j 数据库支持
+
+## 贡献
+
+欢迎提交 Issue 和 Pull Request！
+
+## 许可证
+
+MIT License

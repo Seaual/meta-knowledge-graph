@@ -5,11 +5,15 @@ FastAPI backend for OpenClaw Web UI
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
+import sys
 
-from .routes import papers, concepts, graph
+# Add parent directory to path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from backend.routes import papers, concepts, graph
 
 app = FastAPI(
-    title="OpenClaw API",
+    title="Meta Knowledge Graph API",
     description="学术知识图谱引擎 API",
     version="0.1.0"
 )
@@ -32,7 +36,7 @@ app.include_router(graph.router)
 @app.get("/")
 def root():
     return {
-        "name": "OpenClaw API",
+        "name": "Meta Knowledge Graph API",
         "version": "0.1.0",
         "docs": "/docs"
     }

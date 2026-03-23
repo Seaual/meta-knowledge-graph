@@ -4,19 +4,24 @@ Concept API routes
 
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
+from pydantic import BaseModel
 import sys
 from pathlib import Path
+import os
+import json
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from meta_knowledge_graph.database import Database
-from meta_knowledge_graph.graph import KnowledgeGraph
-from .schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
+from openclaw.database import Database
+from openclaw.graph import KnowledgeGraph
+from openclaw.pdf_parser import LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
 
 router = APIRouter(prefix="/api/concepts", tags=["concepts"])
 
 _db = None
 _graph = None
+_extractor = None
 
 
 def get_db():
@@ -32,6 +37,38 @@ def get_graph():
     if _graph is None:
         _graph = KnowledgeGraph(get_db())
     return _graph
+
+
+def get_extractor():
+    global _extractor
+    if _extractor is None:
+        # 优先尝试使用 Claude CLI（利用 Claude Code 已配置的 API）
+        try:
+            _extractor = LLMConceptExtractor(ClaudeCLIClient())
+            return _extractor
+        except Exception as e:
+            print(f"Claude CLI not available: {e}")
+
+        # 回退到 API Key 方式
+        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            return None
+        if os.getenv("ANTHROPIC_API_KEY"):
+            client = AnthropicClient(api_key)
+        elif os.getenv("GOOGLE_API_KEY"):
+            client = GoogleClient(api_key)
+        else:
+            client = OpenAICompatibleClient(api_key)
+        _extractor = LLMConceptExtractor(client)
+    return _extractor
+
+
+class ResearchPointResponse(BaseModel):
+    """研究点发现响应"""
+    concept_id: str
+    concept_name: str
+    research_points: List[dict]
+    analysis_context: dict
 
 
 @router.get("/", response_model=List[ConceptResponse])
@@ -108,3 +145,157 @@ def get_concept_parents(concept_id: str):
     """Get parent concepts"""
     db = get_db()
     return db.get_concept_parents(concept_id)
+
+
+@router.get("/{concept_id}/research-points", response_model=ResearchPointResponse)
+def discover_research_points(concept_id: str):
+    """
+    发现研究点
+
+    分析流程：
+    1. 追溯上游节点（父概念链）
+    2. 发现下游节点及其相关性
+    3. 遍历边缘节点，找可结合的点
+    4. 调用LLM生成研究点建议
+    """
+    db = get_db()
+    extractor = get_extractor()
+
+    if not extractor:
+        raise HTTPException(status_code=500, detail="LLM not configured. Please set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or DASHSCOPE_API_KEY")
+
+    # 获取概念信息
+    concept = db.get_concept(concept_id)
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concept not found")
+
+    # 1. 追溯上游节点（祖先链）
+    ancestors = []
+    current_id = concept_id
+    visited = set()
+    while current_id and current_id not in visited:
+        visited.add(current_id)
+        parents = db.get_concept_parents(current_id)
+        if parents:
+            ancestors.extend(parents)
+            current_id = parents[0]['id']
+        else:
+            break
+
+    # 2. 获取下游节点（后代）
+    def get_all_descendants(node_id, max_depth=5):
+        descendants = []
+        queue = [(node_id, 0)]
+        visited_desc = set()
+        while queue:
+            current, depth = queue.pop(0)
+            if depth >= max_depth or current in visited_desc:
+                continue
+            visited_desc.add(current)
+            children = db.get_concept_children(current)
+            for child in children:
+                if child['id'] not in visited_desc:
+                    descendants.append({**child, 'depth': depth + 1})
+                    queue.append((child['id'], depth + 1))
+        return descendants
+
+    descendants = get_all_descendants(concept_id)
+
+    # 3. 获取边缘节点（叶子节点）- 没有子节点的概念
+    all_concepts = db.get_all_concepts()
+    edge_nodes = []
+    for c in all_concepts:
+        children = db.get_concept_children(c['id'])
+        if not children and c['id'] != concept_id:
+            edge_nodes.append(c)
+
+    # 4. 获取相关论文
+    papers = db.get_papers_by_concept(concept_id)
+    paper_info = []
+    for p in papers[:5]:  # 取前5篇论文
+        paper_info.append({
+            'title': p.get('title', ''),
+            'abstract': (p.get('abstract') or '')[:500],  # 截取前500字
+            'keywords': p.get('keywords', []),
+        })
+
+    # 5. 构建分析上下文
+    context = {
+        'concept': {
+            'id': concept_id,
+            'name': concept['text'],
+            'category': concept.get('category'),
+        },
+        'ancestors': [{'id': a['id'], 'name': a['text'], 'category': a.get('category')} for a in ancestors[:5]],
+        'descendants': [{'id': d['id'], 'name': d['text'], 'category': d.get('category'), 'depth': d.get('depth')} for d in descendants[:10]],
+        'edge_nodes': [{'id': e['id'], 'name': e['text'], 'category': e.get('category')} for e in edge_nodes[:15]],
+        'related_papers': paper_info,
+    }
+
+    # 6. 调用LLM分析
+    prompt = f"""你是一个学术研究顾问。请基于以下知识图谱信息，发现潜在的研究点。
+
+## 当前概念
+- 名称: {concept['text']}
+- 类别: {concept.get('category', 'unknown')}
+
+## 上游概念链（研究领域的发展脉络）
+{json.dumps([a['name'] for a in context['ancestors']], ensure_ascii=False, indent=2)}
+
+## 下游概念（具体研究方向和方法）
+{json.dumps([d['name'] for d in context['descendants']], ensure_ascii=False, indent=2)}
+
+## 边缘节点（其他研究分支的末端概念）
+{json.dumps([e['name'] for e in context['edge_nodes']], ensure_ascii=False, indent=2)}
+
+## 相关论文
+{json.dumps([{'title': p['title'], 'keywords': p['keywords']} for p in paper_info], ensure_ascii=False, indent=2)}
+
+请分析以上信息，发现3-5个潜在的研究点。对于每个研究点，请提供：
+1. title: 研究点标题
+2. description: 研究点描述（50-100字）
+3. rationale: 为什么这是一个有价值的研究点
+4. related_concepts: 相关的概念列表
+5. difficulty: 研究难度（easy/medium/hard）
+6. potential_impact: 潜在影响（low/medium/high）
+
+请以JSON数组格式返回结果，不要添加任何其他文字说明。
+"""
+
+    try:
+        # 调用LLM
+        response = extractor.api_client.generate(prompt)
+
+        # 解析响应
+        # 尝试提取JSON
+        response_text = response.strip()
+        if response_text.startswith('```'):
+            # 去除代码块标记
+            lines = response_text.split('\n')
+            response_text = '\n'.join(lines[1:-1] if lines[-1] == '```' else lines[1:])
+
+        research_points = json.loads(response_text)
+
+        return ResearchPointResponse(
+            concept_id=concept_id,
+            concept_name=concept['text'],
+            research_points=research_points,
+            analysis_context=context,
+        )
+    except json.JSONDecodeError as e:
+        # 如果解析失败，返回默认结构
+        return ResearchPointResponse(
+            concept_id=concept_id,
+            concept_name=concept['text'],
+            research_points=[{
+                "title": "研究点分析",
+                "description": "LLM返回格式异常，请重试",
+                "rationale": str(e),
+                "related_concepts": [],
+                "difficulty": "unknown",
+                "potential_impact": "unknown",
+            }],
+            analysis_context=context,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")

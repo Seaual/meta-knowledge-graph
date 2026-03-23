@@ -23,7 +23,7 @@ class Database:
 
     def connect(self):
         """连接到数据库"""
-        self.conn = sqlite3.connect(self.db_path)
+        self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._init_tables()
 
@@ -45,6 +45,8 @@ class Database:
                 title TEXT NOT NULL,
                 abstract TEXT,
                 authors TEXT,  -- JSON array
+                keywords TEXT,  -- JSON array - 关键词
+                contributions TEXT,  -- JSON array - 创新点
                 published_date TEXT,
                 pdf_path TEXT,
                 status TEXT DEFAULT 'pending',  -- pending/downloaded/processed/failed
@@ -59,7 +61,7 @@ class Database:
             CREATE TABLE IF NOT EXISTS concepts (
                 id TEXT PRIMARY KEY,  -- slug: "reinforcement-learning"
                 text TEXT NOT NULL,   -- 显示名
-                category TEXT,  -- field/direction/method/technique/detail
+                category TEXT,  -- field/direction/subdirection/task/method/technique
                 paper_count INTEGER DEFAULT 0,
                 depth_cache INTEGER DEFAULT -1,  -- 缓存深度（从根节点到该节点的层数），-1 表示未计算
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -139,9 +141,9 @@ class Database:
         """添加或更新论文"""
         cursor = self.conn.cursor()
 
-        # 检查是否已存在
-        cursor.execute("SELECT doi FROM papers WHERE arxiv_id = ?",
-                      (paper_data.get('arxiv_id'),))
+        # 检查是否已存在（通过 DOI）
+        cursor.execute("SELECT doi FROM papers WHERE doi = ?",
+                      (paper_data.get('doi'),))
         existing = cursor.fetchone()
 
         if existing:
@@ -149,28 +151,35 @@ class Database:
             cursor.execute("""
                 UPDATE papers SET
                     title = ?, abstract = ?, authors = ?,
-                    published_date = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE arxiv_id = ?
+                    keywords = ?, contributions = ?,
+                    pdf_path = ?, published_date = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE doi = ?
             """, (
                 paper_data.get('title'),
                 paper_data.get('abstract'),
                 json.dumps(paper_data.get('authors', [])),
+                json.dumps(paper_data.get('keywords', [])),
+                json.dumps(paper_data.get('contributions', [])),
+                paper_data.get('pdf_path'),
                 paper_data.get('published'),
-                paper_data.get('arxiv_id')
+                paper_data.get('doi')
             ))
             doi = existing['doi']
         else:
             # 插入
             doi = paper_data.get('doi', paper_data.get('arxiv_id'))
             cursor.execute("""
-                INSERT INTO papers (doi, arxiv_id, title, abstract, authors, published_date, status)
-                VALUES (?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO papers (doi, arxiv_id, title, abstract, authors, keywords, contributions, pdf_path, published_date, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             """, (
                 doi,
                 paper_data.get('arxiv_id'),
                 paper_data.get('title'),
                 paper_data.get('abstract'),
                 json.dumps(paper_data.get('authors', [])),
+                json.dumps(paper_data.get('keywords', [])),
+                json.dumps(paper_data.get('contributions', [])),
+                paper_data.get('pdf_path'),
                 paper_data.get('published')
             ))
 
@@ -203,37 +212,111 @@ class Database:
         """, (identifier, identifier))
         row = cursor.fetchone()
         if row:
-            return dict(row)
+            paper = dict(row)
+            # Deserialize JSON fields
+            if paper.get('authors') and isinstance(paper['authors'], str):
+                try:
+                    paper['authors'] = json.loads(paper['authors'])
+                except:
+                    paper['authors'] = []
+            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                try:
+                    paper['keywords'] = json.loads(paper['keywords'])
+                except:
+                    paper['keywords'] = []
+            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                try:
+                    paper['contributions'] = json.loads(paper['contributions'])
+                except:
+                    paper['contributions'] = []
+            return paper
         return None
 
     def get_papers_by_status(self, status: str) -> list:
         """按状态获取论文列表"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM papers WHERE status = ?", (status,))
-        return [dict(row) for row in cursor.fetchall()]
+        papers = [dict(row) for row in cursor.fetchall()]
+        # Deserialize JSON fields
+        for paper in papers:
+            if paper.get('authors') and isinstance(paper['authors'], str):
+                try:
+                    paper['authors'] = json.loads(paper['authors'])
+                except:
+                    paper['authors'] = []
+            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                try:
+                    paper['keywords'] = json.loads(paper['keywords'])
+                except:
+                    paper['keywords'] = []
+            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                try:
+                    paper['contributions'] = json.loads(paper['contributions'])
+                except:
+                    paper['contributions'] = []
+        return papers
 
     def get_all_papers(self) -> list:
         """获取所有论文"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM papers ORDER BY created_at DESC")
-        return [dict(row) for row in cursor.fetchall()]
+        papers = [dict(row) for row in cursor.fetchall()]
+        # Deserialize JSON fields
+        for paper in papers:
+            if paper.get('authors') and isinstance(paper['authors'], str):
+                try:
+                    paper['authors'] = json.loads(paper['authors'])
+                except:
+                    paper['authors'] = []
+            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                try:
+                    paper['keywords'] = json.loads(paper['keywords'])
+                except:
+                    paper['keywords'] = []
+            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                try:
+                    paper['contributions'] = json.loads(paper['contributions'])
+                except:
+                    paper['contributions'] = []
+        return papers
+
+    def update_paper_metadata(self, doi: str, metadata: dict):
+        """更新论文元数据（作者、摘要、关键词、创新点等）"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE papers SET
+                title = COALESCE(?, title),
+                abstract = COALESCE(?, abstract),
+                authors = COALESCE(?, authors),
+                keywords = COALESCE(?, keywords),
+                contributions = COALESCE(?, contributions),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE doi = ?
+        """, (
+            metadata.get('title'),
+            metadata.get('abstract'),
+            json.dumps(metadata['authors']) if metadata.get('authors') else None,
+            json.dumps(metadata['keywords']) if metadata.get('keywords') else None,
+            json.dumps(metadata['contributions']) if metadata.get('contributions') else None,
+            doi
+        ))
+        self.conn.commit()
 
     # ========== 概念操作方法 ==========
 
     def add_concept(self, concept_data: dict) -> str:
-        """添加或更新概念"""
+        """添加概念（如果不存在）"""
         cursor = self.conn.cursor()
         concept_id = concept_data['id']
 
+        # 只在概念不存在时插入，不更新 paper_count
         cursor.execute("""
-            INSERT OR REPLACE INTO concepts (id, text, category, paper_count, updated_at)
-            VALUES (?, ?, ?, COALESCE((SELECT paper_count FROM concepts WHERE id = ?), 0) + ?, CURRENT_TIMESTAMP)
+            INSERT OR IGNORE INTO concepts (id, text, category, paper_count, updated_at)
+            VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
         """, (
             concept_id,
             concept_data['text'],
             concept_data.get('category'),
-            concept_id,
-            1,
         ))
 
         self.conn.commit()
@@ -247,6 +330,14 @@ class Database:
             INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source)
             VALUES (?, ?, ?, ?)
         """, (paper_doi, concept_id, confidence, source))
+
+        # 更新 paper_count（基于实际关联数量）
+        cursor.execute("""
+            UPDATE concepts SET paper_count = (
+                SELECT COUNT(DISTINCT paper_doi) FROM paper_concepts WHERE concept_id = ?
+            ) WHERE id = ?
+        """, (concept_id, concept_id))
+
         self.conn.commit()
 
     def add_concept_relation(self, parent_id: str, child_id: str,
@@ -482,13 +573,35 @@ class Database:
         self.update_paper_status(paper_doi, 'processed')
 
     def _to_slug(self, text: str) -> str:
-        """将文本转换为 slug ID"""
+        """将文本转换为 slug ID（支持中文）"""
         import re
+        import hashlib
+
+        # 尝试转换为拼音（如果安装了 pypinyin）
+        try:
+            from pypinyin import lazy_pinyin
+            slug = '-'.join(lazy_pinyin(text))
+            slug = slug.lower()
+            slug = re.sub(r'[^a-z0-9-]', '', slug)
+            slug = re.sub(r'-+', '-', slug)
+            slug = slug.strip('-')
+            if slug:
+                return slug[:100]
+        except ImportError:
+            pass
+
+        # 回退：使用文本的 hash 作为 ID
+        # 对于英文，尝试正常转换
         slug = text.lower()
         slug = re.sub(r'[\s_]+', '-', slug)
         slug = re.sub(r'[^a-z0-9-]', '', slug)
         slug = slug.strip('-')
-        return slug[:100]
+
+        if slug:
+            return slug[:100]
+
+        # 如果是纯中文或其他非拉丁字符，使用 hash
+        return hashlib.md5(text.encode()).hexdigest()[:12]
 
     # ========== 上下文管理器 ==========
 

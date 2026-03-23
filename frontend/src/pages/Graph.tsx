@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import {
   ReactFlow,
   Node,
@@ -8,8 +8,8 @@ import {
   MiniMap,
   useNodesState,
   useEdgesState,
-} from '@xyflow/react'
-import '@xyflow/react/dist/style.css'
+} from 'reactflow'
+import 'reactflow/dist/style.css'
 import { graphApi } from '../lib/api'
 
 interface GraphNode {
@@ -86,8 +86,8 @@ export default function Graph() {
       style: { stroke: '#94a3b8' },
     }))
 
-    setNodes(rfNodes)
-    setEdges(rfEdges)
+    setNodes(rfNodes as Node[])
+    setEdges(rfEdges as Edge[])
   }
 
   if (loading) {
@@ -139,7 +139,7 @@ export default function Graph() {
           <Background />
           <Controls />
           <MiniMap
-            nodeColor={(node) => categoryColors[node.data?.category] || '#6b7280'}
+            nodeColor={(node) => categoryColors[node.data?.category as string] || '#6b7280'}
             maskColor="rgba(0,0,0,0.1)"
           />
         </ReactFlow>

@@ -20,15 +20,16 @@ const LEVEL_LABELS = [
   { level: 3, label: 'L3 任务', short: '任务' },
   { level: 4, label: 'L4 方法', short: '方法' },
   { level: 5, label: 'L5 技术', short: '技术' },
+  { level: 6, label: 'L6 细节', short: '细节' },
 ]
 
 const PRESETS = [
   { label: '概览', min: 0, max: 2 },
   { label: '标准', min: 0, max: 4 },
-  { label: '全部', min: 0, max: 5 },
+  { label: '全部', min: 0, max: 6 },
 ]
 
-export function LevelFilter({ value, onChange, maxLevel = 5 }: LevelFilterProps) {
+export function LevelFilter({ value, onChange, maxLevel = 6 }: LevelFilterProps) {
   const handlePresetClick = (preset: typeof PRESETS[0]) => {
     onChange({ min: preset.min, max: Math.min(preset.max, maxLevel) })
   }
@@ -98,7 +99,7 @@ export function LevelFilter({ value, onChange, maxLevel = 5 }: LevelFilterProps)
 
       {/* 当前范围显示 */}
       <div className="mt-2 text-xs text-gray-500 text-center">
-        显示 {LEVEL_LABELS[value.min].short} ~ {LEVEL_LABELS[value.max].short}
+        显示 {LEVEL_LABELS[value.min]?.short || `L${value.min}`} ~ {LEVEL_LABELS[value.max]?.short || `L${value.max}`}
       </div>
     </div>
   )

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, FileText, Trash2, Play, RefreshCw } from 'lucide-react'
+import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
 import { papersApi } from '../lib/api'
 
 interface Paper {
@@ -11,16 +11,29 @@ interface Paper {
   created_at: string
 }
 
+interface UploadResult {
+  filename: string
+  success: boolean
+  title?: string
+  status?: string
+  message?: string
+  error?: string
+}
+
 export default function Papers() {
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const loadPapers = () => {
     papersApi.list().then(res => {
       setPapers(res.data)
+      setLoading(false)
+    }).catch(err => {
+      console.error('Failed to load papers:', err)
       setLoading(false)
     })
   }
@@ -30,20 +43,40 @@ export default function Papers() {
   }, [])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = e.target.files
+    if (!files || files.length === 0) return
 
     setUploading(true)
-    try {
-      await papersApi.upload(file)
-      loadPapers()
-    } catch (err) {
-      alert('上传失败')
-    } finally {
-      setUploading(false)
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+    setUploadResults([])
+    const results: UploadResult[] = []
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      try {
+        const res = await papersApi.upload(file)
+        results.push({
+          filename: file.name,
+          success: true,
+          title: res.data.title,
+          status: res.data.status,
+          message: res.data.message
+        })
+      } catch (err: any) {
+        const errorMsg = err.response?.data?.detail || err.message || '上传失败'
+        results.push({
+          filename: file.name,
+          success: false,
+          error: errorMsg
+        })
       }
+    }
+
+    setUploadResults(results)
+    setUploading(false)
+    loadPapers()
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -106,6 +139,7 @@ export default function Papers() {
               ref={fileInputRef}
               type="file"
               accept=".pdf"
+              multiple
               className="hidden"
               onChange={handleUpload}
               disabled={uploading}
@@ -114,10 +148,43 @@ export default function Papers() {
         </div>
       </div>
 
+      {/* Upload Results */}
+      {uploadResults.length > 0 && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="font-medium mb-3">上传结果</h3>
+          <div className="space-y-2">
+            {uploadResults.map((result, idx) => (
+              <div key={idx} className={`flex items-start p-2 rounded ${result.success ? 'bg-green-50' : 'bg-red-50'}`}>
+                {result.success ? (
+                  <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                ) : (
+                  <XCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <div className="font-medium">{result.filename}</div>
+                  {result.success && result.title && (
+                    <div className="text-sm text-gray-500">{result.title}</div>
+                  )}
+                  {result.message && (
+                    <div className={`text-sm ${result.status === 'processed' ? 'text-green-600' : result.status === 'pending' ? 'text-yellow-600' : 'text-gray-500'}`}>
+                      {result.message}
+                    </div>
+                  )}
+                  {!result.success && result.error && (
+                    <div className="text-sm text-red-500">{result.error}</div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {papers.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <FileText className="h-12 w-12 mx-auto text-gray-400" />
           <p className="mt-4 text-gray-500">暂无论文，上传 PDF 开始</p>
+          <p className="mt-2 text-sm text-gray-400">支持批量上传多个 PDF 文件</p>
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
@@ -145,10 +212,12 @@ export default function Papers() {
                     <div className="text-sm font-medium text-gray-900">
                       {paper.title}
                     </div>
-                    {paper.authors?.length > 0 && (
+                    {paper.authors && paper.authors.length > 0 && (
                       <div className="text-sm text-gray-500">
-                        {paper.authors.slice(0, 3).join(', ')}
-                        {paper.authors.length > 3 && '...'}
+                        {Array.isArray(paper.authors)
+                          ? paper.authors.slice(0, 3).join(', ')
+                          : paper.authors}
+                        {Array.isArray(paper.authors) && paper.authors.length > 3 && '...'}
                       </div>
                     )}
                   </td>
@@ -158,7 +227,7 @@ export default function Papers() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {new Date(paper.created_at).toLocaleDateString()}
+                    {paper.created_at ? new Date(paper.created_at).toLocaleDateString() : '-'}
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
