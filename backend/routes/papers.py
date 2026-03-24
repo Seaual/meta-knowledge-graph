@@ -9,6 +9,9 @@ import sys
 from pathlib import Path
 import shutil
 import os
+import asyncio
+import uuid
+import time
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -16,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from openclaw.database import Database
 from openclaw.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
 from openclaw.graph import KnowledgeGraph
-from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission
+from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
 
 
 class PaperMetadataUpdate(BaseModel):
@@ -165,6 +168,164 @@ async def upload_paper(file: UploadFile = File(...)):
         "pdf_path": str(file_path),
         "message": "Paper uploaded to pending folder"
     }
+
+
+@router.post("/batch-upload")
+async def batch_upload_papers(files: List[UploadFile] = File(...)):
+    """批量上传多个 PDF 文件"""
+    project_root = Path(__file__).parent.parent.parent
+    pending_dir = project_root / "papers" / "pending"
+    pending_dir.mkdir(parents=True, exist_ok=True)
+
+    job_id = f"batch_{int(time.time())}_{uuid.uuid4().hex[:8]}"
+    uploaded = []
+
+    db = get_db()
+
+    for file in files:
+        if not file.filename or not file.filename.endswith('.pdf'):
+            uploaded.append({
+                "filename": file.filename or "unknown",
+                "success": False,
+                "error": "Invalid file type"
+            })
+            continue
+
+        base_name = Path(file.filename).stem
+        ext = Path(file.filename).suffix
+        unique_name = f"{base_name}_{int(time.time())}_{uuid.uuid4().hex[:4]}{ext}"
+        file_path = pending_dir / unique_name
+
+        try:
+            with open(file_path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+
+            parser = get_parser()
+            content = parser.parse(str(file_path))
+
+            if content and content.title:
+                paper_data = {
+                    'doi': base_name,
+                    'title': content.title,
+                    'abstract': content.abstract or "",
+                    'authors': content.authors or [],
+                    'pdf_path': str(file_path),
+                }
+            else:
+                paper_data = {
+                    'doi': base_name,
+                    'title': base_name.replace('_', ' ').replace('-', ' '),
+                    'abstract': "",
+                    'authors': [],
+                    'pdf_path': str(file_path),
+                }
+
+            doi = db.add_paper(paper_data)
+            uploaded.append({
+                "doi": doi,
+                "title": paper_data['title'],
+                "filename": file.filename,
+                "status": "pending",
+                "success": True
+            })
+        except Exception as e:
+            uploaded.append({
+                "filename": file.filename,
+                "success": False,
+                "error": str(e)
+            })
+
+    successful_uploads = [u for u in uploaded if u.get('success')]
+    db.create_batch_job(job_id, len(successful_uploads))
+
+    return {
+        "job_id": job_id,
+        "uploaded": uploaded,
+        "total": len(successful_uploads)
+    }
+
+
+@router.post("/batch-process")
+async def batch_process_papers(request: BatchProcessRequest):
+    """并行处理多个论文"""
+    db = get_db()
+    parser = get_parser()
+    extractor = get_extractor()
+
+    if not extractor:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="LLM not configured")
+
+    job = db.get_batch_job(request.job_id)
+    if not job:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Batch job not found")
+
+    db.update_batch_job(request.job_id, 0, 0, 0, 'processing')
+
+    results = []
+    completed = 0
+    successful = 0
+    failed = 0
+
+    async def process_single(doi: str) -> dict:
+        nonlocal completed, successful, failed
+        try:
+            paper = db.get_paper(doi)
+            if not paper or not paper.get('pdf_path'):
+                return {"doi": doi, "status": "failed", "error": "Paper or PDF not found"}
+
+            content = parser.parse(paper['pdf_path'])
+            if not content:
+                return {"doi": doi, "status": "failed", "error": "Failed to parse PDF"}
+
+            extracted = extractor.extract(content)
+            if extracted.concept_tree:
+                graph = get_graph()
+                graph.build_from_paper(doi, extracted.concept_tree.to_dict())
+                db.save_concept_extraction(doi, extracted.concept_tree.to_dict(), extracted.raw_response)
+                return {"doi": doi, "status": "success", "concepts": len(extracted.concept_tree.children) if extracted.concept_tree.children else 0}
+            else:
+                return {"doi": doi, "status": "failed", "error": "No concepts extracted"}
+        except Exception as e:
+            return {"doi": doi, "status": "failed", "error": str(e)}
+
+    semaphore = asyncio.Semaphore(3)
+
+    async def process_with_limit(doi: str):
+        async with semaphore:
+            result = await process_single(doi)
+            completed += 1
+            if result["status"] == "success":
+                successful += 1
+            else:
+                failed += 1
+            db.update_batch_job(request.job_id, completed, successful, failed,
+                              'completed' if completed == len(request.dois) else 'processing')
+            return result
+
+    results = await asyncio.gather(*[process_with_limit(doi) for doi in request.dois])
+
+    return {
+        "job_id": request.job_id,
+        "status": "completed",
+        "total": len(request.dois),
+        "completed": completed,
+        "successful": successful,
+        "failed": failed,
+        "results": results
+    }
+
+
+@router.get("/batch-status/{job_id}")
+def get_batch_status(job_id: str):
+    """获取批量任务状态"""
+    db = get_db()
+    job = db.get_batch_job(job_id)
+    if not job:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Batch job not found")
+    return job
 
 
 @router.post("/process", response_model=ProcessResponse)
