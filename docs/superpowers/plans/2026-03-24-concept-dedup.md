@@ -204,7 +204,24 @@ def recalculate_depth_cache(self, concept_id: str = None):
     self.conn.commit()
 ```
 
-- [ ] **Step 5: 提交**
+- [ ] **Step 5: 验证方法**
+
+```bash
+cd D:/meta-knowledge-graph-main
+python -c "
+from openclaw.database import Database
+db = Database('openclaw.db')
+db.connect()
+# Test recalculate_depth_cache (safe operation)
+db.recalculate_depth_cache()
+print('Database methods OK')
+db.close()
+"
+```
+
+预期输出：`Database methods OK`
+
+- [ ] **Step 6: 提交**
 
 ```bash
 git add openclaw/database.py
@@ -213,20 +230,19 @@ git commit -m "feat(db): add merge-related database methods"
 
 ---
 
-### Task 3: 创建 dedup 模块结构
+### Task 3: 创建 dedup 模块 - candidate.py
 
 **Files:**
 - Create: `openclaw/dedup/__init__.py`
 - Create: `openclaw/dedup/candidate.py`
-- Create: `openclaw/dedup/analyzer.py`
-- Create: `openclaw/dedup/executor.py`
-- Create: `openclaw/dedup/deduplicator.py`
 
-- [ ] **Step 1: 创建目录和 __init__.py**
+- [ ] **Step 1: 创建目录**
 
 ```bash
 mkdir -p D:/meta-knowledge-graph-main/openclaw/dedup
 ```
+
+- [ ] **Step 2: 创建 __init__.py**
 
 创建 `openclaw/dedup/__init__.py`：
 
@@ -241,20 +257,11 @@ mkdir -p D:/meta-knowledge-graph-main/openclaw/dedup
 - ConceptDeduplicator: 主控制器
 """
 
-from .candidate import CandidateGenerator
-from .analyzer import MergeAnalyzer
-from .executor import MergeExecutor
-from .deduplicator import ConceptDeduplicator
-
-__all__ = [
-    'CandidateGenerator',
-    'MergeAnalyzer',
-    'MergeExecutor',
-    'ConceptDeduplicator'
-]
+# 模块导出将在后续任务中添加
+__all__ = []
 ```
 
-- [ ] **Step 2: 创建 candidate.py**
+- [ ] **Step 3: 创建 candidate.py**
 
 创建 `openclaw/dedup/candidate.py`：
 
@@ -264,7 +271,7 @@ __all__ = [
 """
 
 from difflib import SequenceMatcher
-from typing import List, Dict, Tuple, Generator
+from typing import List, Dict, Generator
 from dataclasses import dataclass
 
 
@@ -279,19 +286,10 @@ class ConceptPair:
 class CandidateGenerator:
     """候选对生成器"""
 
-    # 相似度阈值
     SIMILARITY_THRESHOLD = 0.6
-
-    # 需要处理的类别
     CATEGORIES = ['field', 'direction', 'subdirection', 'task', 'method', 'technique']
 
     def __init__(self, db):
-        """
-        初始化
-
-        Args:
-            db: Database 实例
-        """
         self.db = db
 
     def text_similarity(self, text1: str, text2: str) -> float:
@@ -301,57 +299,62 @@ class CandidateGenerator:
     def generate_candidates(self) -> List[ConceptPair]:
         """生成所有候选对"""
         candidates = []
-
         for category in self.CATEGORIES:
             concepts = self.db.get_concepts_by_category(category)
             candidates.extend(self._generate_pairs_in_category(concepts))
-
         return candidates
 
     def generate_candidates_batch(self, batch_size: int = 50) -> Generator[List[ConceptPair], None, None]:
         """分批生成候选对（用于大库）"""
         batch = []
-
         for category in self.CATEGORIES:
             concepts = self.db.get_concepts_by_category(category)
-
             for i, c1 in enumerate(concepts):
                 for c2 in concepts[i+1:]:
                     similarity = self.text_similarity(c1['text'], c2['text'])
-
                     if similarity >= self.SIMILARITY_THRESHOLD:
-                        batch.append(ConceptPair(
-                            concept1=c1,
-                            concept2=c2,
-                            similarity=similarity
-                        ))
-
+                        batch.append(ConceptPair(concept1=c1, concept2=c2, similarity=similarity))
                         if len(batch) >= batch_size:
                             yield batch
                             batch = []
-
         if batch:
             yield batch
 
     def _generate_pairs_in_category(self, concepts: List[Dict]) -> List[ConceptPair]:
         """在同类概念中生成候选对"""
         pairs = []
-
         for i, c1 in enumerate(concepts):
             for c2 in concepts[i+1:]:
                 similarity = self.text_similarity(c1['text'], c2['text'])
-
                 if similarity >= self.SIMILARITY_THRESHOLD:
-                    pairs.append(ConceptPair(
-                        concept1=c1,
-                        concept2=c2,
-                        similarity=similarity
-                    ))
-
+                    pairs.append(ConceptPair(concept1=c1, concept2=c2, similarity=similarity))
         return pairs
 ```
 
-- [ ] **Step 3: 创建 analyzer.py**
+- [ ] **Step 4: 验证导入**
+
+```bash
+cd D:/meta-knowledge-graph-main
+python -c "from openclaw.dedup.candidate import CandidateGenerator, ConceptPair; print('candidate.py OK')"
+```
+
+预期输出：`candidate.py OK`
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add openclaw/dedup/
+git commit -m "feat(dedup): add CandidateGenerator for finding duplicate concept pairs"
+```
+
+---
+
+### Task 4: 创建 dedup 模块 - analyzer.py
+
+**Files:**
+- Create: `openclaw/dedup/analyzer.py`
+
+- [ ] **Step 1: 创建 analyzer.py**
 
 创建 `openclaw/dedup/analyzer.py`：
 
@@ -361,7 +364,8 @@ LLM 分析器 - 判断概念是否应该合并及合并后的层级关系
 """
 
 import json
-from typing import List, Dict, Optional
+import re
+from typing import List, Dict
 from dataclasses import dataclass
 
 
@@ -379,31 +383,17 @@ class MergeAnalyzer:
     """LLM 分析器"""
 
     def __init__(self, llm_client):
-        """
-        初始化
-
-        Args:
-            llm_client: LLM 客户端（需要有 extract_concepts 方法）
-        """
         self.llm_client = llm_client
+        # 这些方法会在 deduplicator 中注入
+        self._get_parent_names = lambda cid: []
+        self._get_child_names = lambda cid: []
 
     def analyze(self, candidates: List) -> List[MergeSuggestion]:
-        """
-        分析候选对，返回合并建议
-
-        Args:
-            candidates: ConceptPair 列表
-
-        Returns:
-            MergeSuggestion 列表
-        """
+        """分析候选对，返回合并建议"""
         if not candidates:
             return []
 
-        # 构建 LLM prompt
         prompt = self._build_prompt(candidates)
-
-        # 调用 LLM
         try:
             response = self.llm_client.extract_concepts(prompt)
             return self._parse_response(response, candidates)
@@ -413,35 +403,28 @@ class MergeAnalyzer:
 
     def _build_prompt(self, candidates: List) -> str:
         """构建 LLM prompt"""
-        # 构建候选对信息
         candidate_info = []
         for i, pair in enumerate(candidates):
-            # 获取父子关系
-            c1_parents = self._get_parent_names(pair.concept1['id'])
-            c1_children = self._get_child_names(pair.concept1['id'])
-            c2_parents = self._get_parent_names(pair.concept2['id'])
-            c2_children = self._get_child_names(pair.concept2['id'])
-
             candidate_info.append({
                 "pair_id": i,
                 "concept1": {
                     "id": pair.concept1['id'],
                     "text": pair.concept1['text'],
                     "paper_count": pair.concept1.get('paper_count', 0),
-                    "parents": c1_parents,
-                    "children": c1_children
+                    "parents": self._get_parent_names(pair.concept1['id']),
+                    "children": self._get_child_names(pair.concept1['id'])
                 },
                 "concept2": {
                     "id": pair.concept2['id'],
                     "text": pair.concept2['text'],
                     "paper_count": pair.concept2.get('paper_count', 0),
-                    "parents": c2_parents,
-                    "children": c2_children
+                    "parents": self._get_parent_names(pair.concept2['id']),
+                    "children": self._get_child_names(pair.concept2['id'])
                 },
                 "similarity": round(pair.similarity, 2)
             })
 
-        prompt = f"""你是一个学术知识图谱维护助手。请分析以下概念对，判断哪些应该合并。
+        return f"""你是一个学术知识图谱维护助手。请分析以下概念对，判断哪些应该合并。
 
 ## 候选概念对
 
@@ -464,39 +447,29 @@ class MergeAnalyzer:
     {{
       "pair_id": 0,
       "should_merge": true,
-      "target_id": "保留的概念ID（通常选择paper_count更高的）",
+      "target_id": "保留的概念ID",
       "confidence": 0.95,
-      "rationale": "简短说明为什么应该合并",
-      "merged_parents": ["合并后的父概念ID列表"],
-      "merged_children": ["合并后的子概念ID列表"]
+      "rationale": "简短说明",
+      "merged_parents": ["父概念ID列表"],
+      "merged_children": ["子概念ID列表"]
     }},
     {{
       "pair_id": 1,
       "should_merge": false,
-      "rationale": "简短说明为什么不应该合并"
+      "rationale": "不应该合并的原因"
     }}
   ]
 }}
 ```
 
-只输出 JSON，不要其他内容。对于不应该合并的概念对，should_merge 设为 false。
-"""
-        return prompt
+只输出 JSON，不要其他内容。"""
 
     def _parse_response(self, response: str, candidates: List) -> List[MergeSuggestion]:
         """解析 LLM 响应"""
-        import re
-
         suggestions = []
-
         try:
-            # 尝试提取 JSON
             json_match = re.search(r'```json\s*(.+?)\s*```', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                json_str = response.strip()
-
+            json_str = json_match.group(1) if json_match else response.strip()
             data = json.loads(json_str)
 
             for item in data.get('merge_suggestions', []):
@@ -508,10 +481,12 @@ class MergeAnalyzer:
                     continue
 
                 pair = candidates[pair_id]
+                target_id = item.get('target_id', pair.concept1['id'])
+                source_id = pair.concept2['id'] if target_id == pair.concept1['id'] else pair.concept1['id']
 
                 suggestions.append(MergeSuggestion(
-                    source_id=pair.concept2['id'] if item.get('target_id') == pair.concept1['id'] else pair.concept1['id'],
-                    target_id=item.get('target_id', pair.concept1['id']),
+                    source_id=source_id,
+                    target_id=target_id,
                     confidence=item.get('confidence', 0.8),
                     rationale=item.get('rationale', ''),
                     merged_relations={
@@ -519,23 +494,36 @@ class MergeAnalyzer:
                         'children': item.get('merged_children', [])
                     }
                 ))
-
         except (json.JSONDecodeError, KeyError) as e:
             print(f"解析 LLM 响应失败: {e}")
 
         return suggestions
-
-    def _get_parent_names(self, concept_id: str) -> List[str]:
-        """获取父概念 ID 列表（需要从外部注入 db）"""
-        # 这个方法在 deduplicator 中会被正确实现
-        return []
-
-    def _get_child_names(self, concept_id: str) -> List[str]:
-        """获取子概念 ID 列表（需要从外部注入 db）"""
-        return []
 ```
 
-- [ ] **Step 4: 创建 executor.py**
+- [ ] **Step 2: 验证导入**
+
+```bash
+cd D:/meta-knowledge-graph-main
+python -c "from openclaw.dedup.analyzer import MergeAnalyzer, MergeSuggestion; print('analyzer.py OK')"
+```
+
+预期输出：`analyzer.py OK`
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add openclaw/dedup/analyzer.py
+git commit -m "feat(dedup): add MergeAnalyzer for LLM-based merge decision"
+```
+
+---
+
+### Task 5: 创建 dedup 模块 - executor.py
+
+**Files:**
+- Create: `openclaw/dedup/executor.py`
+
+- [ ] **Step 1: 创建 executor.py**
 
 创建 `openclaw/dedup/executor.py`：
 
@@ -544,7 +532,7 @@ class MergeAnalyzer:
 合并执行器 - 执行概念合并操作
 """
 
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from dataclasses import dataclass
 
 
@@ -561,28 +549,12 @@ class MergeExecutor:
     """合并执行器"""
 
     def __init__(self, db):
-        """
-        初始化
-
-        Args:
-            db: Database 实例
-        """
         self.db = db
 
     def execute(self, source_id: str, target_id: str, merged_relations: Dict) -> MergeResult:
-        """
-        执行合并操作
-
-        Args:
-            source_id: 要合并的概念 ID（将被删除）
-            target_id: 保留的概念 ID
-            merged_relations: 合并后的层级关系 {"parents": [...], "children": [...]}
-
-        Returns:
-            MergeResult
-        """
+        """执行合并操作"""
         try:
-            # 1. 检查循环依赖
+            # 检查循环依赖
             if self._detect_cycle(target_id, merged_relations):
                 return MergeResult(
                     source_id=source_id,
@@ -591,65 +563,39 @@ class MergeExecutor:
                     message='检测到循环依赖，拒绝合并'
                 )
 
-            # 2. 开启事务执行合并
+            # 开启事务执行合并
             cursor = self.db.conn.cursor()
             cursor.execute("BEGIN TRANSACTION")
 
             try:
-                # 迁移论文关联
                 self.db.migrate_paper_concepts(source_id, target_id)
-
-                # 更新父子关系
                 self.db.update_concept_relations(target_id, merged_relations)
-
-                # 删除源概念
                 self.db.delete_concept(source_id)
-
-                # 重新计算深度缓存
                 self.db.recalculate_depth_cache()
-
                 self.db.conn.commit()
 
-                return MergeResult(
-                    source_id=source_id,
-                    target_id=target_id,
-                    status='success'
-                )
-
+                return MergeResult(source_id=source_id, target_id=target_id, status='success')
             except Exception as e:
                 self.db.conn.rollback()
                 raise e
 
         except Exception as e:
-            return MergeResult(
-                source_id=source_id,
-                target_id=target_id,
-                status='failed',
-                message=str(e)
-            )
+            return MergeResult(source_id=source_id, target_id=target_id, status='failed', message=str(e))
 
     def _detect_cycle(self, concept_id: str, merged_relations: Dict) -> bool:
         """检测合并后的层级关系是否会产生循环"""
-        new_parents = merged_relations.get('parents', [])
-        new_children = merged_relations.get('children', [])
-
-        # 检查：新父节点是否是 concept_id 的后代？
-        for parent_id in new_parents:
+        for parent_id in merged_relations.get('parents', []):
             if self._is_descendant(concept_id, parent_id):
                 return True
-
-        # 检查：新子节点是否是 concept_id 的祖先？
-        for child_id in new_children:
+        for child_id in merged_relations.get('children', []):
             if self._is_ancestor(concept_id, child_id):
                 return True
-
         return False
 
     def _is_descendant(self, ancestor_id: str, node_id: str) -> bool:
         """检查 node_id 是否是 ancestor_id 的后代"""
         visited = set()
         queue = [ancestor_id]
-
         while queue:
             current = queue.pop(0)
             if current == node_id:
@@ -657,17 +603,13 @@ class MergeExecutor:
             if current in visited:
                 continue
             visited.add(current)
-
-            children = self.db.get_concept_children(current)
-            queue.extend([c['id'] for c in children])
-
+            queue.extend([c['id'] for c in self.db.get_concept_children(current)])
         return False
 
     def _is_ancestor(self, descendant_id: str, node_id: str) -> bool:
         """检查 node_id 是否是 descendant_id 的祖先"""
         visited = set()
         queue = [descendant_id]
-
         while queue:
             current = queue.pop(0)
             if current == node_id:
@@ -675,14 +617,35 @@ class MergeExecutor:
             if current in visited:
                 continue
             visited.add(current)
-
-            parents = self.db.get_concept_parents(current)
-            queue.extend([p['id'] for p in parents])
-
+            queue.extend([p['id'] for p in self.db.get_concept_parents(current)])
         return False
 ```
 
-- [ ] **Step 5: 创建 deduplicator.py**
+- [ ] **Step 2: 验证导入**
+
+```bash
+cd D:/meta-knowledge-graph-main
+python -c "from openclaw.dedup.executor import MergeExecutor, MergeResult; print('executor.py OK')"
+```
+
+预期输出：`executor.py OK`
+
+- [ ] **Step 3: 提交**
+
+```bash
+git add openclaw/dedup/executor.py
+git commit -m "feat(dedup): add MergeExecutor with cycle detection"
+```
+
+---
+
+### Task 6: 创建 dedup 模块 - deduplicator.py
+
+**Files:**
+- Create: `openclaw/dedup/deduplicator.py`
+- Modify: `openclaw/dedup/__init__.py`
+
+- [ ] **Step 1: 创建 deduplicator.py**
 
 创建 `openclaw/dedup/deduplicator.py`：
 
@@ -696,12 +659,11 @@ from datetime import datetime
 import uuid
 from typing import Dict, Optional, List
 
-from .candidate import CandidateGenerator, ConceptPair
-from .analyzer import MergeAnalyzer, MergeSuggestion
-from .executor import MergeExecutor, MergeResult
+from .candidate import CandidateGenerator
+from .analyzer import MergeAnalyzer
+from .executor import MergeExecutor
 
 
-# 全局扫描结果缓存（线程安全）
 _scan_results: Dict[str, dict] = {}
 _scan_lock = threading.Lock()
 
@@ -709,10 +671,7 @@ _scan_lock = threading.Lock()
 def store_scan_result(scan_id: str, result: dict):
     """存储扫描结果"""
     with _scan_lock:
-        _scan_results[scan_id] = {
-            "result": result,
-            "created_at": datetime.now()
-        }
+        _scan_results[scan_id] = {"result": result, "created_at": datetime.now()}
 
 
 def get_scan_result(scan_id: str) -> Optional[dict]:
@@ -721,12 +680,9 @@ def get_scan_result(scan_id: str) -> Optional[dict]:
         entry = _scan_results.get(scan_id)
         if not entry:
             return None
-
-        # 超过 1 小时过期
         if (datetime.now() - entry["created_at"]).seconds > 3600:
             del _scan_results[scan_id]
             return None
-
         return entry["result"]
 
 
@@ -739,149 +695,69 @@ class ConceptDeduplicator:
     """概念去重主控制器"""
 
     def __init__(self, db, llm_client=None):
-        """
-        初始化
-
-        Args:
-            db: Database 实例
-            llm_client: LLM 客户端（可选）
-        """
         self.db = db
         self.llm_client = llm_client
-
-        # 初始化子组件
         self.candidate_generator = CandidateGenerator(db)
         self.merge_executor = MergeExecutor(db)
-
-        if llm_client:
-            self.merge_analyzer = MergeAnalyzer(llm_client)
-        else:
-            self.merge_analyzer = None
+        self.merge_analyzer = MergeAnalyzer(llm_client) if llm_client else None
 
     def scan(self) -> dict:
-        """
-        执行去重扫描
-
-        Returns:
-            {
-                "scan_id": "...",
-                "status": "completed",
-                "candidates_found": N,
-                "merge_suggestions": [...]
-            }
-        """
+        """执行去重扫描"""
         scan_id = generate_scan_id()
-
-        # 1. 生成候选对
         candidates = self.candidate_generator.generate_candidates()
 
         if not candidates:
-            result = {
-                "scan_id": scan_id,
-                "status": "completed",
-                "candidates_found": 0,
-                "merge_suggestions": []
-            }
+            result = {"scan_id": scan_id, "status": "completed", "candidates_found": 0, "merge_suggestions": []}
             store_scan_result(scan_id, result)
             return result
 
-        # 2. LLM 分析
         if not self.merge_analyzer:
-            result = {
-                "scan_id": scan_id,
-                "status": "error",
-                "error": "LLM not configured",
-                "candidates_found": len(candidates),
-                "merge_suggestions": []
-            }
+            result = {"scan_id": scan_id, "status": "error", "error": "LLM not configured",
+                      "candidates_found": len(candidates), "merge_suggestions": []}
             store_scan_result(scan_id, result)
             return result
 
-        # 为 analyzer 注入 db 以获取父子关系
-        self.merge_analyzer._get_parent_names = lambda cid: [
-            p['id'] for p in self.db.get_concept_parents(cid)
-        ]
-        self.merge_analyzer._get_child_names = lambda cid: [
-            c['id'] for c in self.db.get_concept_children(cid)
-        ]
+        # 注入 db 方法
+        self.merge_analyzer._get_parent_names = lambda cid: [p['id'] for p in self.db.get_concept_parents(cid)]
+        self.merge_analyzer._get_child_names = lambda cid: [c['id'] for c in self.db.get_concept_children(cid)]
 
         suggestions = self.merge_analyzer.analyze(candidates)
 
-        # 3. 构建响应
         merge_suggestions = []
         for i, s in enumerate(suggestions):
             source = self.db.get_concept(s.source_id)
             target = self.db.get_concept(s.target_id)
-
             if not source or not target:
                 continue
-
             merge_suggestions.append({
                 "id": f"merge-{scan_id}-{i}",
-                "source": {
-                    "id": source['id'],
-                    "text": source['text'],
-                    "paper_count": source.get('paper_count', 0)
-                },
-                "target": {
-                    "id": target['id'],
-                    "text": target['text'],
-                    "paper_count": target.get('paper_count', 0)
-                },
+                "source": {"id": source['id'], "text": source['text'], "paper_count": source.get('paper_count', 0)},
+                "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                 "confidence": s.confidence,
                 "rationale": s.rationale,
                 "merged_relations": s.merged_relations
             })
 
-        result = {
-            "scan_id": scan_id,
-            "status": "completed",
-            "candidates_found": len(candidates),
-            "merge_suggestions": merge_suggestions
-        }
-
+        result = {"scan_id": scan_id, "status": "completed", "candidates_found": len(candidates),
+                  "merge_suggestions": merge_suggestions}
         store_scan_result(scan_id, result)
         return result
 
     def execute_merge(self, scan_id: str, merge_ids: List[str]) -> dict:
-        """
-        执行合并操作
-
-        Args:
-            scan_id: 扫描 ID
-            merge_ids: 要执行的合并建议 ID 列表
-
-        Returns:
-            {
-                "executed": N,
-                "details": [...]
-            }
-        """
-        # 1. 获取扫描结果
+        """执行合并操作"""
         scan_result = get_scan_result(scan_id)
         if not scan_result:
-            return {
-                "executed": 0,
-                "error": "Scan result not found or expired"
-            }
+            return {"executed": 0, "error": "Scan result not found or expired"}
 
-        # 2. 找到对应的合并建议
-        suggestions_map = {
-            s['id']: s for s in scan_result.get('merge_suggestions', [])
-        }
+        suggestions_map = {s['id']: s for s in scan_result.get('merge_suggestions', [])}
 
-        # 3. 执行合并
         details = []
         executed = 0
 
         for merge_id in merge_ids:
             suggestion = suggestions_map.get(merge_id)
             if not suggestion:
-                details.append({
-                    "merge_id": merge_id,
-                    "status": "failed",
-                    "message": "Merge suggestion not found"
-                })
+                details.append({"merge_id": merge_id, "status": "failed", "message": "Merge suggestion not found"})
                 continue
 
             result = self.merge_executor.execute(
@@ -900,22 +776,50 @@ class ConceptDeduplicator:
             if result.status == 'success':
                 executed += 1
 
-        return {
-            "executed": executed,
-            "details": details
-        }
+        return {"executed": executed, "details": details}
 ```
 
-- [ ] **Step 6: 提交**
+- [ ] **Step 2: 更新 __init__.py**
+
+更新 `openclaw/dedup/__init__.py`：
+
+```python
+"""
+概念去重模块
+"""
+
+from .candidate import CandidateGenerator, ConceptPair
+from .analyzer import MergeAnalyzer, MergeSuggestion
+from .executor import MergeExecutor, MergeResult
+from .deduplicator import ConceptDeduplicator
+
+__all__ = [
+    'CandidateGenerator', 'ConceptPair',
+    'MergeAnalyzer', 'MergeSuggestion',
+    'MergeExecutor', 'MergeResult',
+    'ConceptDeduplicator'
+]
+```
+
+- [ ] **Step 3: 验证所有导入**
+
+```bash
+cd D:/meta-knowledge-graph-main
+python -c "from openclaw.dedup import ConceptDeduplicator, CandidateGenerator, MergeAnalyzer, MergeExecutor; print('All dedup modules OK')"
+```
+
+预期输出：`All dedup modules OK`
+
+- [ ] **Step 4: 提交**
 
 ```bash
 git add openclaw/dedup/
-git commit -m "feat: add dedup module (candidate, analyzer, executor, deduplicator)"
+git commit -m "feat(dedup): add ConceptDeduplicator main controller"
 ```
 
 ---
 
-### Task 4: API 端点 - scan
+### Task 7: API 端点 - scan
 
 **Files:**
 - Modify: `backend/routes/concepts.py`
@@ -981,7 +885,7 @@ git commit -m "feat(api): add /api/concepts/dedup/scan endpoint"
 
 ---
 
-### Task 5: API 端点 - execute
+### Task 8: API 端点 - execute
 
 **Files:**
 - Modify: `backend/routes/concepts.py`
@@ -1028,7 +932,7 @@ git commit -m "feat(api): add /api/concepts/dedup/execute endpoint"
 
 ---
 
-### Task 6: 集成测试
+### Task 9: 集成测试
 
 **Files:**
 - Test: API 端点测试
@@ -1062,11 +966,22 @@ curl -X POST http://localhost:8000/api/concepts/dedup/execute \
 
 预期输出：包含 `executed` 和 `details` 的 JSON
 
-- [ ] **Step 4: 验证 Swagger 文档**
+- [ ] **Step 4: 测试错误处理 - scan_id 过期**
+
+```bash
+# 使用不存在的 scan_id
+curl -X POST http://localhost:8000/api/concepts/dedup/execute \
+  -H "Content-Type: application/json" \
+  -d '{"scan_id": "scan-invalid-123", "merge_ids": ["merge-xxx-0"]}'
+```
+
+预期输出：400 错误，包含 `"Scan result not found or expired"`
+
+- [ ] **Step 5: 验证 Swagger 文档**
 
 访问 http://localhost:8000/docs 确认新端点出现在 API 列表中
 
-- [ ] **Step 5: 最终提交**
+- [ ] **Step 6: 最终提交**
 
 ```bash
 git add -A
