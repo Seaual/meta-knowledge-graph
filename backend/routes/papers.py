@@ -118,8 +118,10 @@ async def upload_paper(file: UploadFile = File(...)):
 
     # Generate unique filename
     import time
-    base_name = Path(file.filename).stem
-    ext = Path(file.filename).suffix or ".pdf"
+    # Sanitize filename to prevent path traversal
+    safe_filename = Path(file.filename).name
+    base_name = Path(safe_filename).stem
+    ext = Path(safe_filename).suffix or ".pdf"
     unique_name = f"{base_name}_{int(time.time())}{ext}"
     file_path = pending_dir / unique_name
 
@@ -191,8 +193,9 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
             })
             continue
 
-        base_name = Path(file.filename).stem
-        ext = Path(file.filename).suffix
+        safe_filename = Path(file.filename).name
+        base_name = Path(safe_filename).stem
+        ext = Path(safe_filename).suffix
         unique_name = f"{base_name}_{int(time.time())}_{uuid.uuid4().hex[:4]}{ext}"
         file_path = pending_dir / unique_name
 
@@ -201,7 +204,7 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
                 shutil.copyfileobj(file.file, buffer)
 
             parser = get_parser()
-            content = parser.parse(str(file_path))
+            content = await asyncio.to_thread(parser.parse, str(file_path))
 
             if content and content.title:
                 paper_data = {
@@ -253,12 +256,10 @@ async def batch_process_papers(request: BatchProcessRequest):
     extractor = get_extractor()
 
     if not extractor:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail="LLM not configured")
 
     job = db.get_batch_job(request.job_id)
     if not job:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Batch job not found")
 
     db.update_batch_job(request.job_id, 0, 0, 0, 'processing')
@@ -275,11 +276,11 @@ async def batch_process_papers(request: BatchProcessRequest):
             if not paper or not paper.get('pdf_path'):
                 return {"doi": doi, "status": "failed", "error": "Paper or PDF not found"}
 
-            content = parser.parse(paper['pdf_path'])
+            content = await asyncio.to_thread(parser.parse, paper['pdf_path'])
             if not content:
                 return {"doi": doi, "status": "failed", "error": "Failed to parse PDF"}
 
-            extracted = extractor.extract(content)
+            extracted = await asyncio.to_thread(extractor.extract, content)
             if extracted.concept_tree:
                 graph = get_graph()
                 graph.build_from_paper(doi, extracted.concept_tree.to_dict())
@@ -323,7 +324,6 @@ def get_batch_status(job_id: str):
     db = get_db()
     job = db.get_batch_job(job_id)
     if not job:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Batch job not found")
     return job
 
