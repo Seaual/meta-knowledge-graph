@@ -7,8 +7,10 @@
 - **PDF 论文解析** - 自动提取论文标题、作者、摘要等元数据
 - **LLM 概念提取** - 使用 Claude/Gemini/Qwen 等大语言模型从论文中提取层次化概念结构
 - **知识图谱可视化** - 类似 Obsidian/Neo4j 的力导向图交互式展示
+- **批量处理** - 支持多 PDF 并行上传与队列处理，加速文献导入
 - **概念去重** - 智能扫描重复概念，LLM 分析合并建议，一键执行合并
 - **研究点发现** - 基于知识图谱分析，发现潜在研究方向和创新点
+- **多格式导出** - 支持 Obsidian Canvas、Markdown、交互式 HTML 导出
 - **中文概念支持** - 所有概念统一使用中文，便于知识关联
 
 ## 技术栈
@@ -137,6 +139,23 @@ npm run dev
 5. 勾选需要合并的建议
 6. 点击「执行选中的合并」完成操作
 
+### 批量上传与处理
+
+1. 进入「论文」页面
+2. 点击「批量上传」按钮，选择多个 PDF 文件
+3. 系统将并行上传所有文件到待处理队列
+4. 点击「批量处理」一次性处理所有待处理论文
+5. 进度条实时显示处理进度
+
+### 导出知识图谱
+
+1. 进入「概念」页面
+2. 点击右上角「导出」按钮
+3. 选择导出格式：
+   - **HTML 页面** - 交互式 D3.js 力导向图，支持物理模拟、拖拽、缩放
+   - **Canvas 格式** - Obsidian Canvas 文件，带颜色和布局
+   - **Markdown 格式** - 纯文本双链格式，适合笔记软件
+
 ## 项目结构
 
 ```
@@ -175,12 +194,17 @@ meta-knowledge-graph/
 |------|------|------|
 | `/api/papers/` | GET | 获取所有论文 |
 | `/api/papers/upload` | POST | 上传 PDF |
+| `/api/papers/batch-upload` | POST | 批量上传 PDF |
+| `/api/papers/batch-process` | POST | 批量处理论文 |
 | `/api/papers/process` | POST | 处理论文提取概念 |
 | `/api/concepts/` | GET | 获取所有概念 |
 | `/api/concepts/{id}/research-points` | GET | 发现研究点 |
 | `/api/concepts/dedup/scan` | POST | 扫描重复概念 |
 | `/api/concepts/dedup/execute` | POST | 执行概念合并 |
 | `/api/graph/data` | GET | 获取图谱数据 |
+| `/api/graph/export/obsidian/html` | GET | 导出交互式 HTML |
+| `/api/graph/export/obsidian/canvas` | GET | 导出 Obsidian Canvas |
+| `/api/graph/export/obsidian` | GET | 导出 Markdown |
 
 ## 概念层级定义
 
@@ -197,7 +221,8 @@ meta-knowledge-graph/
 
 - [ ] 支持更多 LLM 后端（DeepSeek、OpenRouter 等）
 - [x] 概念合并与去重优化
-- [ ] 导出为 Obsidian/Notion 格式
+- [x] 导出为 Obsidian Canvas/Markdown/HTML 格式
+- [x] 批量 PDF 上传与并行处理
 - [ ] 协作功能（多人编辑知识图谱）
 - [ ] Neo4j 数据库支持
 
