@@ -82,6 +82,12 @@ class ResearchPointResponse(BaseModel):
     analysis_context: dict
 
 
+class DedupExecuteRequest(BaseModel):
+    """去重执行请求"""
+    scan_id: str
+    merge_ids: List[str]
+
+
 @router.get("/", response_model=List[ConceptResponse])
 def list_concepts():
     """Get all concepts"""
@@ -328,4 +334,21 @@ def dedup_scan():
         )
 
     result = deduplicator.scan()
+    return result
+
+
+@router.post("/dedup/execute")
+def dedup_execute(request: DedupExecuteRequest):
+    """
+    执行合并操作
+
+    用户确认后执行指定的合并建议
+    """
+    deduplicator = get_deduplicator()
+
+    result = deduplicator.execute_merge(request.scan_id, request.merge_ids)
+
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+
     return result
