@@ -747,7 +747,7 @@ class Database:
         """创建批量任务"""
         cursor = self.conn.cursor()
         cursor.execute("""
-            INSERT INTO batch_jobs (id, total, status)
+            INSERT OR IGNORE INTO batch_jobs (id, total, status)
             VALUES (?, ?, 'pending')
         """, (job_id, total))
         self.conn.commit()
