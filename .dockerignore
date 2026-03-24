@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+.pyo
+.pyd
+
+# Build outputs
+frontend/dist/
+*.egg-info/
+
+# Development files
+.git/
+.gitignore
+.env
+.env.local
+*.md
+!README.md
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test files
+tests/
+*.test.*
+coverage/
+
+# Papers (user data)
+papers/
+
+# Database
+*.db
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Superpowers
+.superpowers/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
