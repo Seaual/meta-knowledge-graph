@@ -45,7 +45,7 @@ LLM 批量判断：哪些应该合并 + 合并后的层级关系
 # 按 category 分组，组内生成候选对
 candidates = []
 
-for category in ['field', 'direction', 'method', 'technique']:
+for category in ['field', 'direction', 'subdirection', 'task', 'method', 'technique']:
     concepts = db.get_concepts_by_category(category)
 
     for i, c1 in enumerate(concepts):
@@ -99,14 +99,29 @@ for category in ['field', 'direction', 'method', 'technique']:
 
 ```python
 def execute_merge(source_id, target_id, merged_relations):
-    # 1. 迁移论文关联
-    db.migrate_paper_concepts(source_id, target_id)
+    """执行合并操作（事务包装）"""
+    try:
+        # 开启事务
+        cursor = self.conn.cursor()
+        cursor.execute("BEGIN TRANSACTION")
 
-    # 2. 更新父子关系
-    db.update_concept_relations(target_id, merged_relations)
+        # 1. 迁移论文关联
+        self.migrate_paper_concepts(source_id, target_id)
 
-    # 3. 删除源概念
-    db.delete_concept(source_id)
+        # 2. 更新父子关系
+        self.update_concept_relations(target_id, merged_relations)
+
+        # 3. 删除源概念
+        self.delete_concept(source_id)
+
+        # 4. 重新计算受影响概念的 depth_cache
+        self.recalculate_depth_cache(target_id)
+
+        # 提交事务
+        self.conn.commit()
+    except Exception as e:
+        self.conn.rollback()
+        raise e
 ```
 
 ## API 设计
@@ -188,6 +203,110 @@ def get_dedup_extractor():
     return None
 ```
 
+**注意**：所有 LLM 客户端都实现了 `extract_concepts(prompt)` 方法，去重功能使用该方法调用 LLM。
+
+## 扫描结果存储
+
+扫描结果使用内存缓存（Session 级别），不持久化到数据库：
+
+```python
+# 全局扫描结果缓存
+_scan_results: Dict[str, dict] = {}
+
+def store_scan_result(scan_id: str, result: dict):
+    """存储扫描结果"""
+    _scan_results[scan_id] = {
+        "result": result,
+        "created_at": datetime.now()
+    }
+
+def get_scan_result(scan_id: str) -> Optional[dict]:
+    """获取扫描结果"""
+    entry = _scan_results.get(scan_id)
+    if not entry:
+        return None
+
+    # 超过 1 小时过期
+    if (datetime.now() - entry["created_at"]).seconds > 3600:
+        del _scan_results[scan_id]
+        return None
+
+    return entry["result"]
+
+def generate_scan_id() -> str:
+    """生成扫描 ID"""
+    return f"scan-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+```
+
+## 循环依赖检测
+
+在执行合并前，使用 DFS 检测 LLM 返回的层级关系是否会产生循环：
+
+```python
+def detect_cycle(db, concept_id: str, new_parents: list, new_children: list) -> bool:
+    """检测合并后的层级关系是否会产生循环
+
+    Args:
+        db: 数据库实例
+        concept_id: 概念 ID
+        new_parents: 新的父节点列表
+        new_children: 新的子节点列表
+
+    Returns:
+        True 表示存在循环，False 表示无循环
+    """
+    # 构建临时图
+    # 如果 concept_id 会成为自己的祖先或后代，则存在循环
+
+    # 检查：新父节点是否是 concept_id 的后代？
+    for parent_id in new_parents:
+        if is_descendant(db, concept_id, parent_id):
+            return True
+
+    # 检查：新子节点是否是 concept_id 的祖先？
+    for child_id in new_children:
+        if is_ancestor(db, concept_id, child_id):
+            return True
+
+    return False
+
+def is_descendant(db, ancestor_id: str, node_id: str) -> bool:
+    """检查 node_id 是否是 ancestor_id 的后代"""
+    visited = set()
+    queue = [ancestor_id]
+
+    while queue:
+        current = queue.pop(0)
+        if current == node_id:
+            return True
+        if current in visited:
+            continue
+        visited.add(current)
+
+        children = db.get_concept_children(current)
+        queue.extend([c['id'] for c in children])
+
+    return False
+
+def is_ancestor(db, descendant_id: str, node_id: str) -> bool:
+    """检查 node_id 是否是 descendant_id 的祖先"""
+    visited = set()
+    queue = [descendant_id]
+
+    while queue:
+        current = queue.pop(0)
+        if current == node_id:
+            return True
+        if current in visited:
+            continue
+        visited.add(current)
+
+        parents = db.get_concept_parents(current)
+        queue.extend([p['id'] for p in parents])
+
+    return False
+```
+
 ## 文件结构
 
 ```
@@ -212,20 +331,119 @@ backend/routes/
 # database.py 新增方法
 
 def get_concepts_by_category(self, category: str) -> list:
-    """按类别获取概念"""
-    pass
+    """按类别获取概念
+
+    Args:
+        category: 概念类别 (field/direction/subdirection/task/method/technique)
+    """
+    cursor = self.conn.cursor()
+    cursor.execute("""
+        SELECT * FROM concepts WHERE category = ? ORDER BY paper_count DESC
+    """, (category,))
+    return [dict(row) for row in cursor.fetchall()]
 
 def migrate_paper_concepts(self, source_id: str, target_id: str):
     """迁移论文关联：将 source 的论文关联迁移到 target"""
-    pass
+    cursor = self.conn.cursor()
+    # 将 source 的论文关联迁移到 target（避免重复）
+    cursor.execute("""
+        INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source)
+        SELECT paper_doi, ?, confidence, source
+        FROM paper_concepts WHERE concept_id = ?
+    """, (target_id, source_id))
+    # 删除 source 的论文关联
+    cursor.execute("""
+        DELETE FROM paper_concepts WHERE concept_id = ?
+    """, (source_id,))
+
+    # 更新 target 的 paper_count
+    cursor.execute("""
+        UPDATE concepts SET paper_count = (
+            SELECT COUNT(DISTINCT paper_doi) FROM paper_concepts WHERE concept_id = ?
+        ) WHERE id = ?
+    """, (target_id, target_id))
 
 def update_concept_relations(self, concept_id: str, relations: dict):
-    """更新概念的父子关系"""
-    pass
+    """更新概念的父子关系
+
+    Args:
+        concept_id: 概念 ID
+        relations: {"parents": [...], "children": [...]}
+    """
+    cursor = self.conn.cursor()
+
+    # 删除现有的父子关系
+    cursor.execute("""
+        DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
+    """, (concept_id, concept_id))
+
+    # 添加新的父关系
+    for parent_id in relations.get("parents", []):
+        cursor.execute("""
+            INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
+            VALUES (?, ?)
+        """, (parent_id, concept_id))
+
+    # 添加新的子关系
+    for child_id in relations.get("children", []):
+        cursor.execute("""
+            INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
+            VALUES (?, ?)
+        """, (concept_id, child_id))
 
 def delete_concept(self, concept_id: str):
-    """删除概念及其关联"""
-    pass
+    """删除概念及其所有关联"""
+    cursor = self.conn.cursor()
+
+    # 删除论文关联
+    cursor.execute("DELETE FROM paper_concepts WHERE concept_id = ?", (concept_id,))
+
+    # 删除层级关系
+    cursor.execute("""
+        DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
+    """, (concept_id, concept_id))
+
+    # 删除概念本身
+    cursor.execute("DELETE FROM concepts WHERE id = ?", (concept_id,))
+
+def recalculate_depth_cache(self, concept_id: str = None):
+    """重新计算概念的深度缓存
+
+    使用 BFS 从根节点开始计算所有概念的深度
+    """
+    cursor = self.conn.cursor()
+
+    # 重置所有 depth_cache
+    cursor.execute("UPDATE concepts SET depth_cache = -1")
+
+    # 获取根概念（没有父节点的概念）
+    cursor.execute("""
+        SELECT id FROM concepts c
+        LEFT JOIN concept_relations cr ON c.id = cr.child_id
+        WHERE cr.parent_id IS NULL
+    """)
+    roots = [row['id'] for row in cursor.fetchall()]
+
+    # BFS 计算深度
+    from collections import deque
+    queue = deque([(root_id, 0) for root_id in roots])
+
+    while queue:
+        node_id, depth = queue.popleft()
+
+        # 更新深度
+        cursor.execute("""
+            UPDATE concepts SET depth_cache = ? WHERE id = ?
+        """, (depth, node_id))
+
+        # 获取子节点
+        cursor.execute("""
+            SELECT child_id FROM concept_relations WHERE parent_id = ?
+        """, (node_id,))
+        children = [row['child_id'] for row in cursor.fetchall()]
+
+        for child_id in children:
+            queue.append((child_id, depth + 1))
 ```
 
 ## 错误处理
@@ -236,6 +454,18 @@ def delete_concept(self, concept_id: str):
 | LLM 返回格式异常 | 解析失败的候选对跳过，记录日志，返回部分结果 |
 | 概念不存在 | 执行合并时检查，返回 404 错误 |
 | 合并冲突 | 确保论文关联正确迁移 |
+| 扫描结果过期 | scan_id 超过 1 小时后失效，需重新扫描 |
+| 循环依赖 | 检测到循环时拒绝该合并建议，返回错误信息 |
+
+## 安全考虑
+
+去重 API 涉及数据修改操作，建议在生产环境中：
+
+1. **访问控制**：限制 `/api/concepts/dedup/*` 端点的访问权限
+2. **操作审计**：记录所有合并操作到日志
+3. **数据备份**：执行前建议用户备份数据库
+
+当前实现不包含认证机制，假设在可信环境中使用。如需生产部署，应在网关层添加认证。
 
 ## 边界情况
 
