@@ -109,6 +109,9 @@ export default function ConceptsGraph() {
   // Dedup panel state
   const [dedupOpen, setDedupOpen] = useState(false)
 
+  // Export menu state
+  const [showExportMenu, setShowExportMenu] = useState(false)
+
   // Research points state
   const [researchPoints, setResearchPoints] = useState<ResearchPointsResponse | null>(null)
   const [loadingResearchPoints, setLoadingResearchPoints] = useState(false)
@@ -278,7 +281,7 @@ export default function ConceptsGraph() {
     }
   }, [selectedConcept])
 
-  const handleExport = useCallback(async () => {
+  const handleExportMarkdown = useCallback(async () => {
     try {
       const res = await exportApi.download()
       const url = window.URL.createObjectURL(new Blob([res.data]))
@@ -291,6 +294,23 @@ export default function ConceptsGraph() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Export failed:', err)
+      alert('导出失败')
+    }
+  }, [])
+
+  const handleExportCanvas = useCallback(async () => {
+    try {
+      const res = await exportApi.downloadCanvas()
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `knowledge-graph-${new Date().toISOString().split('T')[0]}.canvas`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Canvas export failed:', err)
       alert('导出失败')
     }
   }, [])
@@ -511,13 +531,43 @@ export default function ConceptsGraph() {
 
       {/* Action Buttons */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
-        <button
-          onClick={handleExport}
-          className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
-        >
-          <Download className="h-4 w-4" />
-          导出
-        </button>
+        {/* Export Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+          >
+            <Download className="h-4 w-4" />
+            导出
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
+              <button
+                onClick={() => { handleExportCanvas(); setShowExportMenu(false); }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3"
+              >
+                <span className="text-lg">🎨</span>
+                <div>
+                  <div className="font-medium">Canvas 格式</div>
+                  <div className="text-xs text-gray-400">带颜色和布局</div>
+                </div>
+              </button>
+              <button
+                onClick={() => { handleExportMarkdown(); setShowExportMenu(false); }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
+              >
+                <span className="text-lg">📝</span>
+                <div>
+                  <div className="font-medium">Markdown 格式</div>
+                  <div className="text-xs text-gray-400">纯文本双链</div>
+                </div>
+              </button>
+            </div>
+          )}
+        </div>
         <button
           onClick={() => setDedupOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"

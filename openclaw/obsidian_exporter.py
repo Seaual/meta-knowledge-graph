@@ -132,6 +132,142 @@ class ObsidianExporter:
 
         return "".join(lines)
 
+    def export_canvas(self, db, graph) -> str:
+        """
+        导出为 Obsidian Canvas 格式（.canvas 文件）
+
+        Canvas 支持：
+        - 节点颜色（按概念类别）
+        - 节点位置（树状布局）
+        - 节点连线（父子关系）
+        """
+        concepts = db.get_all_concepts()
+
+        # 类别到颜色的映射
+        category_colors = {
+            'field': '1',      # 红色 - 大领域
+            'direction': '5',  # 青色 - 研究方向
+            'subdirection': '5',
+            'task': '6',       # 紫色 - 任务
+            'method': '2',     # 橙色 - 方法
+            'technique': '3',  # 黄色 - 技术
+            'detail': '4',     # 绿色 - 细节
+        }
+
+        # 构建父子关系映射
+        parent_map = {}
+        children_map = {}
+        concept_by_id = {}
+
+        for concept in concepts:
+            concept_by_id[concept['id']] = concept
+            children_map[concept['id']] = []
+
+        for concept in concepts:
+            parents = db.get_concept_parents(concept['id'])
+            if parents:
+                parent_map[concept['id']] = parents[0]['id']
+                children_map[parents[0]['id']].append(concept['id'])
+
+        # 找根节点
+        root_ids = [c['id'] for c in concepts if c['id'] not in parent_map]
+
+        # 布局参数
+        node_width = 200
+        node_height = 60
+        horizontal_gap = 50
+        vertical_gap = 100
+
+        nodes = []
+        edges = []
+
+        # 计算每个节点的位置（树状布局）
+        node_positions = {}
+
+        def calculate_subtree_width(concept_id: str) -> int:
+            """计算子树宽度（用于布局）"""
+            children = children_map.get(concept_id, [])
+            if not children:
+                return 1
+            return sum(calculate_subtree_width(c) for c in children)
+
+        def layout_tree(concept_id: str, x: float, y: float) -> None:
+            """递归布局树节点"""
+            concept = concept_by_id.get(concept_id)
+            if not concept:
+                return
+
+            # 当前节点位置
+            node_positions[concept_id] = (x, y)
+
+            # 子节点
+            children = children_map.get(concept_id, [])
+            if not children:
+                return
+
+            # 计算子树总宽度
+            total_width = sum(calculate_subtree_width(c) for c in children)
+            current_x = x - (total_width - 1) * (node_width + horizontal_gap) / 2
+
+            for child_id in children:
+                child_width = calculate_subtree_width(child_id)
+                child_x = current_x + (child_width - 1) * (node_width + horizontal_gap) / 2
+                layout_tree(child_id, child_x, y + vertical_gap + node_height)
+                current_x += child_width * (node_width + horizontal_gap)
+
+        # 从根节点开始布局
+        total_roots = len(root_ids[:10])
+        root_start_x = -(total_roots - 1) * (node_width + horizontal_gap * 3) / 2
+
+        for i, root_id in enumerate(root_ids[:10]):
+            root_x = root_start_x + i * (node_width + horizontal_gap * 3)
+            layout_tree(root_id, root_x, 0)
+
+        # 生成节点和边
+        node_id_counter = 0
+        concept_to_node_id = {}
+
+        for concept_id, (x, y) in node_positions.items():
+            concept = concept_by_id.get(concept_id)
+            if not concept:
+                continue
+
+            node_id = f"node_{node_id_counter}"
+            concept_to_node_id[concept_id] = node_id
+            node_id_counter += 1
+
+            category = concept.get('category', 'method')
+            color = category_colors.get(category, '4')
+
+            nodes.append({
+                "id": node_id,
+                "type": "text",
+                "text": concept['text'],
+                "x": x,
+                "y": y,
+                "width": node_width,
+                "height": node_height,
+                "color": color
+            })
+
+        # 生成边
+        edge_id_counter = 0
+        for concept_id, parent_id in parent_map.items():
+            if concept_id in concept_to_node_id and parent_id in concept_to_node_id:
+                edges.append({
+                    "id": f"edge_{edge_id_counter}",
+                    "fromNode": concept_to_node_id[parent_id],
+                    "toNode": concept_to_node_id[concept_id]
+                })
+                edge_id_counter += 1
+
+        canvas_data = {
+            "nodes": nodes,
+            "edges": edges
+        }
+
+        return json.dumps(canvas_data, ensure_ascii=False, indent=2)
+
     def export_from_neo4j(self, neo4j_graph, output_name: str = "openclaw_knowledge"):
         """从 Neo4j 导出"""
         print(f"\n导出到: {self.vault_path}\n")

@@ -149,6 +149,51 @@ def export_obsidian():
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
+@router.get("/export/obsidian/canvas")
+def export_obsidian_canvas():
+    """导出知识图谱为 Obsidian Canvas 格式（带颜色和布局）"""
+    try:
+        db = get_db()
+        graph = get_graph()
+
+        exporter = ObsidianExporter()
+        content = exporter.export_canvas(db, graph)
+
+        stats = db.get_stats()
+
+        return {
+            "content": content,
+            "stats": {
+                "papers": stats.get('papers', {}).get('total', 0),
+                "concepts": stats.get('concepts', {}).get('total', 0),
+                "generated_at": datetime.now().isoformat()
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.get("/export/obsidian/canvas/download")
+def download_obsidian_canvas():
+    """下载 Obsidian Canvas 文件（.canvas 格式）"""
+    try:
+        db = get_db()
+        graph = get_graph()
+
+        exporter = ObsidianExporter()
+        content = exporter.export_canvas(db, graph)
+
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.canvas"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
 @router.get("/export/obsidian/download")
 def download_obsidian():
     """下载 Obsidian Markdown 文件"""
@@ -164,6 +209,51 @@ def download_obsidian():
             media_type="text/markdown",
             headers={
                 "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.md"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.get("/export/obsidian/canvas")
+def export_obsidian_canvas():
+    """导出知识图谱为 Obsidian Canvas 格式（带颜色和布局）"""
+    try:
+        db = get_db()
+        graph = get_graph()
+
+        exporter = ObsidianExporter()
+        content = exporter.export_canvas(db, graph)
+
+        stats = db.get_stats()
+
+        return {
+            "content": content,
+            "stats": {
+                "papers": stats.get('papers', {}).get('total', 0),
+                "concepts": stats.get('concepts', {}).get('total', 0),
+                "generated_at": datetime.now().isoformat()
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
+
+
+@router.get("/export/obsidian/canvas/download")
+def download_obsidian_canvas():
+    """下载 Obsidian Canvas 文件（.canvas 格式）"""
+    try:
+        db = get_db()
+        graph = get_graph()
+
+        exporter = ObsidianExporter()
+        content = exporter.export_canvas(db, graph)
+
+        return Response(
+            content=content,
+            media_type="application/json",
+            headers={
+                "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.canvas"
             }
         )
     except Exception as e:
