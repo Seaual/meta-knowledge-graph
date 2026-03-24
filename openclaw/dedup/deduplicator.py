@@ -28,7 +28,7 @@ def get_scan_result(scan_id: str) -> Optional[dict]:
         entry = _scan_results.get(scan_id)
         if not entry:
             return None
-        if (datetime.now() - entry["created_at"]).seconds > 3600:
+        if (datetime.now() - entry["created_at"]).total_seconds() > 3600:
             del _scan_results[scan_id]
             return None
         return entry["result"]
