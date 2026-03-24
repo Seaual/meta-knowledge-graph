@@ -104,3 +104,54 @@ class SkillConceptSubmission(BaseModel):
     """Skill 提交的概念提取结果"""
     concept_tree: dict
     raw_response: Optional[str] = None
+
+
+# Batch processing schemas
+class BatchUploadResponse(BaseModel):
+    """批量上传响应"""
+    job_id: str
+    uploaded: List[dict]
+    total: int
+
+
+class BatchProcessRequest(BaseModel):
+    """批量处理请求"""
+    job_id: str
+    dois: List[str]
+
+
+class BatchProcessResult(BaseModel):
+    """单个论文处理结果"""
+    doi: str
+    status: str  # success, failed, pending
+    concepts: Optional[int] = None
+    error: Optional[str] = None
+
+
+class BatchProcessResponse(BaseModel):
+    """批量处理响应"""
+    job_id: str
+    status: str  # pending, processing, completed, failed
+    total: int
+    completed: int = 0
+    successful: int = 0
+    failed: int = 0
+    results: List[BatchProcessResult] = []
+
+
+class BatchJobStatus(BaseModel):
+    """批量任务状态"""
+    job_id: str
+    status: str
+    total: int
+    completed: int
+    successful: int
+    failed: int
+    created_at: Optional[str] = None
+
+
+# Export schemas
+class ExportResponse(BaseModel):
+    """导出响应"""
+    content: str
+    stats: dict
