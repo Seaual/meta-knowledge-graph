@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
 import { conceptsApi, graphApi, papersApi } from '../lib/api'
+import DedupPanel from '../components/DedupPanel'
 
 // Types
 interface Concept {
@@ -103,6 +104,9 @@ export default function ConceptsGraph() {
   const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null)
   const [hoverNode, setHoverNode] = useState<GraphNode | null>(null)
   const [showConceptActions, setShowConceptActions] = useState(false)
+
+  // Dedup panel state
+  const [dedupOpen, setDedupOpen] = useState(false)
 
   // Research points state
   const [researchPoints, setResearchPoints] = useState<ResearchPointsResponse | null>(null)
@@ -487,6 +491,16 @@ export default function ConceptsGraph() {
         )}
       </div>
 
+      {/* Dedup Button */}
+      <div className="absolute top-4 right-4 z-10">
+        <button
+          onClick={() => setDedupOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+        >
+          🔄 去重扫描
+        </button>
+      </div>
+
       {/* Info Panel */}
       <div className="absolute bottom-16 left-4 bg-white/90 backdrop-blur rounded-xl shadow-lg p-3 z-10">
         <div className="text-xs text-gray-500">
@@ -816,6 +830,9 @@ export default function ConceptsGraph() {
           </div>
         </div>
       </div>
+
+      {/* Dedup Panel */}
+      <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} />
     </div>
   )
 }
