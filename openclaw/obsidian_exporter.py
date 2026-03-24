@@ -61,6 +61,77 @@ class ObsidianExporter:
         print(f"  概念: {self.stats['concepts']} 个")
         print(f"  路径: {self.vault_path.absolute()}")
 
+    def export_overview(self, db, graph) -> str:
+        """导出图谱总览（单个Markdown文件）"""
+        concepts = db.get_all_concepts()
+        papers = db.get_all_papers()
+
+        lines = []
+        lines.append("# 知识图谱总览\n")
+        lines.append(f"> 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M')} | 论文: {len(papers)} 篇 | 概念: {len(concepts)} 个\n")
+
+        # Build parent map
+        parent_map = {}
+        for concept in concepts:
+            parents = db.get_concept_parents(concept['id'])
+            if parents:
+                parent_map[concept['id']] = parents[0]['id']
+
+        # Find root concepts (no parent)
+        root_ids = [c['id'] for c in concepts if c['id'] not in parent_map]
+
+        # Build children map
+        children_map = {}
+        for concept in concepts:
+            children = db.get_concept_children(concept['id'])
+            children_map[concept['id']] = [c['id'] for c in children]
+
+        # Concept hierarchy section
+        lines.append("## 概念层级\n")
+
+        def format_tree(concept_id: str, indent: int = 0) -> List[str]:
+            concept = next((c for c in concepts if c['id'] == concept_id), None)
+            if not concept:
+                return []
+            result = []
+            prefix = "  " * indent + "- " if indent > 0 else "### "
+            result.append(f"{prefix}[[{concept['text']}]]\n")
+            for child_id in children_map.get(concept_id, []):
+                result.extend(format_tree(child_id, indent + 1 if indent > 0 else 1))
+            return result
+
+        for root_id in root_ids[:10]:
+            lines.extend(format_tree(root_id))
+
+        lines.append("\n## 概念详情\n")
+
+        # Concept details
+        for concept in concepts[:50]:
+            lines.append(f"### {concept['text']}\n")
+            lines.append(f"- **类别**: {concept.get('category', 'method')}\n")
+            lines.append(f"- **关联论文**: {concept.get('paper_count', 0)} 篇\n")
+
+            # Children
+            children = children_map.get(concept['id'], [])
+            if children:
+                child_texts = []
+                for child_id in children:
+                    child = next((c for c in concepts if c['id'] == child_id), None)
+                    if child:
+                        child_texts.append(f"[[{child['text']}]]")
+                lines.append(f"- **子概念**: {', '.join(child_texts)}\n")
+
+            # Parents
+            parent_id = parent_map.get(concept['id'])
+            if parent_id:
+                parent = next((c for c in concepts if c['id'] == parent_id), None)
+                if parent:
+                    lines.append(f"- **父概念**: [[{parent['text']}]]\n")
+
+            lines.append("\n")
+
+        return "".join(lines)
+
     def export_from_neo4j(self, neo4j_graph, output_name: str = "openclaw_knowledge"):
         """从 Neo4j 导出"""
         print(f"\n导出到: {self.vault_path}\n")
