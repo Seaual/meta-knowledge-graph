@@ -210,33 +210,42 @@ def get_dedup_extractor():
 扫描结果使用内存缓存（Session 级别），不持久化到数据库：
 
 ```python
-# 全局扫描结果缓存
+import threading
+from datetime import datetime
+import uuid
+
+# 全局扫描结果缓存（线程安全）
 _scan_results: Dict[str, dict] = {}
+_scan_lock = threading.Lock()
 
 def store_scan_result(scan_id: str, result: dict):
     """存储扫描结果"""
-    _scan_results[scan_id] = {
-        "result": result,
-        "created_at": datetime.now()
-    }
+    with _scan_lock:
+        _scan_results[scan_id] = {
+            "result": result,
+            "created_at": datetime.now()
+        }
 
 def get_scan_result(scan_id: str) -> Optional[dict]:
     """获取扫描结果"""
-    entry = _scan_results.get(scan_id)
-    if not entry:
-        return None
+    with _scan_lock:
+        entry = _scan_results.get(scan_id)
+        if not entry:
+            return None
 
-    # 超过 1 小时过期
-    if (datetime.now() - entry["created_at"]).seconds > 3600:
-        del _scan_results[scan_id]
-        return None
+        # 超过 1 小时过期
+        if (datetime.now() - entry["created_at"]).seconds > 3600:
+            del _scan_results[scan_id]
+            return None
 
-    return entry["result"]
+        return entry["result"]
 
 def generate_scan_id() -> str:
     """生成扫描 ID"""
     return f"scan-{datetime.now().strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
 ```
+
+**注意**：多 worker 部署时，每个 worker 有独立的内存缓存。如果需要跨 worker 共享，应使用 Redis 等外部缓存。
 
 ## 循环依赖检测
 
@@ -471,21 +480,38 @@ def recalculate_depth_cache(self, concept_id: str = None):
 
 - **空库**：概念数量 < 2 时，直接返回空结果
 - **超大库**：概念数量 > 500 时，分批处理（每批 50 个候选对）
+
+```python
+def generate_candidates_batch(concepts: list, batch_size: int = 50):
+    """分批生成候选对"""
+    candidates = []
+    for i, c1 in enumerate(concepts):
+        for c2 in concepts[i+1:]:
+            if text_similarity(c1.text, c2.text) >= 0.6:
+                candidates.append((c1, c2))
+
+                # 达到批次大小，yield 一批
+                if len(candidates) >= batch_size:
+                    yield candidates
+                    candidates = []
+
+    # 返回剩余的候选对
+    if candidates:
+        yield candidates
+```
+
 - **循环依赖**：LLM 返回的层级关系需检测是否产生循环，若有则拒绝该建议
 
 ## 文本相似度算法
 
-使用简单的字符级相似度计算：
+使用 Python 内置的 `difflib.SequenceMatcher`：
 
 ```python
+from difflib import SequenceMatcher
+
 def text_similarity(text1: str, text2: str) -> float:
     """计算两个文本的相似度（0-1）"""
-    # 使用编辑距离或 Jaccard 相似度
-    # 阈值设为 0.6 用于预筛选
-    pass
+    return SequenceMatcher(None, text1, text2).ratio()
 ```
 
-可以选择：
-- `difflib.SequenceMatcher`（Python 内置）
-- `Levenshtein` 距离
-- 简单的字符集 Jaccard 相似度
+阈值设为 0.6 用于预筛选。
