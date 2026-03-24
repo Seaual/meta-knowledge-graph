@@ -108,7 +108,7 @@ interface BatchProcessResponse {
 }
 
 interface BatchJobStatus {
-  job_id: string
+  id: string  // Database column is 'id', not 'job_id'
   status: string
   total: number
   completed: number
