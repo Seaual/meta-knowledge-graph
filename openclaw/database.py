@@ -615,6 +615,119 @@ class Database:
         # 如果是纯中文或其他非拉丁字符，使用 hash
         return hashlib.md5(text.encode()).hexdigest()[:12]
 
+    # ========== 合并去重操作方法 ==========
+
+    def migrate_paper_concepts(self, source_id: str, target_id: str):
+        """迁移论文关联：将 source 的论文关联迁移到 target"""
+        cursor = self.conn.cursor()
+        # 将 source 的论文关联迁移到 target（避免重复）
+        cursor.execute("""
+            INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source)
+            SELECT paper_doi, ?, confidence, source
+            FROM paper_concepts WHERE concept_id = ?
+        """, (target_id, source_id))
+        # 删除 source 的论文关联
+        cursor.execute("""
+            DELETE FROM paper_concepts WHERE concept_id = ?
+        """, (source_id,))
+
+        # 更新 target 的 paper_count
+        cursor.execute("""
+            UPDATE concepts SET paper_count = (
+                SELECT COUNT(DISTINCT paper_doi) FROM paper_concepts WHERE concept_id = ?
+            ) WHERE id = ?
+        """, (target_id, target_id))
+
+        self.conn.commit()
+
+    def update_concept_relations(self, concept_id: str, relations: dict):
+        """更新概念的父子关系
+
+        Args:
+            concept_id: 概念 ID
+            relations: {"parents": [...], "children": [...]}
+        """
+        cursor = self.conn.cursor()
+
+        # 删除现有的父子关系
+        cursor.execute("""
+            DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
+        """, (concept_id, concept_id))
+
+        # 添加新的父关系
+        for parent_id in relations.get("parents", []):
+            cursor.execute("""
+                INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
+                VALUES (?, ?)
+            """, (parent_id, concept_id))
+
+        # 添加新的子关系
+        for child_id in relations.get("children", []):
+            cursor.execute("""
+                INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
+                VALUES (?, ?)
+            """, (concept_id, child_id))
+
+        self.conn.commit()
+
+    def delete_concept(self, concept_id: str):
+        """删除概念及其所有关联"""
+        cursor = self.conn.cursor()
+
+        # 删除论文关联
+        cursor.execute("DELETE FROM paper_concepts WHERE concept_id = ?", (concept_id,))
+
+        # 删除层级关系
+        cursor.execute("""
+            DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
+        """, (concept_id, concept_id))
+
+        # 删除概念本身
+        cursor.execute("DELETE FROM concepts WHERE id = ?", (concept_id,))
+
+        self.conn.commit()
+
+    def recalculate_depth_cache(self, concept_id: str = None):
+        """重新计算概念的深度缓存
+
+        使用 BFS 从根节点开始计算所有概念的深度
+        """
+        cursor = self.conn.cursor()
+
+        # 重置所有 depth_cache
+        cursor.execute("UPDATE concepts SET depth_cache = -1")
+
+        # 获取根概念（没有父节点的概念）
+        cursor.execute("""
+            SELECT id FROM concepts c
+            LEFT JOIN concept_relations cr ON c.id = cr.child_id
+            WHERE cr.parent_id IS NULL
+        """)
+        roots = [row['id'] for row in cursor.fetchall()]
+
+        # BFS 计算深度
+        from collections import deque
+        queue = deque([(root_id, 0) for root_id in roots])
+
+        while queue:
+            node_id, depth = queue.popleft()
+
+            # 更新深度
+            cursor.execute("""
+                UPDATE concepts SET depth_cache = ? WHERE id = ?
+            """, (depth, node_id))
+
+            # 获取子节点
+            cursor.execute("""
+                SELECT child_id FROM concept_relations WHERE parent_id = ?
+            """, (node_id,))
+            children = [row['child_id'] for row in cursor.fetchall()]
+
+            for child_id in children:
+                queue.append((child_id, depth + 1))
+
+        self.conn.commit()
+
     # ========== 上下文管理器 ==========
 
     def __enter__(self):
