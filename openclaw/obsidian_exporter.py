@@ -341,10 +341,6 @@ class ObsidianExporter:
         }}
         .node {{
             cursor: pointer;
-            transition: transform 0.1s;
-        }}
-        .node:hover {{
-            transform: scale(1.1);
         }}
         .node circle {{
             stroke-width: 2px;
@@ -556,6 +552,7 @@ class ObsidianExporter:
         const tooltip = d3.select("#tooltip");
 
         node.on("mouseover", function(event, d) {{
+            d3.select(this).select("circle").attr("stroke-width", 4);
             tooltip.html(`
                 <h3>${{d.text}}</h3>
                 <div class="category" style="background: ${{categoryColors[d.category]}}20; color: ${{categoryColors[d.category]}}">
@@ -567,7 +564,13 @@ class ObsidianExporter:
             .style("top", (event.pageY - 10) + "px")
             .classed("visible", true);
         }})
-        .on("mouseout", function() {{
+        .on("mousemove", function(event, d) {{
+            tooltip
+                .style("left", (event.pageX + 15) + "px")
+                .style("top", (event.pageY - 10) + "px");
+        }})
+        .on("mouseout", function(event, d) {{
+            d3.select(this).select("circle").attr("stroke-width", 2);
             tooltip.classed("visible", false);
         }});
 
