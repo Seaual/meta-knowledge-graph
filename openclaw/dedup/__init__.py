@@ -8,5 +8,14 @@
 - ConceptDeduplicator: 主控制器
 """
 
-# 模块导出将在后续任务中添加
-__all__ = []
+from .candidate import CandidateGenerator, ConceptPair
+from .analyzer import MergeAnalyzer, MergeSuggestion
+from .executor import MergeExecutor, MergeResult
+from .deduplicator import ConceptDeduplicator
+
+__all__ = [
+    'CandidateGenerator', 'ConceptPair',
+    'MergeAnalyzer', 'MergeSuggestion',
+    'MergeExecutor', 'MergeResult',
+    'ConceptDeduplicator'
+]
