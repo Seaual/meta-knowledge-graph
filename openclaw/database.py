@@ -385,6 +385,18 @@ class Database:
         cursor.execute("SELECT * FROM concepts ORDER BY paper_count DESC")
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_concepts_by_category(self, category: str) -> list:
+        """按类别获取概念
+
+        Args:
+            category: 概念类别 (field/direction/subdirection/task/method/technique)
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT * FROM concepts WHERE category = ? ORDER BY paper_count DESC
+        """, (category,))
+        return [dict(row) for row in cursor.fetchall()]
+
     def get_concept_children(self, concept_id: str) -> list:
         """获取概念的子节点"""
         cursor = self.conn.cursor()
