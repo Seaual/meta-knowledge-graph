@@ -2,7 +2,7 @@
 Graph API routes
 """
 
-from fastapi import APIRouter, Response
+from fastapi import APIRouter, Response, HTTPException
 from typing import List
 import sys
 from pathlib import Path
@@ -125,40 +125,46 @@ def get_tree_data():
     return {"trees": trees}
 
 
-@router.get("/export/obsidian")
+@router.get("/export/obsidian", response_model=ExportResponse)
 def export_obsidian():
     """导出知识图谱为 Obsidian 兼容的 Markdown 格式"""
-    db = get_db()
-    graph = get_graph()
+    try:
+        db = get_db()
+        graph = get_graph()
 
-    exporter = ObsidianExporter()
-    content = exporter.export_overview(db, graph)
+        exporter = ObsidianExporter()
+        content = exporter.export_overview(db, graph)
 
-    stats = db.get_stats()
+        stats = db.get_stats()
 
-    return ExportResponse(
-        content=content,
-        stats={
-            "papers": stats.get('papers', {}).get('total', 0),
-            "concepts": stats.get('concepts', {}).get('total', 0),
-            "generated_at": datetime.now().isoformat()
-        }
-    )
+        return ExportResponse(
+            content=content,
+            stats={
+                "papers": stats.get('papers', {}).get('total', 0),
+                "concepts": stats.get('concepts', {}).get('total', 0),
+                "generated_at": datetime.now().isoformat()
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 @router.get("/export/obsidian/download")
 def download_obsidian():
     """下载 Obsidian Markdown 文件"""
-    db = get_db()
-    graph = get_graph()
+    try:
+        db = get_db()
+        graph = get_graph()
 
-    exporter = ObsidianExporter()
-    content = exporter.export_overview(db, graph)
+        exporter = ObsidianExporter()
+        content = exporter.export_overview(db, graph)
 
-    return Response(
-        content=content,
-        media_type="text/markdown",
-        headers={
-            "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.md"
-        }
-    )
+        return Response(
+            content=content,
+            media_type="text/markdown",
+            headers={
+                "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.md"
+            }
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
