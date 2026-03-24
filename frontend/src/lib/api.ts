@@ -78,4 +78,74 @@ export const dedupApi = {
     }),
 }
 
+// Batch types
+interface BatchUploadResponse {
+  job_id: string
+  uploaded: Array<{
+    doi?: string
+    title?: string
+    filename: string
+    status?: string
+    success: boolean
+    error?: string
+  }>
+  total: number
+}
+
+interface BatchProcessResponse {
+  job_id: string
+  status: string
+  total: number
+  completed: number
+  successful: number
+  failed: number
+  results: Array<{
+    doi: string
+    status: string
+    concepts?: number
+    error?: string
+  }>
+}
+
+interface BatchJobStatus {
+  job_id: string
+  status: string
+  total: number
+  completed: number
+  successful: number
+  failed: number
+  created_at?: string
+}
+
+interface ExportResponse {
+  content: string
+  stats: {
+    papers: number
+    concepts: number
+    generated_at: string
+  }
+}
+
+// Batch API
+export const batchApi = {
+  upload: (files: File[]) => {
+    const formData = new FormData()
+    files.forEach(file => formData.append('files', file))
+    return api.post<BatchUploadResponse>('/papers/batch-upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+  },
+  process: (jobId: string, dois: string[]) =>
+    api.post<BatchProcessResponse>('/papers/batch-process', { job_id: jobId, dois }),
+  status: (jobId: string) =>
+    api.get<BatchJobStatus>(`/papers/batch-status/${jobId}`),
+}
+
+// Export API
+export const exportApi = {
+  obsidian: () => api.get<ExportResponse>('/graph/export/obsidian'),
+  download: () =>
+    api.get('/graph/export/obsidian/download', { responseType: 'blob' }),
+}
+
 export default api
