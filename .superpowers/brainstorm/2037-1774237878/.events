@@ -1,0 +1,6 @@
+{"type":"click","text":"C\n    \n      层级筛选器\n      提供滑块或按钮选择显示的层级范围，比如只看 L0-L2，或全部展开","choice":"filter-level","id":null,"timestamp":1774239596920}
+{"type":"click","text":"D\n    \n      全部都要\n      以上三种交互都需要，可以组合使用","choice":"all","id":null,"timestamp":1774239880734}
+{"type":"click","text":"A\n    \n      点击钻取\n      点击任意节点后，以该节点为中心重新布局，只显示其子概念树（类似当前双击进入详情）","choice":"click-drill","id":null,"timestamp":1774239881891}
+{"type":"click","text":"B\n    \n      悬停展开\n      鼠标悬停在节点上时，高亮显示该节点的完整子树路径，其他节点变淡","choice":"hover-expand","id":null,"timestamp":1774239889332}
+{"type":"click","text":"C\n    \n      层级筛选器\n      提供滑块或按钮选择显示的层级范围，比如只看 L0-L2，或全部展开","choice":"filter-level","id":null,"timestamp":1774239890729}
+{"type":"click","text":"D\n    \n      全部都要\n      以上三种交互都需要，可以组合使用","choice":"all","id":null,"timestamp":1774239891491}
