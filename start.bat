@@ -1,23 +1,40 @@
 @echo off
-REM Start OpenClaw Web UI
+chcp 65001 >nul
+echo ========================================
+echo   Meta Knowledge Graph
+echo ========================================
+echo.
 
-echo Starting OpenClaw Web UI...
+:: Check if venv exists
+if not exist "venv\Scripts\activate.bat" (
+    echo [ERROR] Python virtual environment not found!
+    echo Please run: python -m venv venv
+    pause
+    exit /b 1
+)
 
-REM Start backend
-echo Starting backend...
-start cmd /k "cd backend && uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+:: Check if node_modules exists
+if not exist "frontend\node_modules" (
+    echo [ERROR] Frontend dependencies not installed!
+    echo Please run: cd frontend && npm install
+    pause
+    exit /b 1
+)
 
-REM Wait for backend
-timeout /t 2 /nobreak > nul
+echo [1/2] Starting backend server...
+start "Backend" cmd /k "venv\Scripts\activate.bat && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8088"
 
-REM Start frontend
-echo Starting frontend...
-start cmd /k "cd frontend && npm run dev"
+echo [2/2] Starting frontend server...
+cd frontend
+start "Frontend" cmd /k "npm run dev"
+cd ..
 
 echo.
-echo OpenClaw Web UI is starting!
+echo ========================================
+echo   Backend:  http://localhost:8088
 echo   Frontend: http://localhost:5173
-echo   Backend:  http://localhost:8000
-echo   API Docs: http://localhost:8000/docs
+echo   API Docs: http://localhost:8088/docs
+echo ========================================
 echo.
-pause
+echo Press any key to exit this window...
+pause >nul
