@@ -2,7 +2,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
-import { conceptsApi, graphApi, papersApi } from '../lib/api'
+import { conceptsApi, graphApi, papersApi, exportApi } from '../lib/api'
+import { Download } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
 
 // Types
@@ -277,6 +278,23 @@ export default function ConceptsGraph() {
     }
   }, [selectedConcept])
 
+  const handleExport = useCallback(async () => {
+    try {
+      const res = await exportApi.download()
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `knowledge-graph-${new Date().toISOString().split('T')[0]}.md`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('Export failed:', err)
+      alert('导出失败')
+    }
+  }, [])
+
   // Back to all concepts
   const handleBack = useCallback(() => {
     const parentMap = new Map<string, string>()
@@ -491,8 +509,15 @@ export default function ConceptsGraph() {
         )}
       </div>
 
-      {/* Dedup Button */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Action Buttons */}
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          onClick={handleExport}
+          className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          导出
+        </button>
         <button
           onClick={() => setDedupOpen(true)}
           className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
