@@ -202,7 +202,7 @@ export default function ConceptsGraph() {
       id: `center-${selectedConcept.id}`,
       name: selectedConcept.text,
       type: 'center',
-      category: selectedConcept.category,
+      category: selectedConcept.category ?? undefined,
       paperCount: selectedConcept.paper_count,
     }
 
