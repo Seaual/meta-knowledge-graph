@@ -18,7 +18,7 @@ import ReactFlow, {
   Panel,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
-import { Search, FileText, X, ArrowLeft, BookOpen, GitBranch, Zap } from 'lucide-react'
+import { Search, FileText, X, ArrowLeft, BookOpen, GitBranch, Zap, Merge } from 'lucide-react'
 import { conceptsApi, graphApi, papersApi } from '../lib/api'
 import {
   computeRadialLayout,
@@ -34,6 +34,7 @@ import {
 import { computeForceLayout } from '../lib/forceLayout'
 import { LevelFilter, LevelRange } from '../components/LevelFilter'
 import { Breadcrumb, BreadcrumbItem } from '../components/Breadcrumb'
+import DedupPanel from '../components/DedupPanel'
 
 // ============================================
 // Types
@@ -522,6 +523,9 @@ function GraphCanvas() {
   // New state: drill-down path
   const [drillPath, setDrillPath] = useState<BreadcrumbItem[]>([])
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null)
+
+  // Dedup panel state
+  const [dedupOpen, setDedupOpen] = useState(false)
 
   const { fitView } = useReactFlow()
   const containerRef = useRef<HTMLDivElement>(null)
@@ -1024,6 +1028,13 @@ function GraphCanvas() {
               <GitBranch className="w-4 h-4" />
               放射状
             </button>
+            <button
+              onClick={() => setDedupOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
+            >
+              <Merge className="w-4 h-4" />
+              去重扫描
+            </button>
           </div>
         </Panel>
         <MiniMap
@@ -1208,6 +1219,9 @@ function GraphCanvas() {
           </div>
         </div>
       )}
+
+      {/* Dedup Panel */}
+      <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} />
     </div>
   )
 }
