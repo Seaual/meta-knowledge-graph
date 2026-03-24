@@ -149,6 +149,9 @@ export const exportApi = {
   canvas: () => api.get('/graph/export/obsidian/canvas'),
   downloadCanvas: () =>
     api.get('/graph/export/obsidian/canvas/download', { responseType: 'blob' }),
+  html: () => api.get('/graph/export/obsidian/html'),
+  downloadHtml: () =>
+    api.get('/graph/export/obsidian/html/download', { responseType: 'blob' }),
 }
 
 export default api

@@ -268,6 +268,372 @@ class ObsidianExporter:
 
         return json.dumps(canvas_data, ensure_ascii=False, indent=2)
 
+    def export_html(self, db, graph) -> str:
+        """
+        导出为交互式 HTML 页面
+
+        支持功能：
+        - D3.js 力导向图物理渲染
+        - 节点拖拽
+        - 缩放平移
+        - 节点按类别着色
+        - 悬停显示详情
+        """
+        concepts = db.get_all_concepts()
+        papers = db.get_all_papers()
+
+        # 类别到颜色的映射
+        category_colors = {
+            'field': '#FF6B6B',      # 红色 - 大领域
+            'direction': '#4ECDC4',  # 青色 - 研究方向
+            'subdirection': '#45B7D1',
+            'task': '#A78BFA',       # 紫色 - 任务
+            'method': '#FFA726',     # 橙色 - 方法
+            'technique': '#FFD93D',  # 黄色 - 技术
+            'detail': '#96CEB4',     # 绿色 - 细节
+        }
+
+        # 构建节点数据
+        nodes = []
+        concept_by_id = {}
+        for c in concepts:
+            concept_by_id[c['id']] = c
+            nodes.append({
+                "id": c['id'],
+                "text": c['text'],
+                "category": c.get('category', 'method'),
+                "paper_count": c.get('paper_count', 0)
+            })
+
+        # 构建边数据
+        links = []
+        for c in concepts:
+            parents = db.get_concept_parents(c['id'])
+            for p in parents:
+                links.append({
+                    "source": p['id'],
+                    "target": c['id']
+                })
+
+        # 生成HTML
+        html = f'''<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>知识图谱 - 交互式可视化</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }}
+        #container {{
+            width: 100vw;
+            height: 100vh;
+        }}
+        .node {{
+            cursor: pointer;
+            transition: transform 0.1s;
+        }}
+        .node:hover {{
+            transform: scale(1.1);
+        }}
+        .node circle {{
+            stroke-width: 2px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }}
+        .node text {{
+            font-size: 11px;
+            fill: #fff;
+            text-anchor: middle;
+            pointer-events: none;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }}
+        .link {{
+            stroke: rgba(255,255,255,0.2);
+            stroke-width: 1.5px;
+        }}
+        .tooltip {{
+            position: absolute;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #fff;
+            font-size: 13px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 300px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 100;
+        }}
+        .tooltip.visible {{
+            opacity: 1;
+        }}
+        .tooltip h3 {{
+            margin-bottom: 8px;
+            font-size: 15px;
+        }}
+        .tooltip .category {{
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-bottom: 6px;
+        }}
+        .tooltip .paper-count {{
+            color: rgba(255,255,255,0.7);
+            font-size: 12px;
+        }}
+        #info {{
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: #fff;
+            z-index: 10;
+        }}
+        #info h1 {{
+            font-size: 18px;
+            margin-bottom: 8px;
+        }}
+        #info p {{
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }}
+        #legend {{
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 16px;
+            color: #fff;
+            z-index: 10;
+        }}
+        #legend h3 {{
+            font-size: 14px;
+            margin-bottom: 10px;
+        }}
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 12px;
+        }}
+        .legend-color {{
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }}
+        #controls {{
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }}
+        #controls button {{
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: #fff;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }}
+        #controls button:hover {{
+            background: rgba(59, 130, 246, 0.5);
+        }}
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <h1>知识图谱</h1>
+        <p>概念: {len(concepts)} 个 | 论文: {len(papers)} 篇</p>
+        <p style="margin-top: 6px; font-size: 11px;">拖拽节点 | 滚轮缩放 | 双击重置</p>
+    </div>
+    <div id="legend">
+        <h3>概念层级</h3>
+        <div class="legend-item"><div class="legend-color" style="background: #FF6B6B"></div>领域 (field)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #4ECDC4"></div>方向 (direction)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #A78BFA"></div>任务 (task)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #FFA726"></div>方法 (method)</div>
+        <div class="legend-item"><div class="legend-color" style="background: #FFD93D"></div>技术 (technique)</div>
+    </div>
+    <div id="controls">
+        <button onclick="resetZoom()">重置视图</button>
+        <button onclick="togglePhysics()">暂停/继续物理</button>
+    </div>
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        const nodes = {json.dumps(nodes, ensure_ascii=False)};
+        const links = {json.dumps(links, ensure_ascii=False)};
+        const categoryColors = {json.dumps(category_colors)};
+
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+
+        const svg = d3.select("#container")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+        const container = svg.append("g");
+
+        // Zoom behavior
+        const zoom = d3.zoom()
+            .scaleExtent([0.1, 4])
+            .on("zoom", (event) => {{
+                container.attr("transform", event.transform);
+            }});
+
+        svg.call(zoom);
+
+        // Arrow marker
+        svg.append("defs").append("marker")
+            .attr("id", "arrowhead")
+            .attr("viewBox", "-0 -5 10 10")
+            .attr("refX", 20)
+            .attr("refY", 0)
+            .attr("orient", "auto")
+            .attr("markerWidth", 6)
+            .attr("markerHeight", 6)
+            .append("path")
+            .attr("d", "M 0,-5 L 10,0 L 0,5")
+            .attr("fill", "rgba(255,255,255,0.3)");
+
+        // Links
+        const link = container.append("g")
+            .selectAll("line")
+            .data(links)
+            .enter().append("line")
+            .attr("class", "link")
+            .attr("marker-end", "url(#arrowhead)");
+
+        // Nodes
+        const node = container.append("g")
+            .selectAll("g")
+            .data(nodes)
+            .enter().append("g")
+            .attr("class", "node")
+            .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+
+        // Node circles
+        node.append("circle")
+            .attr("r", d => 8 + Math.sqrt(d.paper_count || 0) * 2)
+            .attr("fill", d => categoryColors[d.category] || '#94A3B8')
+            .attr("stroke", d => categoryColors[d.category] || '#94A3B8')
+            .attr("stroke-opacity", 0.5);
+
+        // Node labels
+        node.append("text")
+            .attr("dy", d => 14 + Math.sqrt(d.paper_count || 0) * 2)
+            .text(d => d.text.length > 10 ? d.text.substring(0, 10) + '...' : d.text);
+
+        // Tooltip
+        const tooltip = d3.select("#tooltip");
+
+        node.on("mouseover", function(event, d) {{
+            tooltip.html(`
+                <h3>${{d.text}}</h3>
+                <div class="category" style="background: ${{categoryColors[d.category]}}20; color: ${{categoryColors[d.category]}}">
+                    ${{d.category}}
+                </div>
+                <div class="paper-count">关联论文: ${{d.paper_count || 0}} 篇</div>
+            `)
+            .style("left", (event.pageX + 15) + "px")
+            .style("top", (event.pageY - 10) + "px")
+            .classed("visible", true);
+        }})
+        .on("mouseout", function() {{
+            tooltip.classed("visible", false);
+        }});
+
+        // Force simulation
+        const simulation = d3.forceSimulation(nodes)
+            .force("link", d3.forceLink(links).id(d => d.id).distance(80).strength(0.5))
+            .force("charge", d3.forceManyBody().strength(-200))
+            .force("center", d3.forceCenter(width / 2, height / 2))
+            .force("collision", d3.forceCollide().radius(d => 20 + Math.sqrt(d.paper_count || 0) * 2))
+            .on("tick", ticked);
+
+        function ticked() {{
+            link
+                .attr("x1", d => d.source.x)
+                .attr("y1", d => d.source.y)
+                .attr("x2", d => d.target.x)
+                .attr("y2", d => d.target.y);
+
+            node.attr("transform", d => `translate(${{d.x}}, ${{d.y}})`);
+        }}
+
+        function dragstarted(event, d) {{
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }}
+
+        function dragged(event, d) {{
+            d.fx = event.x;
+            d.fy = event.y;
+        }}
+
+        function dragended(event, d) {{
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }}
+
+        function resetZoom() {{
+            svg.transition().duration(500).call(
+                zoom.transform,
+                d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2)
+            );
+        }}
+
+        let physicsPaused = false;
+        function togglePhysics() {{
+            physicsPaused = !physicsPaused;
+            if (physicsPaused) {{
+                simulation.stop();
+            }} else {{
+                simulation.alpha(1).restart();
+            }}
+        }}
+
+        // Double click to reset
+        svg.on("dblclick", resetZoom);
+
+        // Initial zoom
+        svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2));
+    </script>
+</body>
+</html>'''
+
+        return html
+
     def export_from_neo4j(self, neo4j_graph, output_name: str = "openclaw_knowledge"):
         """从 Neo4j 导出"""
         print(f"\n导出到: {self.vault_path}\n")

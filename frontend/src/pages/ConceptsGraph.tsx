@@ -315,6 +315,23 @@ export default function ConceptsGraph() {
     }
   }, [])
 
+  const handleExportHtml = useCallback(async () => {
+    try {
+      const res = await exportApi.downloadHtml()
+      const url = window.URL.createObjectURL(new Blob([res.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `knowledge-graph-${new Date().toISOString().split('T')[0]}.html`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('HTML export failed:', err)
+      alert('导出失败')
+    }
+  }, [])
+
   // Back to all concepts
   const handleBack = useCallback(() => {
     const parentMap = new Map<string, string>()
@@ -545,6 +562,16 @@ export default function ConceptsGraph() {
           </button>
           {showExportMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
+              <button
+                onClick={() => { handleExportHtml(); setShowExportMenu(false); }}
+                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3"
+              >
+                <span className="text-lg">🌐</span>
+                <div>
+                  <div className="font-medium">HTML 页面</div>
+                  <div className="text-xs text-gray-400">交互式物理渲染</div>
+                </div>
+              </button>
               <button
                 onClick={() => { handleExportCanvas(); setShowExportMenu(false); }}
                 className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3"

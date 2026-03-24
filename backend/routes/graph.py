@@ -215,15 +215,15 @@ def download_obsidian():
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@router.get("/export/obsidian/canvas")
-def export_obsidian_canvas():
-    """导出知识图谱为 Obsidian Canvas 格式（带颜色和布局）"""
+@router.get("/export/obsidian/html")
+def export_obsidian_html():
+    """导出知识图谱为交互式 HTML 页面（D3.js 力导向图）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_canvas(db, graph)
+        content = exporter.export_html(db, graph)
 
         stats = db.get_stats()
 
@@ -239,21 +239,21 @@ def export_obsidian_canvas():
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
-@router.get("/export/obsidian/canvas/download")
-def download_obsidian_canvas():
-    """下载 Obsidian Canvas 文件（.canvas 格式）"""
+@router.get("/export/obsidian/html/download")
+def download_obsidian_html():
+    """下载交互式 HTML 文件（带物理渲染）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_canvas(db, graph)
+        content = exporter.export_html(db, graph)
 
         return Response(
             content=content,
-            media_type="application/json",
+            media_type="text/html",
             headers={
-                "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.canvas"
+                "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.html"
             }
         )
     except Exception as e:
