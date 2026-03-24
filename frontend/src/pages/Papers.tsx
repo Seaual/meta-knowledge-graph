@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle } from 'lucide-react'
-import { papersApi } from '../lib/api'
+import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { papersApi, batchApi } from '../lib/api'
 
 interface Paper {
   doi: string
@@ -27,6 +27,13 @@ export default function Papers() {
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [batchProcessing, setBatchProcessing] = useState(false)
+  const [batchProgress, setBatchProgress] = useState<{
+    total: number
+    completed: number
+    successful: number
+    failed: number
+  } | null>(null)
 
   const loadPapers = () => {
     papersApi.list().then(res => {
@@ -77,6 +84,39 @@ export default function Papers() {
 
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
+    }
+  }
+
+  const handleBatchProcess = async () => {
+    const pendingPapers = papers.filter(p => p.status === 'pending')
+    if (pendingPapers.length === 0) {
+      alert('没有待处理的论文')
+      return
+    }
+
+    if (!confirm(`确定要处理 ${pendingPapers.length} 篇论文？\n这可能需要一些时间。`)) {
+      return
+    }
+
+    setBatchProcessing(true)
+    setBatchProgress({ total: pendingPapers.length, completed: 0, successful: 0, failed: 0 })
+
+    try {
+      const dois = pendingPapers.map(p => p.doi)
+      const res = await batchApi.process(`manual_${Date.now()}`, dois)
+
+      setBatchProgress({
+        total: res.data.total,
+        completed: res.data.completed,
+        successful: res.data.successful,
+        failed: res.data.failed,
+      })
+
+      loadPapers()
+    } catch (err: any) {
+      alert(err.response?.data?.detail || '批量处理失败')
+    } finally {
+      setBatchProcessing(false)
     }
   }
 
@@ -132,6 +172,25 @@ export default function Papers() {
             <RefreshCw className="h-4 w-4 mr-2" />
             刷新
           </button>
+          {papers.filter(p => p.status === 'pending').length > 0 && (
+            <button
+              onClick={handleBatchProcess}
+              disabled={batchProcessing}
+              className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+            >
+              {batchProcessing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  处理中...
+                </>
+              ) : (
+                <>
+                  <Play className="h-4 w-4 mr-2" />
+                  批量处理 ({papers.filter(p => p.status === 'pending').length})
+                </>
+              )}
+            </button>
+          )}
           <label className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600">
             <Upload className="h-4 w-4 mr-2" />
             {uploading ? '上传中...' : '上传 PDF'}
@@ -176,6 +235,28 @@ export default function Papers() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Batch Progress */}
+      {batchProgress && (
+        <div className="bg-white rounded-lg shadow p-4">
+          <h3 className="font-medium mb-3">批量处理进度</h3>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+              <div
+                className="bg-green-500 h-2.5 rounded-full transition-all"
+                style={{ width: `${(batchProgress.completed / batchProgress.total) * 100}%` }}
+              />
+            </div>
+            <span className="text-sm text-gray-600">
+              {batchProgress.completed}/{batchProgress.total}
+            </span>
+          </div>
+          <div className="flex gap-4 mt-2 text-sm">
+            <span className="text-green-600">成功: {batchProgress.successful}</span>
+            <span className="text-red-600">失败: {batchProgress.failed}</span>
           </div>
         </div>
       )}
