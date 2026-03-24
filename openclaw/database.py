@@ -121,6 +121,19 @@ class Database:
             )
         """)
 
+        # 批量任务表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS batch_jobs (
+                id TEXT PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                total INTEGER,
+                completed INTEGER DEFAULT 0,
+                successful INTEGER DEFAULT 0,
+                failed INTEGER DEFAULT 0,
+                status TEXT DEFAULT 'pending'
+            )
+        """)
+
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_concept_relations_parent
@@ -726,6 +739,34 @@ class Database:
             for child_id in children:
                 queue.append((child_id, depth + 1))
 
+        self.conn.commit()
+
+    # ========== 批量任务操作方法 ==========
+
+    def create_batch_job(self, job_id: str, total: int):
+        """创建批量任务"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO batch_jobs (id, total, status)
+            VALUES (?, ?, 'pending')
+        """, (job_id, total))
+        self.conn.commit()
+
+    def get_batch_job(self, job_id: str) -> Optional[dict]:
+        """获取批量任务状态"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM batch_jobs WHERE id = ?", (job_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_batch_job(self, job_id: str, completed: int, successful: int, failed: int, status: str):
+        """更新批量任务状态"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            UPDATE batch_jobs
+            SET completed = ?, successful = ?, failed = ?, status = ?
+            WHERE id = ?
+        """, (completed, successful, failed, status, job_id))
         self.conn.commit()
 
     # ========== 上下文管理器 ==========
