@@ -426,12 +426,13 @@ class LLMConceptExtractor:
 
     def _build_extraction_prompt(self, paper_content: PaperContent) -> str:
         """
-        构建概念提取 Prompt
+        构建概念提取 Prompt（优化版）
 
         核心设计：
         - 让 LLM 理解论文的层次结构
         - 提取概念间的包含关系（父子关系）
         - 支持多标签归属
+        - 包含清晰的判断标准、few-shot 示例和自检清单
         """
         return f"""
 你是一名学术知识图谱构建助手。请从这篇论文中提取概念层级结构和研究信息。
@@ -444,45 +445,131 @@ class LLMConceptExtractor:
 摘要：{paper_content.abstract[:500]}...
 
 ## 论文全文
-{paper_content.full_text[:50000]}  # 限制长度，避免超出上下文
+{paper_content.full_text[:50000]}
 
-## 任务要求
+---
+
+## 第一部分：层级判断标准
+
+在提取概念时，请严格按照以下标准判断概念所属层级：
+
+| 层级 | 英文名 | 判断标准 | 典型示例 |
+|------|--------|----------|----------|
+| **领域** | field | 一个广泛的学科领域，通常是一个完整的研究方向或学科分支 | 人工智能、机器学习、计算机视觉、自然语言处理 |
+| **方向** | direction | 领域内的具体研究方向，通常有独立的研究社区和会议 | 强化学习、目标检测、图神经网络、知识图谱 |
+| **方法** | method | 解决特定问题的具体方法或算法框架，有明确的技术路线 | Transformer、PPO算法、YOLO、BERT |
+| **技术** | technique | 实现方法的具体技术手段、技巧或组件 | 注意力机制、梯度裁剪、残差连接、位置编码 |
+| **细节** | detail | 算法的具体实现细节、超参数或设计选择 | 学习率0.001、3层MLP、隐藏维度256 |
+
+**判断口诀：**
+- 能独立成为一门课的 → field
+- 能独立发论文的方向 → direction
+- 有名字的方法框架 → method
+- 方法里的具体技巧 → technique
+- 数字和参数配置 → detail
+
+---
+
+## 第二部分：Few-shot 示例
+
+以下是正确提取的示例（假设论文是关于多智能体强化学习的）：
+
+**输入论文概要：** 论文提出了一个名为"Attention-QMIX"的新算法，用于解决多智能体协作问题...
+
+**正确输出：**
+```json
+{{
+    "title": "Attention-QMIX: 基于注意力机制的多智能体强化学习算法",
+    "authors": ["张三", "李四"],
+    "abstract": "摘要内容...",
+    "research_questions": [
+        "如何解决多智能体协作中的信用分配问题",
+        "如何处理大规模智能体环境下的可扩展性"
+    ],
+    "contributions": [
+        "提出了一种新的注意力机制用于智能体间通信",
+        "在SMAC基准测试上取得了SOTA性能"
+    ],
+    "concept_tree": {{
+        "concept": "人工智能",
+        "category": "field",
+        "confidence": 0.98,
+        "children": [
+            {{
+                "concept": "机器学习",
+                "category": "field",
+                "confidence": 0.95,
+                "children": [
+                    {{
+                        "concept": "强化学习",
+                        "category": "direction",
+                        "confidence": 0.95,
+                        "children": [
+                            {{
+                                "concept": "多智能体强化学习",
+                                "category": "direction",
+                                "confidence": 0.92,
+                                "children": [
+                                    {{
+                                        "concept": "值分解方法",
+                                        "category": "method",
+                                        "confidence": 0.88,
+                                        "children": [
+                                            {{
+                                                "concept": "QMIX算法",
+                                                "category": "method",
+                                                "confidence": 0.85,
+                                                "children": []
+                                            }},
+                                            {{
+                                                "concept": "注意力机制",
+                                                "category": "technique",
+                                                "confidence": 0.82,
+                                                "children": []
+                                            }}
+                                        ]
+                                    }}
+                                ]
+                            }}
+                        ]
+                    }}
+                ]
+            }}
+        ]
+    }},
+    "methodology": "采用值分解框架结合注意力机制，通过Q值混合网络实现协作决策",
+    "datasets": ["SMAC", "Google Research Football"],
+    "metrics": ["胜率", "平均回报", "样本效率"]
+}}
+```
+
+**常见错误示例：**
+❌ 错误：把"强化学习"标为 method → 应该是 direction（有独立研究社区）
+❌ 错误：把"注意力机制"标为 direction → 应该是 technique（是实现技巧）
+❌ 错误：概念名保留英文"Transformer" → 应翻译为"Transformer"（专有名词可保留）或"变换器"
+
+---
+
+## 第三部分：任务要求
 
 ### 1. 提取研究问题（1-3 个）
-论文试图解决什么核心问题？
+论文试图解决什么核心问题？用简洁的中文表述。
 
 ### 2. 提取主要贡献（1-5 个）
-论文的创新点是什么？
+论文的创新点是什么？聚焦于方法、理论或实验上的贡献。
 
 ### 3. 构建概念层级树（核心任务）
 从论文中提取概念，并组织成树状层级结构。
 
-**重要原则：**
-- 根节点应该是最宏观的研究领域（如"人工智能"、"机器学习"）
-- 子节点应该是更具体的研究方向、方法或技术
-- 层级应该反映"包含关系"或"从属关系"
+**构建原则：**
+- 根节点应该是宏观研究领域（如"人工智能"、"计算机科学"）
+- 按照领域→方向→方法→技术→细节的层次展开
+- 每个节点的 confidence 表示提取的置信度（0-1）
 - 同一概念可以出现在不同分支下（如果论文涉及多个方向）
-- **所有概念名称必须翻译成中文**
-
-**层级示例：**
-```
-人工智能 (field)
-└── 机器学习 (field)
-    └── 强化学习 (direction)
-        └── 多智能体强化学习 (direction)
-            ├── 近端策略优化 (method)
-            └── QMIX算法 (method)
-```
-
-**类别定义：**
-- field: 大领域/学科（如"人工智能"、"机器学习"）
-- direction: 研究方向（如"强化学习"、"计算机视觉"）
-- method: 具体方法/算法（如"近端策略优化"、"注意力机制"）
-- technique: 技术细节（如"梯度裁剪"、"正则化"）
-- detail: 实现细节/参数
+- **所有概念名称必须翻译成中文**（专有名词如Transformer可保留）
 
 ### 4. 提取方法论
-论文使用的核心方法是什么？
+论文使用的核心方法是什么？用1-2句话概述。
 
 ### 5. 提取数据集
 论文使用了哪些数据集或实验环境？
@@ -490,17 +577,19 @@ class LLMConceptExtractor:
 ### 6. 提取评估指标
 论文使用了哪些评估指标？
 
-## 输出格式
+---
 
-请输出严格的 JSON 格式：
+## 第四部分：输出格式
+
+请严格按照以下 JSON 格式输出：
 
 ```json
 {{
     "title": "论文标题",
-    "authors": ["作者 1", "作者 2"],
+    "authors": ["作者1", "作者2"],
     "abstract": "摘要...",
-    "research_questions": ["问题 1", "问题 2"],
-    "contributions": ["贡献 1", "贡献 2"],
+    "research_questions": ["问题1", "问题2"],
+    "contributions": ["贡献1", "贡献2"],
     "concept_tree": {{
         "concept": "根概念（中文）",
         "category": "field",
@@ -515,12 +604,26 @@ class LLMConceptExtractor:
         ]
     }},
     "methodology": "方法描述",
-    "datasets": ["数据集 1", "数据集 2"],
-    "metrics": ["指标 1", "指标 2"]
+    "datasets": ["数据集1", "数据集2"],
+    "metrics": ["指标1", "指标2"]
 }}
 ```
 
-只输出 JSON，不要其他内容。所有概念名称必须使用中文！
+---
+
+## 第五部分：自检清单
+
+在输出前，请检查以下几点：
+
+✓ **层级正确性**：每个概念的 category 是否符合判断标准？
+✓ **层级一致性**：父节点的层级是否比子节点更宏观？（field > direction > method > technique > detail）
+✓ **中文翻译**：是否所有概念都已翻译成中文？
+✓ **置信度合理**：confidence 是否反映了提取的确定性？
+✓ **树结构完整**：concept_tree 是否有合理的根节点和层级深度？
+
+---
+
+**只输出 JSON，不要其他内容。开始提取！**
 """
 
     def _parse_response(self, response: str, original_content: PaperContent) -> LLMExtractedContent:
