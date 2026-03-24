@@ -464,7 +464,7 @@ class ObsidianExporter:
     <div id="info">
         <h1>知识图谱</h1>
         <p>概念: {len(concepts)} 个 | 论文: {len(papers)} 篇</p>
-        <p style="margin-top: 6px; font-size: 11px;">拖拽节点 | 滚轮缩放 | 双击重置</p>
+        <p style="margin-top: 6px; font-size: 11px;">拖拽节点 | 滚轮缩放</p>
     </div>
     <div id="legend">
         <h3>概念层级</h3>
@@ -625,9 +625,6 @@ class ObsidianExporter:
                 simulation.alpha(1).restart();
             }}
         }}
-
-        // Double click to reset
-        svg.on("dblclick", resetZoom);
 
         // Initial zoom
         svg.call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(0.8).translate(-width / 2, -height / 2));
