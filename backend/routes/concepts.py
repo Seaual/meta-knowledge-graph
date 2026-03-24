@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from openclaw.database import Database
 from openclaw.graph import KnowledgeGraph
 from openclaw.pdf_parser import LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from openclaw.dedup import ConceptDeduplicator
 from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
 
 router = APIRouter(prefix="/api/concepts", tags=["concepts"])
@@ -22,6 +23,7 @@ router = APIRouter(prefix="/api/concepts", tags=["concepts"])
 _db = None
 _graph = None
 _extractor = None
+_deduplicator = None
 
 
 def get_db():
@@ -61,6 +63,15 @@ def get_extractor():
             client = OpenAICompatibleClient(api_key)
         _extractor = LLMConceptExtractor(client)
     return _extractor
+
+
+def get_deduplicator():
+    """获取去重器实例"""
+    global _deduplicator
+    if _deduplicator is None:
+        extractor = get_extractor()
+        _deduplicator = ConceptDeduplicator(get_db(), extractor.api_client if extractor else None)
+    return _deduplicator
 
 
 class ResearchPointResponse(BaseModel):
@@ -299,3 +310,22 @@ def discover_research_points(concept_id: str):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"LLM analysis failed: {str(e)}")
+
+
+@router.post("/dedup/scan")
+def dedup_scan():
+    """
+    触发去重扫描
+
+    返回候选合并建议列表，需要用户确认后才执行合并
+    """
+    deduplicator = get_deduplicator()
+
+    if not deduplicator.merge_analyzer:
+        raise HTTPException(
+            status_code=500,
+            detail="LLM not configured. Please set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or DASHSCOPE_API_KEY"
+        )
+
+    result = deduplicator.scan()
+    return result
