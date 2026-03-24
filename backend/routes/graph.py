@@ -2,16 +2,18 @@
 Graph API routes
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Response
 from typing import List
 import sys
 from pathlib import Path
+from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from openclaw.database import Database
 from openclaw.graph import KnowledgeGraph
-from backend.schemas import GraphStats, GraphData, GraphNode, GraphEdge
+from openclaw.obsidian_exporter import ObsidianExporter
+from backend.schemas import GraphStats, GraphData, GraphNode, GraphEdge, ExportResponse
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
@@ -121,3 +123,42 @@ def get_tree_data():
             trees.append(tree)
 
     return {"trees": trees}
+
+
+@router.get("/export/obsidian")
+def export_obsidian():
+    """导出知识图谱为 Obsidian 兼容的 Markdown 格式"""
+    db = get_db()
+    graph = get_graph()
+
+    exporter = ObsidianExporter()
+    content = exporter.export_overview(db, graph)
+
+    stats = db.get_stats()
+
+    return ExportResponse(
+        content=content,
+        stats={
+            "papers": stats.get('papers', {}).get('total', 0),
+            "concepts": stats.get('concepts', {}).get('total', 0),
+            "generated_at": datetime.now().isoformat()
+        }
+    )
+
+
+@router.get("/export/obsidian/download")
+def download_obsidian():
+    """下载 Obsidian Markdown 文件"""
+    db = get_db()
+    graph = get_graph()
+
+    exporter = ObsidianExporter()
+    content = exporter.export_overview(db, graph)
+
+    return Response(
+        content=content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.md"
+        }
+    )
