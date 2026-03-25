@@ -176,7 +176,7 @@ class Database:
         # 添加 folder_id 列（如果不存在）
         try:
             cursor.execute("ALTER TABLE papers ADD COLUMN folder_id TEXT DEFAULT 'default'")
-        except:
+        except sqlite3.OperationalError:
             pass  # Column already exists
 
         # 创建索引
@@ -934,6 +934,11 @@ class Database:
             return False  # 不能删除默认文件夹
 
         cursor = self.conn.cursor()
+        # 检查文件夹是否存在
+        cursor.execute("SELECT id FROM folders WHERE id = ?", (folder_id,))
+        if not cursor.fetchone():
+            return False  # 文件夹不存在
+
         # 将论文移到 default
         cursor.execute("UPDATE papers SET folder_id = 'default' WHERE folder_id = ?", (folder_id,))
         # 删除文件夹
