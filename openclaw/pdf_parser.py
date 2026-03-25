@@ -78,6 +78,112 @@ STAGE1_SUMMARY_PROMPT = """<s>
 只输出 JSON，不要其他内容。"""
 
 
+STAGE2_EXTRACTION_PROMPT = """<s>
+你是一位学术知识图谱构建专家。你的任务是基于论文总结，构建一棵精炼的概念树。
+
+关键原则——区分"锚点"和"贡献"：
+- **锚点路径**：从根节点到论文核心贡献的最短路径。只需存在，不展开子树。作用是定位"这篇论文属于哪里"。
+- **贡献子树**：论文真正贡献的概念。展开详细子节点。这些是图谱中因为这篇论文而新增的知识。
+</s>
+
+<paper_summary>
+{summary_json}
+</paper_summary>
+
+{existing_graph_section}
+
+<taxonomy>
+层级定义（基于"最小可发表单元"原则）：
+- field：能建大学院系 → 如"人工智能"
+- direction：有专门学术会议 → 如"多智能体强化学习"
+- subdirection：综述论文的独立章节 → 如"值分解方法"
+- task：可表述为"给定X求Y" → 如"信用分配问题"
+- method：有名字的可复现算法 → 如"QMIX"
+- technique：方法内部的组件/技巧 → 如"注意力加权混合"
+
+判定：五步 yes/no 排除法：
+1. 能不能围绕它建一个大学院系？→ field
+2. 有没有专门的学术会议或期刊专题？→ direction
+3. 会不会在该方向的综述论文中作为独立章节？→ subdirection
+4. 能不能表述成"给定X，求解/优化Y"的问题定义？→ task
+5. 有没有具体名字和可复现的算法流程？→ method
+6. 以上都不是 → technique
+</taxonomy>
+
+<task>
+请构建概念树，分三步执行：
+
+**第一步：画锚点路径**
+从 paper_summary.research_context 提取 field → direction 的最短路径。
+这些节点标记 "is_anchor": true，不展开子树。
+
+**第二步：在锚点末端展开贡献子树**
+从 paper_summary.core_contributions 和 novel_concepts 提取概念。
+标记 "is_anchor": false。
+
+**第三步：标注贡献类型**
+对每个核心节点标注 contribution_role：
+- "proposed"：论文首次提出
+- "improved"：论文改进了已有方法
+- "applied"：已有方法应用于新场景
+- "analyzed"：对已有概念的深入分析
+</task>
+
+<confidence_scale>
+| 分数 | 含义 |
+|------|------|
+| 0.90-1.00 | 论文明确讨论，层级无歧义 |
+| 0.75-0.89 | 论文涉及，层级基本确定 |
+| 0.60-0.74 | 从论文内容合理推断 |
+| < 0.60 | 不要输出 |
+</confidence_scale>
+
+<output_format>
+输出 JSON：
+
+{{
+  "paper_summary": "one_sentence_summary 的内容",
+  "concept_tree": {{
+    "concept": "根概念（中文）",
+    "category": "field",
+    "is_anchor": true,
+    "children": [
+      {{
+        "concept": "方向概念（中文）",
+        "category": "direction",
+        "is_anchor": true,
+        "children": [
+          {{
+            "concept": "核心贡献概念",
+            "category": "subdirection|task|method|technique",
+            "is_anchor": false,
+            "contribution_role": "proposed|improved|applied|analyzed",
+            "confidence": 0.60-1.00,
+            "children": [...]
+          }}
+        ]
+      }}
+    ]
+  }},
+  "methodology": "核心方法概述",
+  "datasets": ["数据集"],
+  "metrics": ["指标"]
+}}
+
+节点数量指引：
+- 锚点路径：2-4 个节点
+- 贡献子树：4-10 个节点
+- 总计：6-15 个。超过 15 个 → 你在提取背景而非核心。
+</output_format>
+
+只输出 JSON，不要其他内容。"""
+
+EXISTING_GRAPH_SECTION = """<existing_graph>
+当前知识图谱中已有的概念。请优先复用已有节点作为锚点，避免重复创建。
+{existing_tree}
+</existing_graph>"""
+
+
 @dataclass
 class PaperContent:
     """论文内容（原始文本）"""
@@ -506,28 +612,84 @@ class LLMConceptExtractor:
                 "novel_concepts": []
             }
 
+    def _stage2_extract(self, summary: dict, existing_concepts: str = "") -> dict:
+        """
+        Stage 2: 核心概念提取
+        目标：基于 Stage 1 摘要，只提取核心贡献对应的概念树
+        """
+        import json
+
+        # 构建已有图谱部分
+        existing_section = ""
+        if existing_concepts and existing_concepts != "（图谱为空）":
+            existing_section = EXISTING_GRAPH_SECTION.format(existing_tree=existing_concepts)
+
+        prompt = STAGE2_EXTRACTION_PROMPT.format(
+            summary_json=json.dumps(summary, ensure_ascii=False, indent=2),
+            existing_graph_section=existing_section
+        )
+
+        response = self.api_client.extract_concepts(prompt)
+        return self._parse_stage2_response(response)
+
+    def _parse_stage2_response(self, response: str) -> dict:
+        """解析 Stage 2 响应"""
+        import json
+        import re
+
+        try:
+            json_match = re.search(r'```json\s*(.+?)\s*```', response, re.DOTALL)
+            json_str = json_match.group(1) if json_match else response.strip()
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"Stage 2 解析失败: {e}")
+            return {
+                "paper_summary": "",
+                "concept_tree": {},
+                "methodology": "",
+                "datasets": [],
+                "metrics": []
+            }
+
     def extract(self, paper_content: PaperContent, existing_concepts: str = "") -> LLMExtractedContent:
         """
-        从论文内容提取概念树和结构化信息
+        从论文内容提取概念树和结构化信息（两阶段架构）
 
-        Args:
-            paper_content: 论文原始内容
-            existing_concepts: 已有概念树的字符串表示，用于智能匹配
-
-        Returns:
-            LLM 提取的结构化内容
+        Stage 1: 论文总结 - 理解论文，区分背景和贡献
+        Stage 2: 核心提取 - 基于摘要构建概念树
         """
         if not self.api_client:
             raise ValueError("需要配置 LLM API 客户端")
 
-        # 构建 prompt
-        prompt = self._build_extraction_prompt(paper_content, existing_concepts)
+        # Stage 1: 总结（理解论文）
+        summary = self._stage1_summarize(paper_content)
 
-        # 调用 LLM
-        response = self.api_client.extract_concepts(prompt)
+        # Stage 2: 提取核心（构建概念树）
+        extraction = self._stage2_extract(summary, existing_concepts)
 
-        # 解析响应
-        return self._parse_response(response, paper_content)
+        # 合并结果
+        concept_tree = self._build_concept_tree(extraction.get('concept_tree', {}))
+
+        # 获取 results_summary 中的数据集和指标
+        results_summary = summary.get('results_summary', {})
+
+        return LLMExtractedContent(
+            title=summary.get('one_sentence_summary', paper_content.title),
+            authors=paper_content.authors,
+            abstract=paper_content.abstract,
+            research_questions=[],
+            contributions=[c.get('claim', '') for c in summary.get('core_contributions', [])],
+            concept_tree=concept_tree,
+            methodology=extraction.get('methodology'),
+            datasets=results_summary.get('datasets', []),
+            metrics=results_summary.get('metrics', []),
+            raw_response="",  # Two-stage extraction doesn't preserve raw response
+            # 新增字段
+            one_sentence_summary=summary.get('one_sentence_summary'),
+            research_context=summary.get('research_context'),
+            background_concepts=summary.get('background_concepts', []),
+            novel_concepts=summary.get('novel_concepts', [])
+        )
 
     def _build_extraction_prompt(self, paper_content: PaperContent, existing_concepts: str = "") -> str:
         """
