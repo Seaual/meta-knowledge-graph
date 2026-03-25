@@ -81,16 +81,24 @@ interface QueueState {
 #### 2.1.2 处理流程
 
 ```
-点击批量处理 → 将 pending 论文入队 → 逐个调用 processOne API
+点击批量处理 → 检查是否有进行中任务 → 将 pending 论文入队 → 逐个调用 processSingle API
 → 每完成一个更新进度 → 计算预估时间 → 完成后显示总结
 ```
 
 #### 2.1.3 预估时间计算
 
 ```typescript
-// 基于历史数据计算
-avgTimePerPaper = durations.reduce((a, b) => a + b, 0) / durations.length
-estimatedTime = Math.ceil(avgTimePerPaper * pending.length)
+// 基于历史数据计算（防止除零错误）
+const avgTimePerPaper = durations.length > 0
+  ? durations.reduce((a, b) => a + b, 0) / durations.length
+  : 0
+const estimatedTime = Math.ceil(avgTimePerPaper * pending.length)
+
+// 限制 durations 数组长度，避免内存无限增长
+const MAX_DURATIONS = 50
+if (durations.length > MAX_DURATIONS) {
+  durations = durations.slice(-MAX_DURATIONS)
+}
 ```
 
 #### 2.1.4 UI 显示
@@ -108,29 +116,38 @@ estimatedTime = Math.ceil(avgTimePerPaper * pending.length)
 
 #### 2.2.1 新增 API
 
+**注意**：保持与现有 `process` API 一致的请求格式（使用 body 传递 doi），响应使用 `status` 字段而非 `success` 布尔值。
+
 ```python
-@router.post("/process-one/{doi}")
-async def process_one_paper(doi: str):
+@router.post("/process-single")
+async def process_single_paper(request: ProcessRequest):
     """
     处理单个论文，返回处理耗时
 
+    请求格式与现有 /process 一致，响应增加耗时字段。
+
     Returns:
         {
-            "success": bool,
-            "doi": str,
-            "duration": float,  # 处理耗时（秒）
-            "concepts": int,    # 提取的概念数
-            "error": str | None
+            "success": bool,          # 保持与现有 ProcessResponse 一致
+            "message": str,
+            "concept_tree": dict | None,
+            "duration": float,        # 新增：处理耗时（秒）
+            "concepts_count": int     # 新增：提取的概念数
         }
     """
     start_time = time.time()
-    # ... 现有的处理逻辑
+
+    # 复用现有处理逻辑
+    result = process_paper(request)  # 调用现有函数
+
     duration = time.time() - start_time
+
     return {
-        "success": True,
-        "doi": doi,
+        "success": result.success,
+        "message": result.message,
+        "concept_tree": result.concept_tree,
         "duration": duration,
-        "concepts": concept_count
+        "concepts_count": len(result.concept_tree.children) if result.concept_tree else 0
     }
 ```
 
@@ -142,7 +159,7 @@ async def process_one_paper(doi: str):
 // 新增
 papersApi: {
   // ... 现有方法
-  processOne: (doi: string) => api.post(`/papers/process-one/${encodeURIComponent(doi)}`)
+  processSingle: (doi: string) => api.post('/papers/process-single', { doi })
 }
 ```
 
@@ -249,21 +266,25 @@ def get_scan_status(scan_id: str):
     if not job:
         raise HTTPException(404, "Scan job not found")
 
-    # 计算预估时间
-    if job['concepts_scanned'] > 0:
+    # 计算预估时间（防止除零错误）
+    estimated_time = 0
+    if job['concepts_scanned'] > 0 and job['total_concepts'] > 0:
         elapsed = time.time() - job['started_at']
         avg_time = elapsed / job['concepts_scanned']
         remaining = job['total_concepts'] - job['concepts_scanned']
         estimated_time = int(avg_time * remaining)
-    else:
-        estimated_time = 0
+
+    # 计算进度（防止除零错误）
+    progress = 0
+    if job['total_concepts'] > 0:
+        progress = (job['concepts_scanned'] / job['total_concepts']) * 100
 
     return {
         "scan_id": scan_id,
         "status": job['status'],
         "total_concepts": job['total_concepts'],
         "concepts_scanned": job['concepts_scanned'],
-        "progress": (job['concepts_scanned'] / job['total_concepts']) * 100,
+        "progress": progress,
         "estimated_time": estimated_time,
         "suggestions": job.get('suggestions')
     }
@@ -356,8 +377,8 @@ dedupApi: {
 |------|---------|---------|
 | `frontend/src/pages/Papers.tsx` | 修改 | 上传提示自动消失、批量队列处理、预估时间显示 |
 | `frontend/src/components/DedupPanel.tsx` | 修改 | 去重扫描进度、预估时间显示、轮询机制 |
-| `frontend/src/lib/api.ts` | 修改 | 新增 `processOne`、`scanStatus` API |
-| `backend/routes/papers.py` | 修改 | 新增 `process-one` API |
+| `frontend/src/lib/api.ts` | 修改 | 新增 `processSingle`、`scanStatus` API |
+| `backend/routes/papers.py` | 修改 | 新增 `process-single` API |
 | `backend/routes/concepts.py` | 修改 | 扫描改为异步、新增 `scan-status` API |
 | `mkg/database.py` | 修改 | 新增 `scan_jobs` 表和相关方法 |
 
@@ -376,3 +397,95 @@ dedupApi: {
 - **低风险**：上传提示自动消失，纯前端改动
 - **中风险**：批量处理队列化，需要前后端配合
 - **中风险**：去重扫描异步化，需要数据库表变更
+
+---
+
+## 数据库迁移策略
+
+### 自动迁移
+
+在 `Database.connect()` 方法中添加表创建逻辑，应用启动时自动执行：
+
+```python
+def connect(self):
+    # ... 现有连接逻辑
+
+    # 创建 scan_jobs 表（幂等）
+    self.conn.execute('''
+        CREATE TABLE IF NOT EXISTS scan_jobs (
+            id TEXT PRIMARY KEY,
+            status TEXT DEFAULT 'pending',
+            total_concepts INTEGER DEFAULT 0,
+            concepts_scanned INTEGER DEFAULT 0,
+            suggestions TEXT,
+            error TEXT,
+            created_at REAL,
+            started_at REAL,
+            completed_at REAL
+        )
+    ''')
+    self.conn.commit()
+```
+
+### Scan Job 清理策略
+
+1. **自动清理过期任务**：在启动新扫描时，清理 24 小时前的已完成/失败任务
+2. **手动清理 API**：提供管理接口清理所有过期任务
+
+```python
+def cleanup_old_scan_jobs(self, max_age_hours: int = 24):
+    """清理过期的扫描任务"""
+    cutoff = time.time() - (max_age_hours * 3600)
+    self.conn.execute(
+        "DELETE FROM scan_jobs WHERE completed_at < ? OR (status IN ('completed', 'failed') AND created_at < ?)",
+        (cutoff, cutoff)
+    )
+    self.conn.commit()
+```
+
+---
+
+## 边界情况处理
+
+### 并发批量操作
+
+前端在开始批量处理时检查是否已有进行中的任务：
+
+```typescript
+const handleBatchProcess = () => {
+  if (queueState.current !== null) {
+    alert('已有批量处理任务进行中，请等待完成')
+    return
+  }
+  // ... 开始新任务
+}
+```
+
+### 上传提示定时器竞态
+
+使用 `useRef` 存储定时器 ID，确保每次新上传都重置定时器：
+
+```typescript
+const uploadTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+useEffect(() => {
+  if (uploadResults.length === 0) return
+
+  // 清除旧定时器
+  if (uploadTimerRef.current) {
+    clearTimeout(uploadTimerRef.current)
+  }
+
+  // 设置新定时器
+  uploadTimerRef.current = setTimeout(() => {
+    setUploadResults([])
+    uploadTimerRef.current = null
+  }, 5000)
+
+  return () => {
+    if (uploadTimerRef.current) {
+      clearTimeout(uploadTimerRef.current)
+    }
+  }
+}, [uploadResults])
+```
