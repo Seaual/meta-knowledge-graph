@@ -1009,6 +1009,71 @@ class Database:
 
         return {"node_count": node_count, "root_concept": root_concept}
 
+    def delete_paper_cascade(self, doi: str):
+        """
+        删除论文及其孤立的概念节点
+
+        工作流程：
+        1. 获取该论文关联的所有概念
+        2. 删除 paper_concepts 关联
+        3. 对每个概念，检查是否有其他论文引用
+        4. 如果没有，删除该概念并递归检查子概念
+        5. 清理 concept_relations 记录
+        """
+        cursor = self.conn.cursor()
+
+        # 获取该论文关联的概念
+        cursor.execute("""
+            SELECT concept_id FROM paper_concepts WHERE paper_doi = ?
+        """, (doi,))
+        concepts = [row['concept_id'] for row in cursor.fetchall()]
+
+        # 删除 paper_concepts 关联
+        cursor.execute("DELETE FROM paper_concepts WHERE paper_doi = ?", (doi,))
+
+        # 删除 concept_extractions
+        cursor.execute("DELETE FROM concept_extractions WHERE paper_doi = ?", (doi,))
+
+        # 删除 processing_log
+        cursor.execute("DELETE FROM processing_log WHERE paper_doi = ?", (doi,))
+
+        # 检查并删除孤立概念
+        for concept_id in concepts:
+            self._delete_orphaned_concept(concept_id)
+
+        # 删除论文
+        cursor.execute("DELETE FROM papers WHERE doi = ?", (doi,))
+
+        self.conn.commit()
+
+    def _delete_orphaned_concept(self, concept_id: str):
+        """递归删除孤立概念（没有论文引用的概念）"""
+        cursor = self.conn.cursor()
+
+        # 检查是否有其他论文引用此概念
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM paper_concepts WHERE concept_id = ?
+        """, (concept_id,))
+
+        if cursor.fetchone()['count'] > 0:
+            return  # 还有论文引用，不删除
+
+        # 获取子概念
+        cursor.execute("""
+            SELECT child_id FROM concept_relations WHERE parent_id = ?
+        """, (concept_id,))
+        children = [row['child_id'] for row in cursor.fetchall()]
+
+        # 删除与父概念的关系
+        cursor.execute("DELETE FROM concept_relations WHERE child_id = ?", (concept_id,))
+
+        # 删除概念本身
+        cursor.execute("DELETE FROM concepts WHERE id = ?", (concept_id,))
+
+        # 递归检查子概念
+        for child_id in children:
+            self._delete_orphaned_concept(child_id)
+
     # ========== 上下文管理器 ==========
 
     def __enter__(self):

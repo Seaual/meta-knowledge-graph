@@ -559,7 +559,7 @@ def get_paper_text(doi: str):
 
 @router.delete("/{doi:path}")
 def delete_paper(doi: str):
-    """Delete a paper"""
+    """Delete a paper and its orphaned concepts"""
     db = get_db()
     paper = db.get_paper(doi)
     if not paper:
@@ -570,15 +570,10 @@ def delete_paper(doi: str):
     if pdf_path and Path(pdf_path).exists():
         Path(pdf_path).unlink()
 
-    # Delete from database (cascade)
-    cursor = db.conn.cursor()
-    cursor.execute("DELETE FROM paper_concepts WHERE paper_doi = ?", (doi,))
-    cursor.execute("DELETE FROM concept_extractions WHERE paper_doi = ?", (doi,))
-    cursor.execute("DELETE FROM processing_log WHERE paper_doi = ?", (doi,))
-    cursor.execute("DELETE FROM papers WHERE doi = ?", (doi,))
-    db.conn.commit()
+    # Use cascade delete
+    db.delete_paper_cascade(doi)
 
-    return {"success": True, "message": "Paper deleted"}
+    return {"success": True, "message": "Paper and orphaned concepts deleted"}
 
 
 @router.patch("/{doi:path}/folder")
