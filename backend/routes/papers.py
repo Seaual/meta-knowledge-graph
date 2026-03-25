@@ -401,6 +401,10 @@ def process_paper(request: ProcessRequest):
     if not extractor:
         raise HTTPException(status_code=400, detail="LLM not configured. Claude CLI or API Key required.")
 
+    # Get existing concepts for smart matching
+    graph = KnowledgeGraph(db)
+    existing_concepts = graph.get_concept_tree_summary()
+
     # Parse and extract
     parser = get_parser()
     content = parser.parse(pdf_path)
@@ -409,7 +413,7 @@ def process_paper(request: ProcessRequest):
         raise HTTPException(status_code=400, detail="Failed to parse PDF")
 
     try:
-        extracted = extractor.extract(content)
+        extracted = extractor.extract(content, existing_concepts)
         concept_tree = extracted.concept_tree.to_dict() if extracted.concept_tree else None
 
         if concept_tree:
