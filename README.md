@@ -1,9 +1,5 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="Version">
-  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
+  <img src="icon/mkg-icon-256.png" alt="MKG Logo" width="120">
 </p>
 
 <h1 align="center">Meta Knowledge Graph</h1>
@@ -11,6 +7,14 @@
 <p align="center">
   <strong>基于 LLM 的学术知识图谱引擎</strong><br>
   <sub>LLM-powered Academic Knowledge Graph Engine</sub>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
+  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
+  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
 </p>
 
 <p align="center">
@@ -22,9 +26,29 @@
 
 ## Demo
 
-![Demo](docs/demo.gif)
+### 知识图谱交互 / Knowledge Graph Interaction
 
-*展示功能：上传论文 → 知识图谱交互 → 发现研究点 → 概念去重 → 多格式导出*
+![Knowledge Graph Demo](docs/demo.gif)
+
+*展示功能：概念图谱交互 → 点击概念 → 发现研究点 → 概念去重 → 多格式导出*
+
+### 论文上传与处理 / Paper Upload & Processing
+
+![Upload Demo](docs/upload.gif)
+
+*展示功能：上传 PDF → 批量处理 → 查看提取结果*
+
+## 核心特性 / Key Features
+
+| 功能 | 描述 |
+|------|------|
+| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要等元数据 |
+| 🧠 **两阶段概念提取** | Stage 1: 论文理解 → Stage 2: 核心概念提取 |
+| 📊 **知识图谱可视化** | 类似 Obsidian/Neo4j 的力导向图交互式展示 |
+| 🔍 **研究点发现** | 四种方法论：空白地带、末端延伸、瓶颈识别、迁移应用 |
+| 🔄 **智能概念去重** | 三种合并类型：同义词、粒度吸收、翻译对应 |
+| 📤 **多格式导出** | 支持 HTML、Obsidian Canvas、Markdown |
+| 📁 **文件夹管理** | 可折叠侧边栏，论文分类管理 |
 
 ## 架构 / Architecture
 
@@ -45,7 +69,7 @@
 └─────────────────────────────────────────────────┘
 ```
 
-**数据流 / Data Flow:** `PDF → LLM Extract → Knowledge Graph → Export`
+**数据流 / Data Flow:** `PDF → LLM Extract (Two-Stage) → Knowledge Graph → Export`
 
 ## 快速开始 / Quick Start
 
@@ -130,29 +154,53 @@ cd frontend && npm run dev
 
 </details>
 
-## 功能特性 / Features
+## 功能详解 / Feature Details
 
-| 功能 | 描述 |
+### 两阶段概念提取 / Two-Stage Concept Extraction
+
+```
+Stage 1: 论文理解
+├── 研究背景识别
+├── 核心贡献区分
+└── 背景/新概念分类
+
+Stage 2: 概念提取
+├── 锚点路径（定位论文归属）
+├── 贡献子树（论文真正贡献）
+└── 贡献角色标注（proposed/improved/applied/analyzed）
+```
+
+### 研究点发现方法论 / Research Point Discovery Methods
+
+| 方法 | 描述 |
 |------|------|
-| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要等元数据 |
-| 🧠 **LLM 概念提取** | 使用 Claude/Gemini/Qwen 提取层次化概念结构 |
-| 📊 **知识图谱可视化** | 类似 Obsidian/Neo4j 的力导向图交互式展示 |
-| 🔄 **批量处理** | 多 PDF 并行上传与队列处理 |
-| 🔍 **研究点发现** | 基于图谱分析发现潜在研究方向 |
-| 🔄 **概念去重** | 智能扫描重复概念，LLM 分析合并建议 |
-| 📤 **多格式导出** | 支持 HTML、Obsidian Canvas、Markdown |
+| 🔍 **空白地带法** | 图谱中两个本应有联系的分支缺少连接 |
+| 🌱 **末端延伸法** | 叶子节点能否应用到其他分支 |
+| 🔥 **瓶颈识别法** | 某节点连接大量子节点但缺少兄弟节点 |
+| 🔄 **迁移应用法** | 成熟方法能否迁移到另一个未解决的问题 |
+
+### 概念层级 / Concept Hierarchy
+
+| 类别 | 描述 | 示例 |
+|------|------|------|
+| field | 大领域 | 人工智能、运筹学 |
+| direction | 研究方向 | 多智能体强化学习 |
+| subdirection | 子方向 | 值分解方法 |
+| task | 研究任务 | 信用分配问题 |
+| method | 方法/算法 | QMIX |
+| technique | 技术细节 | 注意力加权混合 |
 
 ## 使用说明 / Usage
 
 ### 上传论文 / Upload Papers
 
 1. 进入「论文」页面
-2. 点击上传按钮，选择 PDF 文件
+2. 点击上传按钮，选择 PDF 文件（支持批量）
 3. 论文将出现在「待处理」列表中
 
 ### 处理论文 / Process Papers
 
-1. 点击「处理」按钮
+1. 点击「处理」按钮或「批量处理」
 2. LLM 自动提取概念树
 3. 概念添加到知识图谱
 
@@ -160,23 +208,23 @@ cd frontend && npm run dev
 
 1. 进入「概念」页面
 2. 拖拽节点、滚轮缩放
-3. 点击概念查看详情
+3. 点击概念查看详情和操作
 
 ### 发现研究点 / Discover Research Points
 
 1. 点击概念节点
 2. 点击「发现研究点」
-3. LLM 生成 3-5 个潜在研究方向
+3. LLM 分析图谱结构，生成 3-5 个研究方向
 
 ### 概念去重 / Deduplication
 
 1. 点击「去重扫描」
-2. 查看合并建议
+2. 查看合并建议（同义词/粒度吸收/翻译对应）
 3. 执行选中的合并
 
 ### 导出图谱 / Export Graph
 
-- **HTML** - 交互式 D3.js 力导向图
+- **HTML** - 交互式 D3.js 力导向图（可独立运行）
 - **Canvas** - Obsidian Canvas 格式
 - **Markdown** - 双链格式笔记
 
@@ -203,8 +251,12 @@ meta-knowledge-graph/
 ├── openclaw/          # 核心库
 │   ├── database.py    # 数据库
 │   ├── graph.py       # 图谱操作
-│   └── pdf_parser.py  # PDF 解析
-└── papers/            # 论文存储
+│   ├── pdf_parser.py  # PDF 解析 & LLM 提取
+│   └── dedup/         # 去重模块
+├── papers/            # 论文存储
+├── icon/              # 项目图标
+├── gif/               # 演示动图
+└── PROMPT_GUIDE.md    # Prompt 工程指南
 ```
 
 ## API 文档 / API Docs
@@ -215,18 +267,11 @@ meta-knowledge-graph/
 |------|------|------|
 | `/api/papers/upload` | POST | 上传 PDF |
 | `/api/papers/batch-upload` | POST | 批量上传 |
+| `/api/papers/batch-process` | POST | 批量处理 |
 | `/api/concepts/` | GET | 获取所有概念 |
+| `/api/concepts/{id}/research-points` | GET | 发现研究点 |
 | `/api/concepts/dedup/scan` | POST | 扫描重复概念 |
 | `/api/graph/export/obsidian/html` | GET | 导出 HTML |
-
-## 概念层级 / Concept Hierarchy
-
-| 类别 | 描述 | 示例 |
-|------|------|------|
-| field | 大领域 | 运筹学、人工智能 |
-| direction | 研究方向 | 车辆路径问题 |
-| method | 方法/算法 | 模拟退火 |
-| technique | 技术细节 | 值函数近似 |
 
 ## 开发计划 / Roadmap
 
@@ -234,6 +279,8 @@ meta-knowledge-graph/
 - [x] 概念合并与去重
 - [x] 多格式导出
 - [x] 批量处理
+- [x] 两阶段概念提取
+- [x] 研究点发现方法论
 - [ ] 协作功能
 - [ ] Neo4j 支持
 
@@ -247,137 +294,10 @@ MIT License
 
 ---
 
-# English Version
-
 <p align="center">
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.1.0-blue" alt="Version">
-</p>
-
-<h1 align="center">Meta Knowledge Graph</h1>
-
-<p align="center">
-  <strong>LLM-powered Academic Knowledge Graph Engine</strong>
+  <img src="icon/mkg-logo-horizontal.svg" alt="MKG Logo" width="200">
 </p>
 
 <p align="center">
-  Automatically extract hierarchical concepts from PDF papers with interactive force-directed graph visualization
+  Made with ❤️ by <a href="https://github.com/Seaual">Seaual</a>
 </p>
-
----
-
-## Demo
-
-![Demo](docs/demo.gif)
-
-*Features: Upload PDFs → Interactive Knowledge Graph → Research Point Discovery → Deduplication → Multi-format Export*
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────┐
-│                  Frontend                        │
-│         React + TypeScript + D3.js               │
-└─────────────────────┬───────────────────────────┘
-                      │ REST API
-┌─────────────────────▼───────────────────────────┐
-│                  Backend                         │
-│      FastAPI + SQLite + PyMuPDF                  │
-└─────────────────────┬───────────────────────────┘
-                      │ LLM API
-┌─────────────────────▼───────────────────────────┐
-│                 LLM Layer                        │
-│         Claude / Gemini / Qwen                   │
-└─────────────────────────────────────────────────┘
-```
-
-**Data Flow:** `PDF → LLM Extract → Knowledge Graph → Export`
-
-## Quick Start
-
-### Docker (Recommended)
-
-```bash
-docker run -d -p 8088:8088 \
-  -e ANTHROPIC_API_KEY=sk-ant-xxx \
-  -v ./data:/app/data \
-  ghcr.io/seaual/meta-knowledge-graph:latest
-```
-
-Open http://localhost:8088
-
-### Manual Setup
-
-<details>
-<summary>Click to expand</summary>
-
-```bash
-# Clone
-git clone https://github.com/Seaual/meta-knowledge-graph.git
-cd meta-knowledge-graph
-
-# Backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-
-# Configure LLM
-cp .env.example .env
-# Edit .env with your API key
-
-# Frontend
-cd frontend && npm install
-
-# Start
-python -m uvicorn backend.main:app --port 8088 &
-cd frontend && npm run dev
-```
-
-</details>
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| 📄 **PDF Parsing** | Extract title, authors, abstract automatically |
-| 🧠 **LLM Extraction** | Hierarchical concept extraction with Claude/Gemini/Qwen |
-| 📊 **Visualization** | Obsidian/Neo4j-style force-directed graph |
-| 🔄 **Batch Processing** | Parallel PDF upload and processing |
-| 🔍 **Research Discovery** | Find potential research directions from graph |
-| 🔄 **Deduplication** | Smart duplicate detection with LLM merge suggestions |
-| 📤 **Export** | HTML, Obsidian Canvas, Markdown formats |
-
-## Usage
-
-1. **Upload Papers** - Go to Papers page, upload PDFs
-2. **Process** - Click process to extract concepts with LLM
-3. **Explore Graph** - Drag nodes, zoom, click for details
-4. **Discover Research Points** - LLM analyzes graph for research opportunities
-5. **Deduplicate** - Scan and merge duplicate concepts
-6. **Export** - Download as HTML/Canvas/Markdown
-
-## Tech Stack
-
-**Backend:** Python 3.10+ • FastAPI • SQLite • PyMuPDF
-
-**Frontend:** React 18 • TypeScript • Vite • TailwindCSS • D3.js
-
-**LLM:** Claude API / Google AI / DashScope
-
-## Roadmap
-
-- [ ] More LLM backends (DeepSeek, OpenRouter)
-- [x] Concept deduplication
-- [x] Multi-format export
-- [x] Batch processing
-- [ ] Collaboration features
-- [ ] Neo4j support
-
-## Contributing
-
-Issues and Pull Requests welcome!
-
-## License
-
-MIT License
