@@ -155,3 +155,41 @@ class ExportResponse(BaseModel):
     """导出响应"""
     content: str
     stats: dict
+
+
+# LLM Configuration schemas
+class LLMProviderConfig(BaseModel):
+    """单个 LLM 服务商配置"""
+    function_group: Optional[str] = None  # paper_parsing, concept_extraction, research_analysis
+    provider: str  # openai, anthropic, google, dashscope, openrouter, minimax, claude_cli
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+    is_active: bool = True
+
+
+class LLMConfigResponse(BaseModel):
+    """LLM 配置响应"""
+    mode: str  # single, per_function
+    providers: List[LLMProviderConfig]
+
+
+class LLMConfigRequest(BaseModel):
+    """LLM 配置请求"""
+    mode: str
+    providers: List[LLMProviderConfig]
+
+
+class LLMTestRequest(BaseModel):
+    """LLM 连接测试请求"""
+    provider: str
+    api_key: Optional[str] = None
+    base_url: Optional[str] = None
+    model: Optional[str] = None
+
+
+class LLMTestResponse(BaseModel):
+    """LLM 连接测试响应"""
+    success: bool
+    message: str
+    model: Optional[str] = None
