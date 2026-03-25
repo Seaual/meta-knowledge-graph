@@ -1037,6 +1037,10 @@ class AnthropicClient(LLMClient):
         )
         return response.content[0].text
 
+    def generate(self, prompt: str) -> str:
+        """生成响应"""
+        return self.extract_concepts(prompt)
+
 
 class GoogleClient(LLMClient):
     """Google AI Studio 客户端"""
@@ -1050,6 +1054,10 @@ class GoogleClient(LLMClient):
         """使用 Gemini 提取概念"""
         response = self.model.generate_content(prompt)
         return response.text
+
+    def generate(self, prompt: str) -> str:
+        """生成响应"""
+        return self.extract_concepts(prompt)
 
 
 class OpenAICompatibleClient(LLMClient):
