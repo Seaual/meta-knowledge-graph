@@ -9,17 +9,20 @@ const api = axios.create({
 
 // Papers API
 export const papersApi = {
-  list: (status?: string) => api.get('/papers/', { params: { status } }),
+  list: (status?: string, folder?: string) => api.get('/papers/', { params: { status, folder } }),
   get: (doi: string) => api.get(`/papers/${encodeURIComponent(doi)}`),
-  upload: (file: File) => {
+  upload: (file: File, folder?: string) => {
     const formData = new FormData()
     formData.append('file', file)
+    if (folder) formData.append('folder', folder)
     return api.post('/papers/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
   },
   process: (doi: string) => api.post('/papers/process', { doi }),
   delete: (doi: string) => api.delete(`/papers/${encodeURIComponent(doi)}`),
+  move: (doi: string, folderId: string) => api.patch(`/papers/${encodeURIComponent(doi)}/folder`, { folder_id: folderId }),
+  contribution: (doi: string) => api.get(`/papers/${encodeURIComponent(doi)}/contribution`),
 }
 
 // Concepts API
@@ -194,6 +197,38 @@ export const llmApi = {
   saveConfig: (config: LLMConfigResponse) => api.post<LLMConfigResponse>('/llm/config', config),
   test: (params: { provider: string; api_key?: string; base_url?: string; model?: string }) =>
     api.post<LLMTestResponse>('/llm/test', params),
+}
+
+// Folder types
+interface FolderResponse {
+  id: string
+  name: string
+  description?: string
+  paper_count: number
+  created_at?: string
+}
+
+interface CreateFolderRequest {
+  name: string
+  description?: string
+}
+
+interface UpdateFolderRequest {
+  name?: string
+  description?: string
+}
+
+interface PaperContribution {
+  node_count: number
+  root_concept?: string
+}
+
+// Folder API
+export const foldersApi = {
+  list: () => api.get<FolderResponse[]>('/folders/'),
+  create: (data: CreateFolderRequest) => api.post<FolderResponse>('/folders/', data),
+  update: (id: string, data: UpdateFolderRequest) => api.patch<FolderResponse>(`/folders/${id}`, data),
+  delete: (id: string) => api.delete(`/folders/${id}`),
 }
 
 export default api
