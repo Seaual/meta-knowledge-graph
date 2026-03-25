@@ -31,9 +31,10 @@ interface ScanProgress {
 interface DedupPanelProps {
   isOpen: boolean
   onClose: () => void
+  folderId?: string
 }
 
-export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
+export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: DedupPanelProps) {
   const [panelState, setPanelState] = useState<PanelState>('idle')
   const [scanId, setScanId] = useState<string>('')
   const [suggestions, setSuggestions] = useState<MergeSuggestion[]>([])
@@ -62,7 +63,7 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
 
     try {
       // Start scan
-      const res = await dedupApi.scan()
+      const res = await dedupApi.scan(folderId)
       const scanId = res.data.scan_id
 
       setScanProgress(prev => ({

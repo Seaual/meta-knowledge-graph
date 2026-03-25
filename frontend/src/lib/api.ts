@@ -78,7 +78,7 @@ interface ScanStatusResponse {
 
 // Dedup API
 export const dedupApi = {
-  scan: () => api.post<{ scan_id: string; total_concepts: number; status: string }>('/concepts/dedup/scan'),
+  scan: (folderId?: string) => api.post<{ scan_id: string; total_concepts: number; status: string }>('/concepts/dedup/scan', { folder_id: folderId }),
   scanStatus: (scanId: string) => api.get<ScanStatusResponse>(`/concepts/dedup/scan-status/${scanId}`),
   execute: (scanId: string, mergeIds: string[]) =>
     api.post<DedupExecuteResponse>('/concepts/dedup/execute', {

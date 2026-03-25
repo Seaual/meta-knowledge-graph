@@ -28,19 +28,25 @@ class CandidateGenerator:
         """计算两个文本的相似度（0-1）"""
         return SequenceMatcher(None, text1, text2).ratio()
 
-    def generate_candidates(self) -> List[ConceptPair]:
-        """生成所有候选对"""
+    def generate_candidates(self, folder_id: str = None) -> List[ConceptPair]:
+        """生成所有候选对，可选按文件夹过滤"""
         candidates = []
         for category in self.CATEGORIES:
-            concepts = self.db.get_concepts_by_category(category)
+            if folder_id and folder_id != 'default':
+                concepts = self.db.get_concepts_by_category_and_folder(category, folder_id)
+            else:
+                concepts = self.db.get_concepts_by_category(category)
             candidates.extend(self._generate_pairs_in_category(concepts))
         return candidates
 
-    def generate_candidates_batch(self, batch_size: int = 50) -> Generator[List[ConceptPair], None, None]:
-        """分批生成候选对（用于大库）"""
+    def generate_candidates_batch(self, batch_size: int = 50, folder_id: str = None) -> Generator[List[ConceptPair], None, None]:
+        """分批生成候选对（用于大库），可选按文件夹过滤"""
         batch = []
         for category in self.CATEGORIES:
-            concepts = self.db.get_concepts_by_category(category)
+            if folder_id and folder_id != 'default':
+                concepts = self.db.get_concepts_by_category_and_folder(category, folder_id)
+            else:
+                concepts = self.db.get_concepts_by_category(category)
             for i, c1 in enumerate(concepts):
                 for c2 in concepts[i+1:]:
                     similarity = self.text_similarity(c1['text'], c2['text'])

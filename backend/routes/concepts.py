@@ -150,6 +150,11 @@ class ResearchPointResponse(BaseModel):
     analysis_context: dict
 
 
+class DedupScanRequest(BaseModel):
+    """去重扫描请求"""
+    folder_id: str = 'default'
+
+
 class DedupExecuteRequest(BaseModel):
     """去重执行请求"""
     scan_id: str
@@ -504,7 +509,7 @@ def discover_research_points(concept_id: str):
 
 
 @router.post("/dedup/scan")
-async def start_dedup_scan():
+async def start_dedup_scan(request: DedupScanRequest):
     """
     Start async deduplication scan
 
@@ -524,11 +529,11 @@ async def start_dedup_scan():
 
     # Create scan job
     scan_id = f"scan-{uuid.uuid4().hex[:8]}"
-    total_concepts = db.get_concept_count()
-    db.create_scan_job(scan_id, total_concepts)
+    total_concepts = db.get_concept_count(folder_id=request.folder_id)
+    db.create_scan_job(scan_id, total_concepts, folder_id=request.folder_id)
 
     # Start background task
-    asyncio.create_task(run_dedup_scan_background(scan_id))
+    asyncio.create_task(run_dedup_scan_background(scan_id, request.folder_id))
 
     return {
         "scan_id": scan_id,
@@ -537,7 +542,7 @@ async def start_dedup_scan():
     }
 
 
-async def run_dedup_scan_background(scan_id: str):
+async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
     """Background task for dedup scan"""
     try:
         db = get_db()
@@ -545,8 +550,8 @@ async def run_dedup_scan_background(scan_id: str):
 
         db.update_scan_job(scan_id, status='scanning', started_at=time.time())
 
-        # Get candidates
-        candidates = deduplicator.candidate_generator.generate_candidates()
+        # Get candidates filtered by folder
+        candidates = deduplicator.candidate_generator.generate_candidates(folder_id=folder_id)
 
         if not candidates:
             db.update_scan_job(

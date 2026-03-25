@@ -481,6 +481,24 @@ class Database:
         """, (category,))
         return [dict(row) for row in cursor.fetchall()]
 
+    def get_concepts_by_category_and_folder(self, category: str, folder_id: str) -> list:
+        """按类别和文件夹获取概念
+
+        Args:
+            category: 概念类别 (field/direction/subdirection/task/method/technique)
+            folder_id: 文件夹 ID
+        """
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT c.id, c.text, c.category, c.paper_count, c.depth_cache
+            FROM concepts c
+            JOIN paper_concepts pc ON c.id = pc.concept_id
+            JOIN papers p ON pc.paper_doi = p.doi
+            WHERE c.category = ? AND p.folder_id = ?
+            ORDER BY c.paper_count DESC
+        """, (category, folder_id))
+        return [dict(row) for row in cursor.fetchall()]
+
     def get_concept_children(self, concept_id: str) -> list:
         """获取概念的子节点"""
         cursor = self.conn.cursor()
@@ -913,10 +931,20 @@ class Database:
         )
         self.conn.commit()
 
-    def get_concept_count(self) -> int:
-        """获取概念总数"""
+    def get_concept_count(self, folder_id: str = None) -> int:
+        """获取概念总数，可选按文件夹过滤"""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT COUNT(*) as count FROM concepts")
+        if folder_id and folder_id != 'default':
+            # 获取该文件夹中论文关联的概念数
+            cursor.execute("""
+                SELECT COUNT(DISTINCT c.id) as count
+                FROM concepts c
+                JOIN paper_concepts pc ON c.id = pc.concept_id
+                JOIN papers p ON pc.paper_doi = p.doi
+                WHERE p.folder_id = ?
+            """, (folder_id,))
+        else:
+            cursor.execute("SELECT COUNT(*) as count FROM concepts")
         return cursor.fetchone()['count']
 
     # ========== LLM Configuration ==========

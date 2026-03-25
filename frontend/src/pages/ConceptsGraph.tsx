@@ -1015,7 +1015,7 @@ export default function ConceptsGraph() {
       </div>
 
       {/* Dedup Panel */}
-      <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} />
+      <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} folderId={activeFolder} />
     </div>
   )
 }
