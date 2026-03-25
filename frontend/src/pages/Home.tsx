@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, GitBranch, Network, TrendingUp } from 'lucide-react'
-import { graphApi } from '../lib/api'
+import { FileText, GitBranch, Network, TrendingUp, Settings } from 'lucide-react'
+import { graphApi, llmApi } from '../lib/api'
+import LLMConfigModal from '../components/LLMConfigModal'
 
 interface Stats {
   papers: { total: number; [key: string]: number }
@@ -13,12 +14,26 @@ interface Stats {
 export default function Home() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [llmStatus, setLlmStatus] = useState<string>('')
+  const [showLLMModal, setShowLLMModal] = useState(false)
 
   useEffect(() => {
     graphApi.stats().then(res => {
       setStats(res.data)
       setLoading(false)
     })
+  }, [])
+
+  useEffect(() => {
+    llmApi.getConfig().then(res => {
+      const config = res.data
+      if (config.providers && config.providers.length > 0) {
+        const p = config.providers[0]
+        setLlmStatus(`${p.provider} (${p.model || 'default'})`)
+      } else {
+        setLlmStatus('未配置')
+      }
+    }).catch(() => setLlmStatus('未配置'))
   }, [])
 
   if (loading) {
@@ -78,7 +93,7 @@ export default function Home() {
       {/* Quick Actions */}
       <div className="bg-white rounded-lg shadow p-6">
         <h2 className="text-lg font-semibold mb-4">快速操作</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             to="/papers"
             className="flex items-center p-4 border rounded-lg hover:bg-gray-50"
@@ -100,8 +115,34 @@ export default function Home() {
               <p className="text-sm text-gray-500">查看概念层级树</p>
             </div>
           </Link>
+
+          <button
+            onClick={() => setShowLLMModal(true)}
+            className="flex items-center p-4 border rounded-lg hover:bg-purple-50 text-left"
+          >
+            <Settings className="h-6 w-6 text-purple-500 mr-3" />
+            <div>
+              <p className="font-medium">LLM 配置</p>
+              <p className="text-sm text-gray-500">{llmStatus || '配置 AI 服务商'}</p>
+            </div>
+          </button>
         </div>
       </div>
+
+      {/* LLM Config Modal */}
+      {showLLMModal && (
+        <LLMConfigModal onClose={() => setShowLLMModal(false)} onSave={() => {
+          setShowLLMModal(false)
+          // Reload status
+          llmApi.getConfig().then(res => {
+            const config = res.data
+            if (config.providers && config.providers.length > 0) {
+              const p = config.providers[0]
+              setLlmStatus(`${p.provider} (${p.model || 'default'})`)
+            }
+          })
+        }} />
+      )}
 
       {/* Paper Status */}
       {stats?.papers && (
