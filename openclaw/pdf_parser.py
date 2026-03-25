@@ -402,12 +402,13 @@ class LLMConceptExtractor:
         """
         self.api_client = api_client
 
-    def extract(self, paper_content: PaperContent) -> LLMExtractedContent:
+    def extract(self, paper_content: PaperContent, existing_concepts: str = "") -> LLMExtractedContent:
         """
         从论文内容提取概念树和结构化信息
 
         Args:
             paper_content: 论文原始内容
+            existing_concepts: 已有概念树的字符串表示，用于智能匹配
 
         Returns:
             LLM 提取的结构化内容
@@ -416,7 +417,7 @@ class LLMConceptExtractor:
             raise ValueError("需要配置 LLM API 客户端")
 
         # 构建 prompt
-        prompt = self._build_extraction_prompt(paper_content)
+        prompt = self._build_extraction_prompt(paper_content, existing_concepts)
 
         # 调用 LLM
         response = self.api_client.extract_concepts(prompt)
@@ -424,7 +425,7 @@ class LLMConceptExtractor:
         # 解析响应
         return self._parse_response(response, paper_content)
 
-    def _build_extraction_prompt(self, paper_content: PaperContent) -> str:
+    def _build_extraction_prompt(self, paper_content: PaperContent, existing_concepts: str = "") -> str:
         """
         构建概念提取 Prompt（优化版）
 
@@ -433,6 +434,7 @@ class LLMConceptExtractor:
         - 提取概念间的包含关系（父子关系）
         - 支持多标签归属
         - 包含清晰的判断标准、few-shot 示例和自检清单
+        - 支持已有概念上下文，实现智能概念匹配
         """
         return f"""
 你是一名学术知识图谱构建助手。请从这篇论文中提取概念层级结构和研究信息。
@@ -446,6 +448,8 @@ class LLMConceptExtractor:
 
 ## 论文全文
 {paper_content.full_text[:50000]}
+
+{self._build_existing_concepts_section(existing_concepts)}
 
 ---
 
@@ -626,6 +630,25 @@ class LLMConceptExtractor:
 **只输出 JSON，不要其他内容。开始提取！**
 """
 
+    def _build_existing_concepts_section(self, existing_concepts: str) -> str:
+        """构建已有概念参考部分"""
+        if not existing_concepts or existing_concepts == "（图谱为空）":
+            return ""
+
+        return f"""---
+
+## 已有概念树（参考）
+
+当前知识图谱中已有以下概念结构，新概念请尽量归类到合适的位置：
+
+{existing_concepts}
+
+**重要规则：**
+1. 如果新提取的概念已存在于上述树中，请使用相同的概念名和正确的父节点路径
+2. 如果新概念是已有概念的子概念，请放在正确位置（如"卷积神经网络"应放在"人工智能→机器学习→深度学习"下）
+3. 只有当概念确实是新的研究领域时，才创建新的根概念
+"""
+
     def _parse_response(self, response: str, original_content: PaperContent) -> LLMExtractedContent:
         """解析 LLM 响应"""
         import json
@@ -727,12 +750,15 @@ class LLMClient:
 
 
 class AnthropicClient(LLMClient):
-    """Anthropic Claude 客户端"""
+    """Anthropic Claude 客户端（支持自定义 base_url）"""
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514"):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514", base_url: str = None):
         import anthropic
-        self.client = anthropic.Anthropic(api_key=api_key)
         self.model = model
+        if base_url:
+            self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
+        else:
+            self.client = anthropic.Anthropic(api_key=api_key)
 
     def extract_concepts(self, prompt: str) -> str:
         """使用 Claude 提取概念"""
