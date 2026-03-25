@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <circle cx="32" cy="32" r="31" fill="#1a1a2e"/>
+
+  <!-- M spine edges (simplified) -->
+  <line x1="19" y1="44" x2="19" y2="20" stroke="#5DCAA5" stroke-width="1.8" opacity="0.6" stroke-linecap="round"/>
+  <line x1="19" y1="20" x2="32" y2="34" stroke="#5DCAA5" stroke-width="1.8" opacity="0.6" stroke-linecap="round"/>
+  <line x1="32" y1="34" x2="45" y2="20" stroke="#5DCAA5" stroke-width="1.8" opacity="0.6" stroke-linecap="round"/>
+  <line x1="45" y1="20" x2="45" y2="44" stroke="#5DCAA5" stroke-width="1.8" opacity="0.6" stroke-linecap="round"/>
+
+  <!-- Branch edges (fewer, bolder) -->
+  <line x1="19" y1="20" x2="13" y2="13" stroke="#AFA9EC" stroke-width="0.9" opacity="0.45" stroke-linecap="round"/>
+  <line x1="19" y1="20" x2="24" y2="12" stroke="#AFA9EC" stroke-width="0.9" opacity="0.45" stroke-linecap="round"/>
+  <line x1="45" y1="20" x2="40" y2="12" stroke="#AFA9EC" stroke-width="0.9" opacity="0.45" stroke-linecap="round"/>
+  <line x1="45" y1="20" x2="51" y2="13" stroke="#AFA9EC" stroke-width="0.9" opacity="0.45" stroke-linecap="round"/>
+  <line x1="32" y1="34" x2="27" y2="42" stroke="#AFA9EC" stroke-width="0.8" opacity="0.35" stroke-linecap="round"/>
+  <line x1="32" y1="34" x2="37" y2="42" stroke="#AFA9EC" stroke-width="0.8" opacity="0.35" stroke-linecap="round"/>
+  <line x1="19" y1="32" x2="12" y2="30" stroke="#AFA9EC" stroke-width="0.7" opacity="0.3" stroke-linecap="round"/>
+  <line x1="45" y1="32" x2="52" y2="30" stroke="#AFA9EC" stroke-width="0.7" opacity="0.3" stroke-linecap="round"/>
+
+  <!-- Cross-links -->
+  <line x1="13" y1="13" x2="24" y2="12" stroke="#EF9F27" stroke-width="0.5" opacity="0.2" stroke-dasharray="2 2"/>
+  <line x1="40" y1="12" x2="51" y2="13" stroke="#EF9F27" stroke-width="0.5" opacity="0.2" stroke-dasharray="2 2"/>
+
+  <!-- Leaf nodes -->
+  <circle cx="13" cy="13" r="2" fill="#AFA9EC" opacity="0.7"/>
+  <circle cx="24" cy="12" r="2" fill="#AFA9EC" opacity="0.7"/>
+  <circle cx="40" cy="12" r="2" fill="#AFA9EC" opacity="0.7"/>
+  <circle cx="51" cy="13" r="2" fill="#AFA9EC" opacity="0.7"/>
+  <circle cx="27" cy="42" r="1.8" fill="#AFA9EC" opacity="0.6"/>
+  <circle cx="37" cy="42" r="1.8" fill="#AFA9EC" opacity="0.6"/>
+  <circle cx="12" cy="30" r="1.8" fill="#AFA9EC" opacity="0.6"/>
+  <circle cx="52" cy="30" r="1.8" fill="#AFA9EC" opacity="0.6"/>
+
+  <!-- Mid nodes -->
+  <circle cx="19" cy="32" r="3" fill="#5DCAA5" opacity="0.85"/>
+  <circle cx="45" cy="32" r="3" fill="#5DCAA5" opacity="0.85"/>
+
+  <!-- Core nodes -->
+  <circle cx="19" cy="44" r="3.8" fill="#E24B4A"/>
+  <circle cx="19" cy="20" r="4.2" fill="#E24B4A"/>
+  <circle cx="32" cy="34" r="4.2" fill="#E24B4A"/>
+  <circle cx="45" cy="20" r="4.2" fill="#E24B4A"/>
+  <circle cx="45" cy="44" r="3.8" fill="#E24B4A"/>
+</svg>
