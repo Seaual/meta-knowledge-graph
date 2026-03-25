@@ -5,6 +5,10 @@
 <h1 align="center">Meta Knowledge Graph</h1>
 
 <p align="center">
+  <a href="README_CN.md">简体中文</a> | <strong>English</strong>
+</p>
+
+<p align="center">
   <strong>LLM-powered Academic Knowledge Graph Engine</strong>
 </p>
 

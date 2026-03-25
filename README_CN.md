@@ -5,6 +5,10 @@
 <h1 align="center">Meta Knowledge Graph</h1>
 
 <p align="center">
+  <strong>简体中文</strong> | <a href="README.md">English</a>
+</p>
+
+<p align="center">
   <strong>基于 LLM 的学术知识图谱引擎</strong>
 </p>
 
