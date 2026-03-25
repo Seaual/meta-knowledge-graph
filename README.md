@@ -275,7 +275,7 @@ meta-knowledge-graph/
 
 ## 开发计划 / Roadmap
 
-- [ ] 支持更多 LLM（DeepSeek、OpenRouter）
+- [x] 支持更多 LLM（DeepSeek、OpenRouter、MiniMax）
 - [x] 概念合并与去重
 - [x] 多格式导出
 - [x] 批量处理
