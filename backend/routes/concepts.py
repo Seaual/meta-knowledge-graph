@@ -61,16 +61,19 @@ def get_extractor():
                     provider_config = config['providers'][0]
 
             if provider_config:
-                return _create_client_from_config(provider_config)
+                _extractor = _create_client_from_config(provider_config)
+                return _extractor
 
         # Fallback: try Claude CLI first (leverage Claude Code's configured API)
         try:
-            return LLMConceptExtractor(ClaudeCLIClient())
+            _extractor = LLMConceptExtractor(ClaudeCLIClient())
+            return _extractor
         except Exception as e:
             print(f"Claude CLI not available: {e}")
 
         # Fallback to environment variables
-        return _create_client_from_env()
+        _extractor = _create_client_from_env()
+        return _extractor
     return _extractor
 
 

@@ -81,10 +81,12 @@ def get_extractor():
                     provider_config = config['providers'][0]
 
             if provider_config:
-                return _create_client_from_config(provider_config)
+                _extractor = _create_client_from_config(provider_config)
+                return _extractor
 
         # Fallback to environment variables
-        return _create_client_from_env()
+        _extractor = _create_client_from_env()
+        return _extractor
     return _extractor
 
 
