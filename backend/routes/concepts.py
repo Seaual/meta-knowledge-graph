@@ -441,10 +441,17 @@ def discover_research_points(concept_id: str):
         # 解析响应
         # 尝试提取JSON
         response_text = response.strip()
+
+        # 处理代码块标记 (```json 或 ```)
         if response_text.startswith('```'):
-            # 去除代码块标记
             lines = response_text.split('\n')
-            response_text = '\n'.join(lines[1:-1] if lines[-1] == '```' else lines[1:])
+            # 跳过第一行（可能是 ```json 或 ```）
+            # 跳过最后一行（如果是 ```）
+            start_idx = 1
+            end_idx = len(lines)
+            if lines[-1].strip() == '```':
+                end_idx = len(lines) - 1
+            response_text = '\n'.join(lines[start_idx:end_idx])
 
         research_points_data = json.loads(response_text)
 

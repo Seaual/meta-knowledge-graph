@@ -179,6 +179,16 @@ class Database:
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+        # 添加 is_anchor 和 contribution_role 列到 paper_concepts 表（如果不存在）
+        try:
+            cursor.execute("ALTER TABLE paper_concepts ADD COLUMN is_anchor INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+        try:
+            cursor.execute("ALTER TABLE paper_concepts ADD COLUMN contribution_role TEXT")
+        except sqlite3.OperationalError:
+            pass  # Column already exists
+
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_concept_relations_parent
@@ -381,13 +391,14 @@ class Database:
         return concept_id
 
     def add_paper_concept(self, paper_doi: str, concept_id: str,
-                          confidence: float = 1.0, source: str = 'llm'):
+                          confidence: float = 1.0, source: str = 'llm',
+                          is_anchor: bool = False, contribution_role: str = None):
         """添加论文 - 概念关联（支持多归属）"""
         cursor = self.conn.cursor()
         cursor.execute("""
-            INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source)
-            VALUES (?, ?, ?, ?)
-        """, (paper_doi, concept_id, confidence, source))
+            INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source, is_anchor, contribution_role)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (paper_doi, concept_id, confidence, source, 1 if is_anchor else 0, contribution_role))
 
         # 更新 paper_count（基于实际关联数量）
         cursor.execute("""
@@ -602,10 +613,14 @@ class Database:
                 {
                     "concept": "人工智能",
                     "category": "field",
+                    "is_anchor": true,
+                    "contribution_role": null,  # proposed/improved/applied/analyzed
                     "children": [
                         {
                             "concept": "机器学习",
                             "category": "field",
+                            "is_anchor": false,
+                            "contribution_role": "proposed",
                             "children": [...]
                         }
                     ]
@@ -623,8 +638,12 @@ class Database:
             }
             self.add_concept(concept_data)
 
-            # 关联论文
-            self.add_paper_concept(paper_doi, concept_id, node.get('confidence', 1.0))
+            # 关联论文（包含 is_anchor 和 contribution_role）
+            self.add_paper_concept(
+                paper_doi, concept_id, node.get('confidence', 1.0),
+                is_anchor=node.get('is_anchor', False),
+                contribution_role=node.get('contribution_role')
+            )
 
             # 建立父子关系
             if parent_id:
