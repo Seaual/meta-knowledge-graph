@@ -455,6 +455,80 @@ def process_paper(request: ProcessRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/process-single")
+async def process_single_paper(request: ProcessRequest):
+    """
+    Process a single paper and return duration for time estimation.
+
+    Same logic as /process but adds duration and concepts_count to response.
+    """
+    start_time = time.time()
+
+    db = get_db()
+    paper = db.get_paper(request.doi)
+
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    pdf_path = paper.get('pdf_path')
+    if not pdf_path or not Path(pdf_path).exists():
+        raise HTTPException(status_code=400, detail="PDF file not found")
+
+    extractor = get_extractor()
+    if not extractor:
+        raise HTTPException(status_code=400, detail="LLM not configured. Claude CLI or API Key required.")
+
+    graph = get_graph()
+    existing_concepts = graph.get_concept_tree_summary()
+
+    parser = get_parser()
+    content = parser.parse(pdf_path)
+
+    if not content:
+        raise HTTPException(status_code=400, detail="Failed to parse PDF")
+
+    try:
+        extracted = extractor.extract(content, existing_concepts)
+        concept_tree = extracted.concept_tree.to_dict() if extracted.concept_tree else None
+
+        if concept_tree:
+            graph.build_from_paper(request.doi, concept_tree)
+            db.save_concept_extraction(request.doi, concept_tree, extracted.raw_response)
+
+            duration = time.time() - start_time
+            concepts_count = count_concepts(concept_tree)
+
+            return {
+                "success": True,
+                "message": "Paper processed successfully",
+                "concept_tree": concept_tree,
+                "duration": duration,
+                "concepts_count": concepts_count
+            }
+        else:
+            duration = time.time() - start_time
+            return {
+                "success": False,
+                "message": "Failed to extract concepts",
+                "duration": duration,
+                "concepts_count": 0
+            }
+
+    except Exception as e:
+        duration = time.time() - start_time
+        raise HTTPException(status_code=500, detail={"error": str(e), "duration": duration})
+
+
+def count_concepts(tree: dict) -> int:
+    """Count total concepts in tree including root"""
+    if not tree:
+        return 0
+    count = 1  # root
+    for child in tree.get('children', []):
+        count += count_concepts(child)
+    return count
+
+
 @router.post("/{doi:path}/concepts")
 def submit_concepts(doi: str, submission: SkillConceptSubmission):
     """
