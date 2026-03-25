@@ -44,25 +44,73 @@ def get_graph():
 def get_extractor():
     global _extractor
     if _extractor is None:
-        # 优先尝试使用 Claude CLI（利用 Claude Code 已配置的 API）
+        db = get_db()
+
+        # Try database config first
+        config = db.get_llm_config()
+        if config and config.get('providers'):
+            provider_config = None
+            if config['mode'] == 'per_function':
+                # For concepts, use concept_analysis or default to first
+                provider_config = db.get_llm_provider_for_function('concept_analysis')
+                if not provider_config:
+                    provider_config = config['providers'][0]
+            else:
+                provider_config = db.get_active_llm_provider()
+                if not provider_config:
+                    provider_config = config['providers'][0]
+
+            if provider_config:
+                return _create_client_from_config(provider_config)
+
+        # Fallback: try Claude CLI first (leverage Claude Code's configured API)
         try:
-            _extractor = LLMConceptExtractor(ClaudeCLIClient())
-            return _extractor
+            return LLMConceptExtractor(ClaudeCLIClient())
         except Exception as e:
             print(f"Claude CLI not available: {e}")
 
-        # 回退到 API Key 方式
-        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
-            return None
-        if os.getenv("ANTHROPIC_API_KEY"):
-            client = AnthropicClient(api_key)
-        elif os.getenv("GOOGLE_API_KEY"):
-            client = GoogleClient(api_key)
-        else:
-            client = OpenAICompatibleClient(api_key)
-        _extractor = LLMConceptExtractor(client)
+        # Fallback to environment variables
+        return _create_client_from_env()
     return _extractor
+
+
+def _create_client_from_config(config: dict):
+    """Create LLM client from database config"""
+    provider = config.get('provider')
+    api_key = config.get('api_key')
+    base_url = config.get('base_url')
+    model = config.get('model')
+
+    if provider == 'claude_cli':
+        return LLMConceptExtractor(ClaudeCLIClient())
+    elif provider == 'anthropic':
+        return LLMConceptExtractor(AnthropicClient(api_key, model=model or 'claude-sonnet-4-20250514', base_url=base_url))
+    elif provider == 'google':
+        return LLMConceptExtractor(GoogleClient(api_key))
+    else:  # openai, dashscope, openrouter, minimax
+        default_urls = {
+            'dashscope': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+            'openrouter': 'https://openrouter.ai/api/v1',
+        }
+        return LLMConceptExtractor(OpenAICompatibleClient(
+            api_key,
+            base_url=base_url or default_urls.get(provider),
+            model=model
+        ))
+
+
+def _create_client_from_env():
+    """Create LLM client from environment variables"""
+    api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
+    if not api_key:
+        return None
+    if os.getenv("ANTHROPIC_API_KEY"):
+        client = AnthropicClient(api_key)
+    elif os.getenv("GOOGLE_API_KEY"):
+        client = GoogleClient(api_key)
+    else:
+        client = OpenAICompatibleClient(api_key)
+    return LLMConceptExtractor(client)
 
 
 def get_deduplicator():
