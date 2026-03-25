@@ -35,7 +35,7 @@ class ObsidianExporter:
 
         self.stats = {'papers': 0, 'concepts': 0}
 
-    def export_from_sqlite(self, db, graph, output_name: str = "openclaw_knowledge"):
+    def export_from_sqlite(self, db, graph, output_name: str = "mkg_knowledge"):
         """从 SQLite 数据库导出"""
         print(f"\n导出到: {self.vault_path}\n")
 
@@ -634,7 +634,7 @@ class ObsidianExporter:
 
         return html
 
-    def export_from_neo4j(self, neo4j_graph, output_name: str = "openclaw_knowledge"):
+    def export_from_neo4j(self, neo4j_graph, output_name: str = "mkg_knowledge"):
         """从 Neo4j 导出"""
         print(f"\n导出到: {self.vault_path}\n")
 

@@ -29,11 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install Python dependencies
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy backend code
+# Copy backend code and core library
 COPY backend/ ./backend/
-COPY openclaw/ ./openclaw/
+COPY mkg/ ./mkg/
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist

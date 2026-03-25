@@ -24,7 +24,7 @@ _graph = None
 def get_db():
     global _db
     if _db is None:
-        _db = Database("openclaw.db")
+        _db = Database("mkg.db")
         _db.connect()
     return _db
 

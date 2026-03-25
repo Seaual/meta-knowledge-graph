@@ -32,7 +32,7 @@ def get_db() -> Database:
     """获取数据库实例"""
     global _db
     if _db is None:
-        _db = Database("openclaw.db")
+        _db = Database("mkg.db")
         _db.connect()
     return _db
 
@@ -108,8 +108,8 @@ def process(
     处理 PDF 论文：解析 + LLM 概念提取 + 构建图谱
 
     示例:
-        openclaw process paper.pdf
-        openclaw process ./papers/*.pdf
+        mkg process paper.pdf
+        mkg process ./papers/*.pdf
     """
     pdf_file = Path(pdf_path)
     if not pdf_file.exists():
@@ -185,8 +185,8 @@ def batch(
     批量处理文件夹中的 PDF
 
     示例:
-        openclaw batch ./papers
-        openclaw batch ./papers --no-recursive
+        mkg batch ./papers
+        mkg batch ./papers --no-recursive
     """
     pdf_dir = Path(folder)
     if not pdf_dir.exists():

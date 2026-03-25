@@ -1,4 +1,4 @@
-# OpenClaw Dependencies
+# Meta Knowledge Graph Dependencies
 
 # Core
 requests>=2.31.0

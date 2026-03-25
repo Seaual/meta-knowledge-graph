@@ -1,5 +1,5 @@
 """
-FastAPI backend for OpenClaw Web UI
+FastAPI backend for Meta Knowledge Graph
 """
 
 from fastapi import FastAPI

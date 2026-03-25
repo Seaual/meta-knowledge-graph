@@ -17,7 +17,7 @@ from typing import Optional, List, Dict
 class Database:
     """SQLite 数据库管理类"""
 
-    def __init__(self, db_path: str = "openclaw.db"):
+    def __init__(self, db_path: str = "mkg.db"):
         self.db_path = Path(db_path)
         self.conn: Optional[sqlite3.Connection] = None
 
