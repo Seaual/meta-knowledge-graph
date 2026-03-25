@@ -3,7 +3,7 @@ Concept API routes
 """
 
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
 import sys
 from pathlib import Path
@@ -125,11 +125,25 @@ def get_deduplicator():
     return _deduplicator
 
 
+class ResearchPoint(BaseModel):
+    """研究点模型"""
+    title: str
+    hypothesis: str  # 核心假设，格式："如果将 X 应用于 Y，可能解决 Z 问题"
+    description: str
+    discovery_method: str  # gap_filling | leaf_extension | bottleneck | transfer
+    rationale: str
+    related_concepts: List[str] = []
+    difficulty: str  # low | medium | high
+    difficulty_reason: str  # 难度依据
+    novelty: str  # incremental | moderate | high
+    potential_impact: str  # niche | broad | transformative
+
+
 class ResearchPointResponse(BaseModel):
     """研究点发现响应"""
     concept_id: str
     concept_name: str
-    research_points: List[dict]
+    research_points: List[ResearchPoint]
     analysis_context: dict
 
 
@@ -137,6 +151,101 @@ class DedupExecuteRequest(BaseModel):
     """去重执行请求"""
     scan_id: str
     merge_ids: List[str]
+
+
+def _build_research_prompt(
+    concept: dict,
+    ancestors: List[dict],
+    descendants: List[dict],
+    siblings: List[dict],
+    edge_nodes: List[dict],
+    papers: List[dict]
+) -> str:
+    """
+    构建研究点发现提示词
+
+    使用四种方法论发现研究机会：
+    - 空白地带法：图谱中两个本应有联系的分支之间缺少连接
+    - 末端延伸法：叶子节点代表最具体的技术，它们能否应用到其他分支
+    - 瓶颈识别法：某节点连接大量子节点但自身缺少兄弟节点
+    - 迁移应用法：一个分支的成熟方法能否迁移到另一个问题尚未解决的分支
+    """
+    prompt = f"""<s>
+你是一位拥有 20 年经验的科研导师，擅长从知识图谱的结构特征中识别研究机会。
+
+你发现研究点的四种方法论：
+- **空白地带法**：图谱中两个本应有联系的分支之间缺少连接 → 未被探索的交叉方向
+- **末端延伸法**：叶子节点代表最具体的技术 → 它们能否应用到其他分支？
+- **瓶颈识别法**：某节点连接大量子节点但自身缺少兄弟节点 → 可能是领域瓶颈
+- **迁移应用法**：一个分支的成熟方法 → 能否迁移到另一个问题尚未解决的分支？
+</s>
+
+<task>
+基于以下知识图谱结构信息，发现 3-5 个有价值的潜在研究方向。
+优先寻找**跨分支的交叉创新点**，而非已有方向的简单延伸。
+</task>
+
+<context>
+## 焦点概念
+- 名称：{concept['text']}
+- 层级：{concept.get('category', 'unknown')}
+- 关联论文数：{concept.get('paper_count', 0)}
+
+## 上游路径（从根到当前概念的祖先链 — 学科脉络）
+{json.dumps([{'text': a.get('text', a.get('name', '')), 'category': a.get('category')} for a in ancestors], ensure_ascii=False, indent=2)}
+
+## 下游分支（当前概念的后代 — 已有的研究细分）
+{json.dumps([{'text': d.get('text', d.get('name', '')), 'category': d.get('category'), 'paper_count': d.get('paper_count', 0)} for d in descendants], ensure_ascii=False, indent=2)}
+
+## 邻域节点（共享父节点的不同分支 — 平行研究方向）
+{json.dumps([{'text': s.get('text', s.get('name', '')), 'category': s.get('category'), 'paper_count': s.get('paper_count', 0)} for s in siblings], ensure_ascii=False, indent=2)}
+
+## 远端节点（图谱中距离较远的叶子 — 潜在跨领域连接机会）
+{json.dumps([{'text': e.get('text', e.get('name', '')), 'category': e.get('category')} for e in edge_nodes], ensure_ascii=False, indent=2)}
+
+## 相关论文
+{json.dumps([{'title': p.get('title', ''), 'research_questions': p.get('keywords', [])} for p in papers], ensure_ascii=False, indent=2)}
+</context>
+
+<output_format>
+输出 JSON 数组，每个研究点包含：
+
+[
+  {{
+    "title": "研究点标题（15字以内）",
+    "hypothesis": "核心假设（用'如果将 X 应用于 Y，可能解决 Z 问题'的句式）",
+    "description": "详细描述（80-150字），含问题背景、方法思路、预期结果",
+    "discovery_method": "gap_filling | leaf_extension | bottleneck | transfer",
+    "rationale": "为什么图谱结构暗示了这个研究机会（引用具体节点关系）",
+    "related_concepts": ["涉及的概念名称"],
+    "difficulty": "low | medium | high",
+    "difficulty_reason": "难度依据（一句话）",
+    "novelty": "incremental | moderate | high",
+    "potential_impact": "niche | broad | transformative"
+  }}
+]
+
+评分标准：
+
+difficulty:
+- low：现有方法直接扩展，3-6 个月
+- medium：需新方法或新数据，6-12 个月
+- high：基础理论创新或大规模实验，1 年以上
+
+novelty:
+- incremental：已有方法的小幅改进
+- moderate：已有方法创造性应用于新问题
+- high：新的问题定义或理论框架
+
+potential_impact:
+- niche：特定子领域的小范围影响
+- broad：对整个研究方向有推动
+- transformative：可能改变领域基本范式
+</output_format>
+
+只输出 JSON 数组，不要其他内容。
+"""
+    return prompt
 
 
 @router.get("/", response_model=List[ConceptResponse])
@@ -221,10 +330,12 @@ def discover_research_points(concept_id: str):
     发现研究点
 
     分析流程：
-    1. 追溯上游节点（父概念链）
-    2. 发现下游节点及其相关性
-    3. 遍历边缘节点，找可结合的点
-    4. 调用LLM生成研究点建议
+    1. 追溯上游节点（祖先链）
+    2. 发现下游节点（后代）
+    3. 获取邻域节点（兄弟分支）
+    4. 遍历边缘节点（叶子节点）
+    5. 获取相关论文
+    6. 调用LLM生成研究点建议
     """
     db = get_db()
     extractor = get_extractor()
@@ -269,7 +380,17 @@ def discover_research_points(concept_id: str):
 
     descendants = get_all_descendants(concept_id)
 
-    # 3. 获取边缘节点（叶子节点）- 没有子节点的概念
+    # 3. 获取邻域节点（兄弟分支）- 共享父节点的不同分支
+    siblings = []
+    concept_parents = db.get_concept_parents(concept_id)
+    if concept_parents:
+        for parent in concept_parents:
+            parent_children = db.get_concept_children(parent['id'])
+            for sibling in parent_children:
+                if sibling['id'] != concept_id and sibling['id'] not in [s['id'] for s in siblings]:
+                    siblings.append(sibling)
+
+    # 4. 获取边缘节点（叶子节点）- 没有子节点的概念
     all_concepts = db.get_all_concepts()
     edge_nodes = []
     for c in all_concepts:
@@ -277,7 +398,7 @@ def discover_research_points(concept_id: str):
         if not children and c['id'] != concept_id:
             edge_nodes.append(c)
 
-    # 4. 获取相关论文
+    # 5. 获取相关论文
     papers = db.get_papers_by_concept(concept_id)
     paper_info = []
     for p in papers[:5]:  # 取前5篇论文
@@ -287,48 +408,31 @@ def discover_research_points(concept_id: str):
             'keywords': p.get('keywords', []),
         })
 
-    # 5. 构建分析上下文
+    # 6. 构建分析上下文
     context = {
         'concept': {
             'id': concept_id,
-            'name': concept['text'],
+            'text': concept['text'],
+            'name': concept['text'],  # 兼容旧字段名
             'category': concept.get('category'),
+            'paper_count': concept.get('paper_count', 0),
         },
-        'ancestors': [{'id': a['id'], 'name': a['text'], 'category': a.get('category')} for a in ancestors[:5]],
-        'descendants': [{'id': d['id'], 'name': d['text'], 'category': d.get('category'), 'depth': d.get('depth')} for d in descendants[:10]],
-        'edge_nodes': [{'id': e['id'], 'name': e['text'], 'category': e.get('category')} for e in edge_nodes[:15]],
+        'ancestors': ancestors[:5],
+        'descendants': descendants[:10],
+        'siblings': siblings[:10],
+        'edge_nodes': edge_nodes[:15],
         'related_papers': paper_info,
     }
 
-    # 6. 调用LLM分析
-    prompt = f"""你是一个学术研究顾问。请基于以下知识图谱信息，发现潜在的研究点。
-
-## 当前概念
-- 名称: {concept['text']}
-- 类别: {concept.get('category', 'unknown')}
-
-## 上游概念链（研究领域的发展脉络）
-{json.dumps([a['name'] for a in context['ancestors']], ensure_ascii=False, indent=2)}
-
-## 下游概念（具体研究方向和方法）
-{json.dumps([d['name'] for d in context['descendants']], ensure_ascii=False, indent=2)}
-
-## 边缘节点（其他研究分支的末端概念）
-{json.dumps([e['name'] for e in context['edge_nodes']], ensure_ascii=False, indent=2)}
-
-## 相关论文
-{json.dumps([{'title': p['title'], 'keywords': p['keywords']} for p in paper_info], ensure_ascii=False, indent=2)}
-
-请分析以上信息，发现3-5个潜在的研究点。对于每个研究点，请提供：
-1. title: 研究点标题
-2. description: 研究点描述（50-100字）
-3. rationale: 为什么这是一个有价值的研究点
-4. related_concepts: 相关的概念列表
-5. difficulty: 研究难度（easy/medium/hard）
-6. potential_impact: 潜在影响（low/medium/high）
-
-请以JSON数组格式返回结果，不要添加任何其他文字说明。
-"""
+    # 7. 构建提示词并调用LLM分析
+    prompt = _build_research_prompt(
+        concept=context['concept'],
+        ancestors=context['ancestors'],
+        descendants=context['descendants'],
+        siblings=context['siblings'],
+        edge_nodes=context['edge_nodes'],
+        papers=paper_info
+    )
 
     try:
         # 调用LLM
@@ -342,7 +446,23 @@ def discover_research_points(concept_id: str):
             lines = response_text.split('\n')
             response_text = '\n'.join(lines[1:-1] if lines[-1] == '```' else lines[1:])
 
-        research_points = json.loads(response_text)
+        research_points_data = json.loads(response_text)
+
+        # 转换为 ResearchPoint 模型
+        research_points = []
+        for rp in research_points_data:
+            research_points.append(ResearchPoint(
+                title=rp.get('title', ''),
+                hypothesis=rp.get('hypothesis', ''),
+                description=rp.get('description', ''),
+                discovery_method=rp.get('discovery_method', 'gap_filling'),
+                rationale=rp.get('rationale', ''),
+                related_concepts=rp.get('related_concepts', []),
+                difficulty=rp.get('difficulty', 'medium'),
+                difficulty_reason=rp.get('difficulty_reason', ''),
+                novelty=rp.get('novelty', 'moderate'),
+                potential_impact=rp.get('potential_impact', 'niche'),
+            ))
 
         return ResearchPointResponse(
             concept_id=concept_id,
@@ -355,14 +475,18 @@ def discover_research_points(concept_id: str):
         return ResearchPointResponse(
             concept_id=concept_id,
             concept_name=concept['text'],
-            research_points=[{
-                "title": "研究点分析",
-                "description": "LLM返回格式异常，请重试",
-                "rationale": str(e),
-                "related_concepts": [],
-                "difficulty": "unknown",
-                "potential_impact": "unknown",
-            }],
+            research_points=[ResearchPoint(
+                title="研究点分析",
+                hypothesis="LLM返回格式异常，请重试",
+                description="LLM返回格式异常，请重试",
+                discovery_method="gap_filling",
+                rationale=str(e),
+                related_concepts=[],
+                difficulty="medium",
+                difficulty_reason="解析错误",
+                novelty="incremental",
+                potential_impact="niche",
+            )],
             analysis_context=context,
         )
     except Exception as e:
