@@ -193,3 +193,40 @@ class LLMTestResponse(BaseModel):
     success: bool
     message: str
     model: Optional[str] = None
+
+
+# Folder schemas
+class FolderBase(BaseModel):
+    id: str
+    name: str
+    description: Optional[str] = None
+    paper_count: int = 0
+
+
+class FolderCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class FolderUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class FolderResponse(FolderBase):
+    created_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class PaperContribution(BaseModel):
+    """论文贡献信息"""
+    node_count: int
+    root_concept: Optional[str] = None
+
+
+class PaperWithContribution(PaperResponse):
+    """带贡献信息的论文响应"""
+    node_count: int = 0
+    root_concept: Optional[str] = None
