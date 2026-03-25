@@ -189,6 +189,21 @@ class Database:
         except sqlite3.OperationalError:
             pass  # Column already exists
 
+        # 扫描任务表 - 用于去重扫描进度跟踪
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS scan_jobs (
+                id TEXT PRIMARY KEY,
+                status TEXT DEFAULT 'pending',
+                total_concepts INTEGER DEFAULT 0,
+                concepts_scanned INTEGER DEFAULT 0,
+                suggestions TEXT,
+                error TEXT,
+                created_at REAL,
+                started_at REAL,
+                completed_at REAL
+            )
+        """)
+
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_concept_relations_parent
@@ -832,6 +847,77 @@ class Database:
             WHERE id = ?
         """, (completed, successful, failed, status, job_id))
         self.conn.commit()
+
+    # ========== 扫描任务操作方法 ==========
+
+    def create_scan_job(self, scan_id: str, total_concepts: int):
+        """创建扫描任务"""
+        import time
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT INTO scan_jobs (id, total_concepts, status, created_at)
+            VALUES (?, ?, 'pending', ?)
+        """, (scan_id, total_concepts, time.time()))
+        self.conn.commit()
+
+    def get_scan_job(self, scan_id: str) -> Optional[dict]:
+        """获取扫描任务状态"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM scan_jobs WHERE id = ?", (scan_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        # Parse suggestions JSON if present
+        if result.get('suggestions') and isinstance(result['suggestions'], str):
+            try:
+                import json
+                result['suggestions'] = json.loads(result['suggestions'])
+            except:
+                result['suggestions'] = None
+        return result
+
+    def update_scan_job(self, scan_id: str, **kwargs):
+        """更新扫描任务状态"""
+        import time
+        cursor = self.conn.cursor()
+
+        # Build dynamic update query
+        set_parts = []
+        values = []
+        for key, value in kwargs.items():
+            if key == 'suggestions' and isinstance(value, (list, dict)):
+                import json
+                value = json.dumps(value)
+            set_parts.append(f"{key} = ?")
+            values.append(value)
+
+        if not set_parts:
+            return
+
+        values.append(scan_id)
+        cursor.execute(f"""
+            UPDATE scan_jobs SET {', '.join(set_parts)}
+            WHERE id = ?
+        """, values)
+        self.conn.commit()
+
+    def cleanup_old_scan_jobs(self, max_age_hours: int = 24):
+        """清理过期的扫描任务"""
+        import time
+        cursor = self.conn.cursor()
+        cutoff = time.time() - (max_age_hours * 3600)
+        cursor.execute(
+            "DELETE FROM scan_jobs WHERE completed_at < ? OR (status IN ('completed', 'failed') AND created_at < ?)",
+            (cutoff, cutoff)
+        )
+        self.conn.commit()
+
+    def get_concept_count(self) -> int:
+        """获取概念总数"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT COUNT(*) as count FROM concepts")
+        return cursor.fetchone()['count']
 
     # ========== LLM Configuration ==========
 
