@@ -402,7 +402,7 @@ def process_paper(request: ProcessRequest):
         raise HTTPException(status_code=400, detail="LLM not configured. Claude CLI or API Key required.")
 
     # Get existing concepts for smart matching
-    graph = KnowledgeGraph(db)
+    graph = get_graph()
     existing_concepts = graph.get_concept_tree_summary()
 
     # Parse and extract
@@ -417,8 +417,7 @@ def process_paper(request: ProcessRequest):
         concept_tree = extracted.concept_tree.to_dict() if extracted.concept_tree else None
 
         if concept_tree:
-            # Build graph
-            graph = get_graph()
+            # Build graph (already initialized above)
             graph.build_from_paper(request.doi, concept_tree)
 
             # Save extraction
