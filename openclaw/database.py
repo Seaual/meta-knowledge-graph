@@ -26,6 +26,7 @@ class Database:
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
         self._init_tables()
+        self.ensure_default_folder()  # 确保默认文件夹存在
 
     def close(self):
         """关闭连接"""
@@ -159,6 +160,24 @@ class Database:
                 FOREIGN KEY (config_id) REFERENCES llm_config(id)
             )
         """)
+
+        # 文件夹表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS folders (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT,
+                paper_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 添加 folder_id 列（如果不存在）
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN folder_id TEXT DEFAULT 'default'")
+        except:
+            pass  # Column already exists
 
         # 创建索引
         cursor.execute("""
@@ -871,6 +890,119 @@ class Database:
         """)
         row = cursor.fetchone()
         return dict(row) if row else None
+
+    # ========== 文件夹操作方法 ==========
+
+    def get_all_folders(self) -> list:
+        """获取所有文件夹"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM folders ORDER BY created_at")
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_folder(self, folder_id: str) -> Optional[dict]:
+        """获取单个文件夹"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def create_folder(self, folder_data: dict) -> str:
+        """创建文件夹"""
+        cursor = self.conn.cursor()
+        folder_id = self._to_slug(folder_data['name'])
+        cursor.execute("""
+            INSERT OR IGNORE INTO folders (id, name, description)
+            VALUES (?, ?, ?)
+        """, (folder_id, folder_data['name'], folder_data.get('description')))
+        self.conn.commit()
+        return folder_id
+
+    def update_folder(self, folder_id: str, data: dict):
+        """更新文件夹"""
+        cursor = self.conn.cursor()
+        if 'name' in data:
+            cursor.execute("UPDATE folders SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                          (data['name'], folder_id))
+        if 'description' in data:
+            cursor.execute("UPDATE folders SET description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                          (data['description'], folder_id))
+        self.conn.commit()
+
+    def delete_folder(self, folder_id: str) -> bool:
+        """删除文件夹（论文移到 default）"""
+        if folder_id == 'default':
+            return False  # 不能删除默认文件夹
+
+        cursor = self.conn.cursor()
+        # 将论文移到 default
+        cursor.execute("UPDATE papers SET folder_id = 'default' WHERE folder_id = ?", (folder_id,))
+        # 删除文件夹
+        cursor.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
+        self.conn.commit()
+        return True
+
+    def ensure_default_folder(self):
+        """确保默认文件夹存在"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id FROM folders WHERE id = 'default'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                INSERT INTO folders (id, name, description)
+                VALUES ('default', '默认', '默认文件夹')
+            """)
+            self.conn.commit()
+
+    def get_papers_by_folder(self, folder_id: str) -> list:
+        """按文件夹获取论文"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM papers WHERE folder_id = ? ORDER BY created_at DESC", (folder_id,))
+        papers = [dict(row) for row in cursor.fetchall()]
+        for paper in papers:
+            if paper.get('authors') and isinstance(paper['authors'], str):
+                try:
+                    paper['authors'] = json.loads(paper['authors'])
+                except:
+                    paper['authors'] = []
+            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                try:
+                    paper['keywords'] = json.loads(paper['keywords'])
+                except:
+                    paper['keywords'] = []
+            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                try:
+                    paper['contributions'] = json.loads(paper['contributions'])
+                except:
+                    paper['contributions'] = []
+        return papers
+
+    def move_paper_to_folder(self, doi: str, folder_id: str):
+        """移动论文到文件夹"""
+        cursor = self.conn.cursor()
+        cursor.execute("UPDATE papers SET folder_id = ? WHERE doi = ?", (folder_id, doi))
+        self.conn.commit()
+
+    def get_paper_contribution(self, doi: str) -> dict:
+        """获取论文贡献的概念节点数和根概念"""
+        cursor = self.conn.cursor()
+
+        # 获取该论文关联的概念数
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM paper_concepts WHERE paper_doi = ?
+        """, (doi,))
+        node_count = cursor.fetchone()['count']
+
+        # 获取根概念（该论文的概念树的根）
+        cursor.execute("""
+            SELECT c.text FROM concepts c
+            JOIN paper_concepts pc ON c.id = pc.concept_id
+            LEFT JOIN concept_relations cr ON c.id = cr.child_id
+            WHERE pc.paper_doi = ? AND cr.parent_id IS NULL
+            LIMIT 1
+        """, (doi,))
+        row = cursor.fetchone()
+        root_concept = row['text'] if row else None
+
+        return {"node_count": node_count, "root_concept": root_concept}
 
     # ========== 上下文管理器 ==========
 
