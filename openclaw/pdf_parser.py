@@ -16,6 +16,68 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
 
 
+STAGE1_SUMMARY_PROMPT = """<s>
+你是一位学术论文审稿人。请对以下论文进行结构化总结。
+你的目标不是复述论文内容，而是回答一个核心问题：
+**这篇论文对学术界的独特贡献是什么？它做了什么别人没做过的事？**
+</s>
+
+<paper>
+<title>{title}</title>
+<authors>{authors}</authors>
+<abstract>{abstract}</abstract>
+<body>{body}</body>
+</paper>
+
+<task>
+请输出以下 JSON 结构：
+
+{{
+  "one_sentence_summary": "用一句话概括这篇论文（不超过50字）",
+
+  "research_context": {{
+    "field": "所属大领域",
+    "direction": "所属研究方向",
+    "existing_gap": "论文试图填补的研究空白（1-2句话）"
+  }},
+
+  "core_contributions": [
+    {{
+      "type": "new_method | new_framework | new_dataset | new_finding | improvement | theoretical",
+      "claim": "贡献的具体描述（1句话）",
+      "novelty": "与已有工作相比，新在哪里（1句话）"
+    }}
+  ],
+
+  "methodology_summary": {{
+    "approach": "核心方法的一句话概述",
+    "key_components": ["方法中最关键的2-3个技术组件"],
+    "baselines": ["对比的基线方法"]
+  }},
+
+  "results_summary": {{
+    "datasets": ["使用的数据集"],
+    "metrics": ["评估指标"],
+    "main_finding": "最重要的实验结论（1句话）"
+  }},
+
+  "background_concepts": ["论文提及但非其贡献的已有概念"],
+  "novel_concepts": ["论文首次提出或深入探讨的概念"]
+}}
+</task>
+
+<rules>
+关键判断规则：
+- "background_concepts" vs "novel_concepts" 的区分是最重要的。
+  判断标准：如果这篇论文不存在，这个概念还会被学术界广泛认知吗？
+  会 → background。不会 → novel。
+- core_contributions 通常只有 1-3 个。超过 5 个说明没有区分"贡献"和"论文提到的东西"。
+- 所有内容使用中文。国际通用专有名词（Transformer、BERT）可保留英文。
+</rules>
+
+只输出 JSON，不要其他内容。"""
+
+
 @dataclass
 class PaperContent:
     """论文内容（原始文本）"""
@@ -407,6 +469,42 @@ class LLMConceptExtractor:
             api_client: LLM API 客户端
         """
         self.api_client = api_client
+
+    def _stage1_summarize(self, paper_content: PaperContent) -> dict:
+        """
+        Stage 1: 论文总结
+        目标：理解论文，区分背景概念和核心贡献
+        """
+        prompt = STAGE1_SUMMARY_PROMPT.format(
+            title=paper_content.title,
+            authors=', '.join(paper_content.authors[:5]) if paper_content.authors else 'Unknown',
+            abstract=paper_content.abstract[:1000] if paper_content.abstract else '',
+            body=paper_content.full_text[:50000]
+        )
+
+        response = self.api_client.extract_concepts(prompt)
+        return self._parse_stage1_response(response)
+
+    def _parse_stage1_response(self, response: str) -> dict:
+        """解析 Stage 1 响应"""
+        import json
+        import re
+
+        try:
+            json_match = re.search(r'```json\s*(.+?)\s*```', response, re.DOTALL)
+            json_str = json_match.group(1) if json_match else response.strip()
+            return json.loads(json_str)
+        except json.JSONDecodeError as e:
+            print(f"Stage 1 解析失败: {e}")
+            return {
+                "one_sentence_summary": "",
+                "research_context": {},
+                "core_contributions": [],
+                "methodology_summary": {},
+                "results_summary": {},
+                "background_concepts": [],
+                "novel_concepts": []
+            }
 
     def extract(self, paper_content: PaperContent, existing_concepts: str = "") -> LLMExtractedContent:
         """
