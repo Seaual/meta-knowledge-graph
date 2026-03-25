@@ -140,11 +140,16 @@ export default function ConceptsGraph() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [conceptsRes, graphRes] = await Promise.all([
-          conceptsApi.list(),
-          graphApi.data(activeFolder),
-        ])
-        setConcepts(conceptsRes.data)
+        // Only load graph data - it already contains filtered nodes and edges
+        const graphRes = await graphApi.data(activeFolder)
+        // Use nodes from graph data (already filtered by folder)
+        const nodesFromGraph = graphRes.data.nodes.map((n: { id: string; label: string; category?: string; paper_count?: number }) => ({
+          id: n.id,
+          text: n.label,
+          category: n.category,
+          paper_count: n.paper_count || 0,
+        }))
+        setConcepts(nodesFromGraph)
         setEdges(graphRes.data.edges)
         setLoading(false)
       } catch (err) {
