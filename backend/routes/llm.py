@@ -31,7 +31,7 @@ def get_db():
 
 # Available providers
 PROVIDERS = [
-    {"value": "claude_cli", "label": "Claude Code CLI", "requires_api_key": False},
+    {"value": "claude_cli", "label": "Claude Code CLI（Docker不可用）", "requires_api_key": False},
     {"value": "openai", "label": "OpenAI 兼容接口", "requires_api_key": True, "default_base_url": "https://api.openai.com/v1"},
     {"value": "anthropic", "label": "Anthropic Claude", "requires_api_key": True},
     {"value": "google", "label": "Google Gemini", "requires_api_key": True},

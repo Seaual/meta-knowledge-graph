@@ -131,9 +131,9 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
 
           {/* Claude CLI notice */}
           {configs[0]?.provider === 'claude_cli' && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
               <Check className="inline h-4 w-4 mr-1" />
-              Claude Code CLI 已自动检测到配置，无需输入 API Key
+              Claude Code CLI 仅限本地开发使用，Docker 环境不可用
             </div>
           )}
 
