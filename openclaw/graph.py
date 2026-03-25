@@ -24,6 +24,42 @@ class KnowledgeGraph:
         """
         self.db = database
 
+    def get_concept_tree_summary(self, max_depth: int = 3) -> str:
+        """
+        获取概念树的简化文本表示，用于 LLM prompt
+
+        Args:
+            max_depth: 最大深度限制
+
+        Returns:
+            概念树的缩进文本表示
+        """
+        roots = self.db.get_root_concepts()
+        if not roots:
+            return "（图谱为空）"
+
+        lines = []
+
+        def build_tree(concept_id: str, depth: int):
+            if depth > max_depth:
+                return
+
+            concept = self.db.get_concept(concept_id)
+            if not concept:
+                return
+
+            indent = "  " * depth
+            lines.append(f"{indent}- {concept['text']}")
+
+            children = self.db.get_concept_children(concept_id)
+            for child in children[:10]:  # Limit children per node
+                build_tree(child['id'], depth + 1)
+
+        for root in roots[:5]:  # Limit root concepts
+            build_tree(root['id'], 0)
+
+        return "\n".join(lines)
+
     def build_from_paper(self, paper_doi: str, concept_tree: dict):
         """
         从论文构建图谱
