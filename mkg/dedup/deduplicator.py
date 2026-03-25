@@ -22,16 +22,28 @@ def store_scan_result(scan_id: str, result: dict):
         _scan_results[scan_id] = {"result": result, "created_at": datetime.now()}
 
 
-def get_scan_result(scan_id: str) -> Optional[dict]:
-    """获取扫描结果"""
+def get_scan_result(scan_id: str, db=None) -> Optional[dict]:
+    """Get scan result from memory or database"""
+    # Check memory first (for backward compatibility with sync scans)
     with _scan_lock:
         entry = _scan_results.get(scan_id)
-        if not entry:
-            return None
-        if (datetime.now() - entry["created_at"]).total_seconds() > 3600:
-            del _scan_results[scan_id]
-            return None
-        return entry["result"]
+        if entry:
+            if (datetime.now() - entry["created_at"]).total_seconds() > 3600:
+                del _scan_results[scan_id]
+            else:
+                return entry["result"]
+
+    # Check database (for async scans)
+    if db:
+        job = db.get_scan_job(scan_id)
+        if job and job.get('status') == 'completed':
+            return {
+                "scan_id": scan_id,
+                "status": "completed",
+                "merge_suggestions": job.get('suggestions', [])
+            }
+
+    return None
 
 
 def generate_scan_id() -> str:
@@ -93,7 +105,8 @@ class ConceptDeduplicator:
 
     def execute_merge(self, scan_id: str, merge_ids: List[str]) -> dict:
         """执行合并操作"""
-        scan_result = get_scan_result(scan_id)
+        # Pass db to get_scan_result to check database
+        scan_result = get_scan_result(scan_id, self.db)
         if not scan_result:
             return {"executed": 0, "error": "Scan result not found or expired"}
 
