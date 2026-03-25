@@ -223,6 +223,8 @@ interface PaperContribution {
   root_concept?: string
 }
 
+export type { PaperContribution }
+
 // Folder API
 export const foldersApi = {
   list: () => api.get<FolderResponse[]>('/folders/'),

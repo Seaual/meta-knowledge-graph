@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, Nodes } from 'lucide-react'
+import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch } from 'lucide-react'
 import { papersApi, batchApi, foldersApi } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
 
@@ -409,7 +409,7 @@ export default function Papers() {
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-500">
                         <div className="flex items-center gap-1">
-                          <Nodes className="h-3 w-3" />
+                          <GitBranch className="h-3 w-3" />
                           {paper.status === 'processed' ? (contributions[paper.doi]?.node_count || '-') : '-'}
                         </div>
                       </td>
