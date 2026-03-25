@@ -154,4 +154,46 @@ export const exportApi = {
     api.get('/graph/export/obsidian/html/download', { responseType: 'blob' }),
 }
 
+// LLM Configuration types
+interface LLMProviderConfig {
+  function_group?: string
+  provider: string
+  api_key?: string
+  base_url?: string
+  model?: string
+  is_active: boolean
+}
+
+interface LLMConfigResponse {
+  mode: string
+  providers: LLMProviderConfig[]
+}
+
+interface LLMTestResponse {
+  success: boolean
+  message: string
+  model?: string
+}
+
+interface ProviderInfo {
+  value: string
+  label: string
+  requires_api_key: boolean
+  default_base_url?: string
+}
+
+interface FunctionGroup {
+  value: string
+  label: string
+}
+
+// LLM API
+export const llmApi = {
+  providers: () => api.get<{ providers: ProviderInfo[]; function_groups: FunctionGroup[] }>('/llm/providers'),
+  getConfig: () => api.get<LLMConfigResponse>('/llm/config'),
+  saveConfig: (config: LLMConfigResponse) => api.post<LLMConfigResponse>('/llm/config', config),
+  test: (params: { provider: string; api_key?: string; base_url?: string; model?: string }) =>
+    api.post<LLMTestResponse>('/llm/test', params),
+}
+
 export default api
