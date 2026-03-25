@@ -53,6 +53,7 @@ export default function Papers() {
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   const loadPapers = () => {
     papersApi.list(undefined, activeFolder).then(res => {
@@ -90,6 +91,28 @@ export default function Papers() {
     loadPapers()
     loadFolders()
   }, [activeFolder])
+
+  // Auto-dismiss upload results after 5 seconds
+  useEffect(() => {
+    if (uploadResults.length === 0) return
+
+    // Clear old timer
+    if (uploadTimerRef.current) {
+      clearTimeout(uploadTimerRef.current)
+    }
+
+    // Set new timer
+    uploadTimerRef.current = setTimeout(() => {
+      setUploadResults([])
+      uploadTimerRef.current = null
+    }, 5000)
+
+    return () => {
+      if (uploadTimerRef.current) {
+        clearTimeout(uploadTimerRef.current)
+      }
+    }
+  }, [uploadResults])
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
