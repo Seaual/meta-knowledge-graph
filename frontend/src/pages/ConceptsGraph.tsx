@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
-import { conceptsApi, graphApi, papersApi, exportApi } from '../lib/api'
-import { Download } from 'lucide-react'
+import { conceptsApi, graphApi, papersApi, exportApi, foldersApi } from '../lib/api'
+import { Download, ChevronDown, Folder } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
 
 // Types
@@ -112,6 +112,11 @@ export default function ConceptsGraph() {
   // Export menu state
   const [showExportMenu, setShowExportMenu] = useState(false)
 
+  // Folder state
+  const [folders, setFolders] = useState<{ id: string; name: string }[]>([])
+  const [activeFolder, setActiveFolder] = useState('default')
+  const [showFolderMenu, setShowFolderMenu] = useState(false)
+
   // Research points state
   const [researchPoints, setResearchPoints] = useState<ResearchPointsResponse | null>(null)
   const [loadingResearchPoints, setLoadingResearchPoints] = useState(false)
@@ -123,6 +128,13 @@ export default function ConceptsGraph() {
   // Graph data
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([])
   const [graphLinks, setGraphLinks] = useState<{ source: string; target: string }[]>([])
+
+  // Load folders
+  const loadFolders = () => {
+    foldersApi.list().then(res => {
+      setFolders(res.data)
+    })
+  }
 
   // Load initial data
   useEffect(() => {
@@ -141,6 +153,7 @@ export default function ConceptsGraph() {
       }
     }
     loadData()
+    loadFolders()
   }, [])
 
   // Compute depth for each node
@@ -548,6 +561,36 @@ export default function ConceptsGraph() {
 
       {/* Action Buttons */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
+        {/* Folder Selector */}
+        <div className="relative">
+          <button
+            onClick={() => setShowFolderMenu(!showFolderMenu)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+          >
+            <Folder className="h-4 w-4" />
+            {folders.find(f => f.id === activeFolder)?.name || '默认'}
+            <ChevronDown className="h-4 w-4" />
+          </button>
+          {showFolderMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
+              {folders.map(folder => (
+                <button
+                  key={folder.id}
+                  onClick={() => {
+                    setActiveFolder(folder.id)
+                    setShowFolderMenu(false)
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 flex items-center gap-2 ${
+                    activeFolder === folder.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                  }`}
+                >
+                  <Folder className="h-4 w-4" />
+                  {folder.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {/* Export Dropdown */}
         <div className="relative">
           <button
