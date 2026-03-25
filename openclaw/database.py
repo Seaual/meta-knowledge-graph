@@ -134,6 +134,32 @@ class Database:
             )
         """)
 
+        # LLM 配置表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS llm_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                mode TEXT NOT NULL DEFAULT 'single',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS llm_provider_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                config_id INTEGER NOT NULL,
+                function_group TEXT,
+                provider TEXT NOT NULL,
+                api_key TEXT,
+                base_url TEXT,
+                model TEXT,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (config_id) REFERENCES llm_config(id)
+            )
+        """)
+
         # 创建索引
         cursor.execute("""
             CREATE INDEX IF NOT EXISTS idx_concept_relations_parent
@@ -768,6 +794,83 @@ class Database:
             WHERE id = ?
         """, (completed, successful, failed, status, job_id))
         self.conn.commit()
+
+    # ========== LLM Configuration ==========
+
+    def get_llm_config(self) -> Optional[Dict]:
+        """Get current LLM configuration"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM llm_config ORDER BY id DESC LIMIT 1")
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        config = dict(row)
+        config_id = config['id']
+
+        # Get provider configs
+        cursor.execute("SELECT * FROM llm_provider_config WHERE config_id = ?", (config_id,))
+        providers = [dict(r) for r in cursor.fetchall()]
+        config['providers'] = providers
+
+        return config
+
+    def save_llm_config(self, mode: str, providers: List[Dict]) -> Dict:
+        """Save LLM configuration"""
+        cursor = self.conn.cursor()
+
+        # Clear existing config
+        cursor.execute("DELETE FROM llm_provider_config")
+        cursor.execute("DELETE FROM llm_config")
+
+        # Insert new config
+        cursor.execute(
+            "INSERT INTO llm_config (mode) VALUES (?)",
+            (mode,)
+        )
+        config_id = cursor.lastrowid
+
+        # Insert provider configs
+        for p in providers:
+            cursor.execute("""
+                INSERT INTO llm_provider_config
+                (config_id, function_group, provider, api_key, base_url, model, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                config_id,
+                p.get('function_group'),
+                p['provider'],
+                p.get('api_key'),
+                p.get('base_url'),
+                p.get('model'),
+                p.get('is_active', True)
+            ))
+
+        self.conn.commit()
+        return self.get_llm_config()
+
+    def get_llm_provider_for_function(self, function_group: str) -> Optional[Dict]:
+        """Get provider config for a specific function"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT p.* FROM llm_provider_config p
+            JOIN llm_config c ON p.config_id = c.id
+            WHERE c.mode = 'per_function' AND p.function_group = ? AND p.is_active = 1
+        """, (function_group,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_active_llm_provider(self) -> Optional[Dict]:
+        """Get the active provider (for single mode)"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT p.* FROM llm_provider_config p
+            JOIN llm_config c ON p.config_id = c.id
+            WHERE c.mode = 'single' AND p.is_active = 1
+            LIMIT 1
+        """)
+        row = cursor.fetchone()
+        return dict(row) if row else None
 
     # ========== 上下文管理器 ==========
 
