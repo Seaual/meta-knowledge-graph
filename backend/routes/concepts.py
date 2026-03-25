@@ -620,11 +620,17 @@ def get_dedup_scan_status(scan_id: str):
 
     # Calculate estimated time
     estimated_time = 0
-    if job['concepts_scanned'] > 0 and job['total_concepts'] > 0 and job.get('started_at'):
-        elapsed = time.time() - job['started_at']
-        avg_time = elapsed / job['concepts_scanned']
-        remaining = job['total_concepts'] - job['concepts_scanned']
-        estimated_time = int(avg_time * remaining)
+    started_at = job.get('started_at')
+    if job['concepts_scanned'] > 0 and job['total_concepts'] > 0 and started_at:
+        try:
+            started_at_float = float(started_at)
+            elapsed = time.time() - started_at_float
+            if elapsed > 0:
+                avg_time = elapsed / job['concepts_scanned']
+                remaining = job['total_concepts'] - job['concepts_scanned']
+                estimated_time = int(avg_time * remaining)
+        except (TypeError, ValueError):
+            pass
 
     # Calculate progress
     progress = 0

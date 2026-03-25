@@ -64,16 +64,17 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
     try {
       // Start scan
       const res = await dedupApi.scan(folderId)
-      const scanId = res.data.scan_id
+      const newScanId = res.data.scan_id
 
+      setScanId(newScanId)
       setScanProgress(prev => ({
         ...prev,
-        scanId,
+        scanId: newScanId,
         totalConcepts: res.data.total_concepts
       }))
 
       // Start polling
-      startPolling(scanId)
+      startPolling(newScanId)
     } catch (err: any) {
       setError(err.response?.data?.detail || '扫描启动失败')
       setPanelState('idle')
