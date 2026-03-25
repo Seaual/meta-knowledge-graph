@@ -142,7 +142,7 @@ export default function ConceptsGraph() {
       try {
         const [conceptsRes, graphRes] = await Promise.all([
           conceptsApi.list(),
-          graphApi.data(),
+          graphApi.data(activeFolder),
         ])
         setConcepts(conceptsRes.data)
         setEdges(graphRes.data.edges)
@@ -154,7 +154,7 @@ export default function ConceptsGraph() {
     }
     loadData()
     loadFolders()
-  }, [])
+  }, [activeFolder])
 
   // Compute depth for each node
   const getNodeDepth = useCallback((nodeId: string, parentMap: Map<string, string>): number => {

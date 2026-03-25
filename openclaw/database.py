@@ -986,6 +986,30 @@ class Database:
         cursor.execute("UPDATE papers SET folder_id = ? WHERE doi = ?", (folder_id, doi))
         self.conn.commit()
 
+    def get_concepts_by_folder(self, folder_id: str) -> list:
+        """获取指定文件夹中的论文关联的所有概念"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT c.id, c.text, c.category, c.paper_count, c.depth_cache
+            FROM concepts c
+            JOIN paper_concepts pc ON c.id = pc.concept_id
+            JOIN papers p ON pc.paper_doi = p.doi
+            WHERE p.folder_id = ?
+        """, (folder_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_concept_relations_by_folder(self, folder_id: str) -> list:
+        """获取指定文件夹中的概念关系"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            SELECT DISTINCT cr.parent_id, cr.child_id
+            FROM concept_relations cr
+            JOIN paper_concepts pc1 ON cr.parent_id = pc1.concept_id
+            JOIN papers p1 ON pc1.paper_doi = p1.doi
+            WHERE p1.folder_id = ?
+        """, (folder_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
     def get_paper_contribution(self, doi: str) -> dict:
         """获取论文贡献的概念节点数和根概念"""
         cursor = self.conn.cursor()

@@ -50,16 +50,19 @@ def get_stats():
 
 
 @router.get("/data", response_model=GraphData)
-def get_graph_data(max_depth: int = 3):
-    """Get graph data for visualization"""
+def get_graph_data(max_depth: int = 3, folder: str = None):
+    """Get graph data for visualization, optionally filtered by folder"""
     db = get_db()
     graph = get_graph()
 
     nodes = []
     edges = []
 
-    # Get all concepts
-    concepts = db.get_all_concepts()
+    # Get concepts filtered by folder or all
+    if folder:
+        concepts = db.get_concepts_by_folder(folder)
+    else:
+        concepts = db.get_all_concepts()
     concept_map = {c['id']: c for c in concepts}
 
     # Build nodes
@@ -72,14 +75,25 @@ def get_graph_data(max_depth: int = 3):
         ))
 
     # Build edges from relations
-    cursor = db.conn.cursor()
-    cursor.execute("SELECT parent_id, child_id FROM concept_relations")
-    for row in cursor.fetchall():
-        edges.append(GraphEdge(
-            source=row['parent_id'],
-            target=row['child_id'],
-            type="parent-child"
-        ))
+    if folder:
+        relations = db.get_concept_relations_by_folder(folder)
+        for row in relations:
+            # Only add edges where both concepts are in our filtered set
+            if row['parent_id'] in concept_map and row['child_id'] in concept_map:
+                edges.append(GraphEdge(
+                    source=row['parent_id'],
+                    target=row['child_id'],
+                    type="parent-child"
+                ))
+    else:
+        cursor = db.conn.cursor()
+        cursor.execute("SELECT parent_id, child_id FROM concept_relations")
+        for row in cursor.fetchall():
+            edges.append(GraphEdge(
+                source=row['parent_id'],
+                target=row['child_id'],
+                type="parent-child"
+            ))
 
     return GraphData(nodes=nodes, edges=edges)
 

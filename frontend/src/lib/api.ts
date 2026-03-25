@@ -39,7 +39,7 @@ export const conceptsApi = {
 // Graph API
 export const graphApi = {
   stats: () => api.get('/graph/stats'),
-  data: () => api.get('/graph/data'),
+  data: (folder?: string) => api.get('/graph/data', { params: { folder } }),
   treeData: () => api.get('/graph/tree-data'),
 }
 
