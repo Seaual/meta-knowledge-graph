@@ -23,6 +23,7 @@ export const papersApi = {
   delete: (doi: string) => api.delete(`/papers/${encodeURIComponent(doi)}`),
   move: (doi: string, folderId: string) => api.patch(`/papers/${encodeURIComponent(doi)}/folder`, { folder_id: folderId }),
   contribution: (doi: string) => api.get(`/papers/${encodeURIComponent(doi)}/contribution`),
+  processSingle: (doi: string) => api.post<ProcessSingleResponse>('/papers/process-single', { doi }),
 }
 
 // Concepts API
@@ -223,7 +224,15 @@ interface PaperContribution {
   root_concept?: string
 }
 
-export type { PaperContribution }
+interface ProcessSingleResponse {
+  success: boolean
+  message: string
+  concept_tree: any | null
+  duration: number
+  concepts_count: number
+}
+
+export type { PaperContribution, ProcessSingleResponse }
 
 // Folder API
 export const foldersApi = {

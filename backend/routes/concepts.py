@@ -9,6 +9,9 @@ import sys
 from pathlib import Path
 import os
 import json
+import asyncio
+import uuid
+import time
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -501,12 +504,13 @@ def discover_research_points(concept_id: str):
 
 
 @router.post("/dedup/scan")
-def dedup_scan():
+async def start_dedup_scan():
     """
-    触发去重扫描
+    Start async deduplication scan
 
-    返回候选合并建议列表，需要用户确认后才执行合并
+    Returns scan_id for polling progress
     """
+    db = get_db()
     deduplicator = get_deduplicator()
 
     if not deduplicator.merge_analyzer:
@@ -515,8 +519,120 @@ def dedup_scan():
             detail="LLM not configured. Please set ANTHROPIC_API_KEY, GOOGLE_API_KEY, or DASHSCOPE_API_KEY"
         )
 
-    result = deduplicator.scan()
-    return result
+    # Clean up old jobs
+    db.cleanup_old_scan_jobs()
+
+    # Create scan job
+    scan_id = f"scan-{uuid.uuid4().hex[:8]}"
+    total_concepts = db.get_concept_count()
+    db.create_scan_job(scan_id, total_concepts)
+
+    # Start background task
+    asyncio.create_task(run_dedup_scan_background(scan_id))
+
+    return {
+        "scan_id": scan_id,
+        "total_concepts": total_concepts,
+        "status": "scanning"
+    }
+
+
+async def run_dedup_scan_background(scan_id: str):
+    """Background task for dedup scan"""
+    try:
+        db = get_db()
+        deduplicator = get_deduplicator()
+
+        db.update_scan_job(scan_id, status='scanning', started_at=time.time())
+
+        # Get candidates
+        candidates = deduplicator.candidate_generator.generate_candidates()
+
+        if not candidates:
+            db.update_scan_job(
+                scan_id,
+                status='completed',
+                suggestions=[],
+                completed_at=time.time()
+            )
+            return
+
+        # Prepare analyzer
+        deduplicator.merge_analyzer._get_parent_names = lambda cid: [p['id'] for p in db.get_concept_parents(cid)]
+        deduplicator.merge_analyzer._get_child_names = lambda cid: [c['id'] for c in db.get_concept_children(cid)]
+
+        # Process candidates one by one for progress tracking
+        suggestions = []
+        for i, candidate in enumerate(candidates):
+            try:
+                result = deduplicator.merge_analyzer.analyze([candidate])
+                if result:
+                    for s in result:
+                        source = db.get_concept(s.source_id)
+                        target = db.get_concept(s.target_id)
+                        if source and target:
+                            suggestions.append({
+                                "id": f"merge-{scan_id}-{len(suggestions)}",
+                                "source": {"id": source['id'], "text": source['text'], "paper_count": source.get('paper_count', 0)},
+                                "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
+                                "confidence": s.confidence,
+                                "rationale": s.rationale
+                            })
+            except Exception as e:
+                print(f"Error analyzing candidate {i}: {e}")
+
+            # Update progress
+            db.update_scan_job(scan_id, concepts_scanned=i + 1)
+
+        # Complete
+        db.update_scan_job(
+            scan_id,
+            status='completed',
+            suggestions=suggestions,
+            completed_at=time.time()
+        )
+
+    except Exception as e:
+        db = get_db()
+        db.update_scan_job(scan_id, status='failed', error=str(e), completed_at=time.time())
+
+
+@router.get("/dedup/scan-status/{scan_id}")
+def get_dedup_scan_status(scan_id: str):
+    """
+    Get dedup scan progress
+
+    Returns progress and estimated time remaining
+    """
+    db = get_db()
+    job = db.get_scan_job(scan_id)
+
+    if not job:
+        raise HTTPException(status_code=404, detail="Scan job not found")
+
+    # Calculate estimated time
+    estimated_time = 0
+    if job['concepts_scanned'] > 0 and job['total_concepts'] > 0 and job.get('started_at'):
+        elapsed = time.time() - job['started_at']
+        avg_time = elapsed / job['concepts_scanned']
+        remaining = job['total_concepts'] - job['concepts_scanned']
+        estimated_time = int(avg_time * remaining)
+
+    # Calculate progress
+    progress = 0
+    if job['total_concepts'] > 0:
+        progress = (job['concepts_scanned'] / job['total_concepts']) * 100
+
+    return {
+        "scan_id": scan_id,
+        "status": job['status'],
+        "total_concepts": job['total_concepts'],
+        "concepts_scanned": job['concepts_scanned'],
+        "progress": progress,
+        "estimated_time": estimated_time,
+        "suggestions": job.get('suggestions') if job['status'] == 'completed' else None,
+        "error": job.get('error')
+    }
 
 
 @router.post("/dedup/execute")
