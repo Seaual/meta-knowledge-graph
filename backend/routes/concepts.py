@@ -548,10 +548,12 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
         db = get_db()
         deduplicator = get_deduplicator()
 
-        db.update_scan_job(scan_id, status='scanning', started_at=time.time())
-
         # Get candidates filtered by folder
         candidates = deduplicator.candidate_generator.generate_candidates(folder_id=folder_id)
+
+        # Update total to actual candidate count
+        total_candidates = len(candidates)
+        db.update_scan_job(scan_id, status='scanning', started_at=time.time(), total_concepts=total_candidates)
 
         if not candidates:
             db.update_scan_job(
@@ -581,7 +583,8 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
                                 "source": {"id": source['id'], "text": source['text'], "paper_count": source.get('paper_count', 0)},
                                 "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                                 "confidence": s.confidence,
-                                "rationale": s.rationale
+                                "rationale": s.rationale,
+                                "merged_relations": s.merged_relations
                             })
             except Exception as e:
                 print(f"Error analyzing candidate {i}: {e}")

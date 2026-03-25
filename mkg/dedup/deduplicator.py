@@ -37,10 +37,11 @@ def get_scan_result(scan_id: str, db=None) -> Optional[dict]:
     if db:
         job = db.get_scan_job(scan_id)
         if job and job.get('status') == 'completed':
+            suggestions = job.get('suggestions') or []
             return {
                 "scan_id": scan_id,
                 "status": "completed",
-                "merge_suggestions": job.get('suggestions', [])
+                "merge_suggestions": suggestions
             }
 
     return None
