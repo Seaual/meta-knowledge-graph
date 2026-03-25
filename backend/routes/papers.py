@@ -141,10 +141,15 @@ def _create_client_from_env():
 
 
 @router.get("/", response_model=List[PaperResponse])
-def list_papers(status: Optional[str] = None):
-    """Get all papers or filter by status"""
+def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
+    """Get all papers or filter by status/folder"""
     db = get_db()
-    if status:
+
+    if folder:
+        papers = db.get_papers_by_folder(folder)
+        if status:
+            papers = [p for p in papers if p.get('status') == status]
+    elif status:
         papers = db.get_papers_by_status(status)
     else:
         papers = db.get_all_papers()
@@ -162,7 +167,7 @@ def get_paper(doi: str):
 
 
 @router.post("/upload")
-async def upload_paper(file: UploadFile = File(...)):
+async def upload_paper(file: UploadFile = File(...), folder: str = Form("default")):
     """Upload a PDF file to pending folder"""
     import os
 
@@ -218,12 +223,17 @@ async def upload_paper(file: UploadFile = File(...)):
 
     doi = db.add_paper(paper_data)
 
+    # Update paper with folder
+    if folder != "default":
+        db.move_paper_to_folder(doi, folder)
+
     return {
         "success": True,
         "doi": doi,
         "title": paper_data['title'],
         "pdf_path": str(file_path),
-        "message": "Paper uploaded to pending folder"
+        "message": "Paper uploaded to pending folder",
+        "folder": folder
     }
 
 
@@ -566,3 +576,31 @@ def delete_paper(doi: str):
     db.conn.commit()
 
     return {"success": True, "message": "Paper deleted"}
+
+
+@router.patch("/{doi:path}/folder")
+def move_paper(doi: str, request: dict):
+    """Move paper to a different folder"""
+    db = get_db()
+    paper = db.get_paper(doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    folder_id = request.get('folder_id', 'default')
+    folder = db.get_folder(folder_id)
+    if not folder:
+        raise HTTPException(status_code=404, detail="Folder not found")
+
+    db.move_paper_to_folder(doi, folder_id)
+    return {"success": True, "message": f"Paper moved to {folder['name']}"}
+
+
+@router.get("/{doi:path}/contribution")
+def get_paper_contribution(doi: str):
+    """Get paper's concept contribution"""
+    db = get_db()
+    paper = db.get_paper(doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    return db.get_paper_contribution(doi)
