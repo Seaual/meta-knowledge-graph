@@ -71,11 +71,15 @@ const CENTER_COLOR = '#8B5CF6'
 
 interface ResearchPoint {
   title: string
+  hypothesis: string
   description: string
+  discovery_method: 'gap_filling' | 'leaf_extension' | 'bottleneck' | 'transfer'
   rationale: string
   related_concepts: string[]
-  difficulty: 'easy' | 'medium' | 'hard' | 'unknown'
-  potential_impact: 'low' | 'medium' | 'high' | 'unknown'
+  difficulty: 'low' | 'medium' | 'high'
+  difficulty_reason: string
+  novelty: 'incremental' | 'moderate' | 'high'
+  potential_impact: 'niche' | 'broad' | 'transformative'
 }
 
 interface ResearchPointsResponse {
@@ -280,11 +284,15 @@ export default function ConceptsGraph() {
         concept_name: selectedConcept.text,
         research_points: [{
           title: '分析失败',
+          hypothesis: '',
           description: '无法获取研究点，请检查LLM配置或稍后重试',
+          discovery_method: 'gap_filling',
           rationale: String(err),
           related_concepts: [],
-          difficulty: 'unknown',
-          potential_impact: 'unknown',
+          difficulty: 'medium',
+          difficulty_reason: '分析失败',
+          novelty: 'moderate',
+          potential_impact: 'niche',
         }],
         analysis_context: {
           concept: { id: selectedConcept.id, name: selectedConcept.text },
@@ -915,32 +923,57 @@ export default function ConceptsGraph() {
                         <h4 className="font-semibold text-gray-900 text-sm">{point.title}</h4>
                         <div className="flex gap-1 flex-shrink-0">
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.difficulty === 'easy' ? 'bg-green-100 text-green-600' :
+                            point.difficulty === 'low' ? 'bg-green-100 text-green-600' :
                             point.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' :
-                            point.difficulty === 'hard' ? 'bg-red-100 text-red-600' :
+                            point.difficulty === 'high' ? 'bg-red-100 text-red-600' :
                             'bg-gray-100 text-gray-500'
                           }`}>
-                            {point.difficulty === 'easy' ? '易' :
+                            {point.difficulty === 'low' ? '易' :
                              point.difficulty === 'medium' ? '中' :
-                             point.difficulty === 'hard' ? '难' : '?'}
+                             point.difficulty === 'high' ? '难' : '?'}
                           </span>
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.potential_impact === 'high' ? 'bg-purple-100 text-purple-600' :
-                            point.potential_impact === 'medium' ? 'bg-blue-100 text-blue-600' :
-                            point.potential_impact === 'low' ? 'bg-gray-100 text-gray-500' :
+                            point.novelty === 'high' ? 'bg-orange-100 text-orange-600' :
+                            point.novelty === 'moderate' ? 'bg-blue-100 text-blue-600' :
+                            point.novelty === 'incremental' ? 'bg-gray-100 text-gray-500' :
                             'bg-gray-100 text-gray-500'
-                          }`}>
-                            {point.potential_impact === 'high' ? '高影响' :
-                             point.potential_impact === 'medium' ? '中影响' :
-                             point.potential_impact === 'low' ? '低影响' : '?'}
+                          }`} title="创新性">
+                            {point.novelty === 'high' ? '高创新' :
+                             point.novelty === 'moderate' ? '中创新' :
+                             point.novelty === 'incremental' ? '渐进' : '?'}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            point.potential_impact === 'transformative' ? 'bg-purple-100 text-purple-600' :
+                            point.potential_impact === 'broad' ? 'bg-blue-100 text-blue-600' :
+                            point.potential_impact === 'niche' ? 'bg-gray-100 text-gray-500' :
+                            'bg-gray-100 text-gray-500'
+                          }`} title="潜在影响">
+                            {point.potential_impact === 'transformative' ? '变革性' :
+                             point.potential_impact === 'broad' ? '广泛' :
+                             point.potential_impact === 'niche' ? '特定' : '?'}
                           </span>
                         </div>
                       </div>
+                      {point.hypothesis && (
+                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700 italic">
+                          💡 {point.hypothesis}
+                        </div>
+                      )}
                       <p className="text-sm text-gray-600 mt-2 leading-relaxed">{point.description}</p>
                       <div className="mt-2">
-                        <div className="text-xs text-gray-400 mb-1">研究价值</div>
-                        <p className="text-xs text-gray-500">{point.rationale}</p>
+                        <div className="text-xs text-gray-400 mb-1">发现方法 · 研究价值</div>
+                        <p className="text-xs text-gray-500">
+                          {point.discovery_method === 'gap_filling' ? '🔍 空白地带法' :
+                           point.discovery_method === 'leaf_extension' ? '🌱 末端延伸法' :
+                           point.discovery_method === 'bottleneck' ? '🔥 瓶颈识别法' :
+                           point.discovery_method === 'transfer' ? '🔄 迁移应用法' : ''} · {point.rationale}
+                        </p>
                       </div>
+                      {point.difficulty_reason && (
+                        <div className="mt-1 text-xs text-gray-400">
+                          难度依据: {point.difficulty_reason}
+                        </div>
+                      )}
                       {point.related_concepts && point.related_concepts.length > 0 && (
                         <div className="mt-2">
                           <div className="text-xs text-gray-400 mb-1">相关概念</div>
