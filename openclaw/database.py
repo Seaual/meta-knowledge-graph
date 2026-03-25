@@ -999,8 +999,19 @@ class Database:
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concept_relations_by_folder(self, folder_id: str) -> list:
-        """获取指定文件夹中的概念关系"""
+        """获取指定文件夹中的概念关系（确保两端节点都在文件夹中）"""
         cursor = self.conn.cursor()
+        # 先获取该文件夹中所有概念的 ID 集合
+        cursor.execute("""
+            SELECT DISTINCT c.id
+            FROM concepts c
+            JOIN paper_concepts pc ON c.id = pc.concept_id
+            JOIN papers p ON pc.paper_doi = p.doi
+            WHERE p.folder_id = ?
+        """, (folder_id,))
+        concept_ids = set(row['id'] for row in cursor.fetchall())
+
+        # 获取所有关系，然后过滤
         cursor.execute("""
             SELECT DISTINCT cr.parent_id, cr.child_id
             FROM concept_relations cr
@@ -1008,7 +1019,13 @@ class Database:
             JOIN papers p1 ON pc1.paper_doi = p1.doi
             WHERE p1.folder_id = ?
         """, (folder_id,))
-        return [dict(row) for row in cursor.fetchall()]
+
+        # 只返回两端节点都在文件夹中的关系
+        relations = []
+        for row in cursor.fetchall():
+            if row['parent_id'] in concept_ids and row['child_id'] in concept_ids:
+                relations.append(dict(row))
+        return relations
 
     def get_paper_contribution(self, doi: str) -> dict:
         """获取论文贡献的概念节点数和根概念"""

@@ -348,11 +348,16 @@ async def batch_process_papers(request: BatchProcessRequest):
             if not content:
                 return {"doi": doi, "status": "failed", "error": "Failed to parse PDF"}
 
-            extracted = await asyncio.to_thread(extractor.extract, content)
+            # Get existing concepts for smart matching
+            graph = get_graph()
+            existing_concepts = graph.get_concept_tree_summary()
+
+            extracted = await asyncio.to_thread(extractor.extract, content, existing_concepts)
             if extracted.concept_tree:
-                graph = get_graph()
                 graph.build_from_paper(doi, extracted.concept_tree.to_dict())
                 db.save_concept_extraction(doi, extracted.concept_tree.to_dict(), extracted.raw_response)
+                # Update paper status to processed
+                db.update_paper_status(doi, 'processed')
                 return {"doi": doi, "status": "success", "concepts": len(extracted.concept_tree.children) if extracted.concept_tree.children else 0}
             else:
                 return {"doi": doi, "status": "failed", "error": "No concepts extracted"}
