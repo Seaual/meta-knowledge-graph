@@ -9,7 +9,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from openclaw.database import Database
+from mkg.database import Database
 from backend.schemas import FolderResponse, FolderCreate, FolderUpdate
 
 router = APIRouter(prefix="/api/folders", tags=["folders"])

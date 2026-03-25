@@ -16,9 +16,9 @@ import time
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from openclaw.database import Database
-from openclaw.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
-from openclaw.graph import KnowledgeGraph
+from mkg.database import Database
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.graph import KnowledgeGraph
 from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
 
 
@@ -161,14 +161,11 @@ def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
     return papers
 
 
-@router.get("/{doi:path}", response_model=PaperResponse)
-def get_paper(doi: str):
-    """Get a single paper by DOI"""
+@router.get("/by-folder/{folder_id}")
+def get_papers_by_folder(folder_id: str):
+    """Get papers by folder - specific route before general {doi:path}"""
     db = get_db()
-    paper = db.get_paper(doi)
-    if not paper:
-        raise HTTPException(status_code=404, detail="Paper not found")
-    return paper
+    return db.get_papers_by_folder(folder_id)
 
 
 @router.post("/upload")
@@ -326,9 +323,11 @@ async def batch_process_papers(request: BatchProcessRequest):
     if not extractor:
         raise HTTPException(status_code=400, detail="LLM not configured")
 
+    # 如果 job 不存在，自动创建
     job = db.get_batch_job(request.job_id)
     if not job:
-        raise HTTPException(status_code=404, detail="Batch job not found")
+        db.create_batch_job(request.job_id, len(request.dois))
+        job = db.get_batch_job(request.job_id)
 
     db.update_batch_job(request.job_id, 0, 0, 0, 'processing')
 
@@ -607,3 +606,13 @@ def get_paper_contribution(doi: str):
         raise HTTPException(status_code=404, detail="Paper not found")
 
     return db.get_paper_contribution(doi)
+
+
+@router.get("/{doi:path}", response_model=PaperResponse)
+def get_paper(doi: str):
+    """Get a single paper by DOI - must be last among GET routes"""
+    db = get_db()
+    paper = db.get_paper(doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+    return paper

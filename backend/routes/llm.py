@@ -10,8 +10,8 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from openclaw.database import Database
-from openclaw.pdf_parser import AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.database import Database
+from mkg.pdf_parser import AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
 from backend.schemas import (
     LLMConfigResponse, LLMConfigRequest, LLMTestRequest, LLMTestResponse, LLMProviderConfig
 )

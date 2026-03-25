@@ -10,9 +10,9 @@ from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from openclaw.database import Database
-from openclaw.graph import KnowledgeGraph
-from openclaw.obsidian_exporter import ObsidianExporter
+from mkg.database import Database
+from mkg.graph import KnowledgeGraph
+from mkg.obsidian_exporter import ObsidianExporter
 from backend.schemas import GraphStats, GraphData, GraphNode, GraphEdge, ExportResponse
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])

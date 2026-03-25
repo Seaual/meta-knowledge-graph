@@ -12,10 +12,10 @@ import json
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from openclaw.database import Database
-from openclaw.graph import KnowledgeGraph
-from openclaw.pdf_parser import LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
-from openclaw.dedup import ConceptDeduplicator
+from mkg.database import Database
+from mkg.graph import KnowledgeGraph
+from mkg.pdf_parser import LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.dedup import ConceptDeduplicator
 from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
 
 router = APIRouter(prefix="/api/concepts", tags=["concepts"])

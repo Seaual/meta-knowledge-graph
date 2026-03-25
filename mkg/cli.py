@@ -12,11 +12,11 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.tree import Tree
 
-from openclaw.database import Database
-from openclaw.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient
-from openclaw.graph import KnowledgeGraph
-from openclaw.neo4j_graph import Neo4jGraph
-from openclaw.obsidian_exporter import ObsidianExporter
+from mkg.database import Database
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient
+from mkg.graph import KnowledgeGraph
+from mkg.neo4j_graph import Neo4jGraph
+from mkg.obsidian_exporter import ObsidianExporter
 
 app = typer.Typer(help="OpenClaw - 学术知识图谱引擎")
 console = Console()
@@ -57,20 +57,32 @@ def get_extractor() -> LLMConceptExtractor:
     """获取 LLM 概念提取器"""
     global _extractor
     if _extractor is None:
-        api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
-        if not api_key:
+        # 支持 Anthropic 兼容接口（如 DashScope）
+        anthropic_token = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")
+        anthropic_base_url = os.getenv("ANTHROPIC_BASE_URL")
+        anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+
+        google_key = os.getenv("GOOGLE_API_KEY")
+        dashscope_key = os.getenv("DASHSCOPE_API_KEY")
+
+        if not anthropic_token and not google_key and not dashscope_key:
             console.print("[red]请配置 API Key:[/red]")
-            console.print("  ANTHROPIC_API_KEY, GOOGLE_API_KEY 或 DASHSCOPE_API_KEY")
+            console.print("  ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN")
+            console.print("  GOOGLE_API_KEY")
+            console.print("  DASHSCOPE_API_KEY")
             raise typer.Exit(1)
 
-        if os.getenv("ANTHROPIC_API_KEY"):
-            client = AnthropicClient(api_key)
-            console.print("[green]使用 Anthropic Claude API[/green]")
-        elif os.getenv("GOOGLE_API_KEY"):
-            client = GoogleClient(api_key)
+        if anthropic_token:
+            client = AnthropicClient(anthropic_token, model=anthropic_model, base_url=anthropic_base_url)
+            if anthropic_base_url:
+                console.print(f"[green]使用 Anthropic 兼容 API ({anthropic_base_url})[/green]")
+            else:
+                console.print("[green]使用 Anthropic Claude API[/green]")
+        elif google_key:
+            client = GoogleClient(google_key)
             console.print("[green]使用 Google Gemini API[/green]")
         else:
-            client = OpenAICompatibleClient(api_key)
+            client = OpenAICompatibleClient(dashscope_key)
             console.print("[green]使用 OpenAI 兼容 API[/green]")
 
         _extractor = LLMConceptExtractor(client)
