@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { X, RefreshCw, Check, AlertCircle, Merge } from 'lucide-react'
-import { dedupApi } from '../lib/api'
+import { dedupApi, ScanStatusResponse } from '../lib/api'
 
 // Types
 interface MergeSuggestion {
@@ -20,6 +20,14 @@ interface ExecuteDetail {
 
 type PanelState = 'idle' | 'scanning' | 'review' | 'executing' | 'result'
 
+interface ScanProgress {
+  scanId: string | null
+  totalConcepts: number
+  conceptsScanned: number
+  progress: number
+  estimatedTime: number
+}
+
 interface DedupPanelProps {
   isOpen: boolean
   onClose: () => void
@@ -32,20 +40,90 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [executeDetails, setExecuteDetails] = useState<ExecuteDetail[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [scanProgress, setScanProgress] = useState<ScanProgress>({
+    scanId: null,
+    totalConcepts: 0,
+    conceptsScanned: 0,
+    progress: 0,
+    estimatedTime: 0
+  })
+  const pollingRef = useRef<NodeJS.Timeout | null>(null)
 
   const handleScan = async () => {
     setPanelState('scanning')
     setError(null)
+    setScanProgress({
+      scanId: null,
+      totalConcepts: 0,
+      conceptsScanned: 0,
+      progress: 0,
+      estimatedTime: 0
+    })
+
     try {
+      // Start scan
       const res = await dedupApi.scan()
-      setScanId(res.data.scan_id)
-      setSuggestions(res.data.merge_suggestions)
-      setSelectedIds(new Set(res.data.merge_suggestions.map(s => s.id)))
-      setPanelState('review')
+      const scanId = res.data.scan_id
+
+      setScanProgress(prev => ({
+        ...prev,
+        scanId,
+        totalConcepts: res.data.total_concepts
+      }))
+
+      // Start polling
+      startPolling(scanId)
     } catch (err: any) {
-      setError(err.response?.data?.detail || '扫描失败')
+      setError(err.response?.data?.detail || '扫描启动失败')
       setPanelState('idle')
     }
+  }
+
+  const startPolling = (scanId: string) => {
+    // Clear existing polling
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+    }
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await dedupApi.scanStatus(scanId)
+        const data = res.data
+
+        setScanProgress({
+          scanId,
+          totalConcepts: data.total_concepts,
+          conceptsScanned: data.concepts_scanned,
+          progress: data.progress,
+          estimatedTime: data.estimated_time
+        })
+
+        if (data.status === 'completed') {
+          // Stop polling
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+          }
+
+          if (data.suggestions) {
+            setSuggestions(data.suggestions)
+            setSelectedIds(new Set(data.suggestions.map(s => s.id)))
+          } else {
+            setSuggestions([])
+          }
+          setPanelState('review')
+        } else if (data.status === 'failed') {
+          if (pollingRef.current) {
+            clearInterval(pollingRef.current)
+            pollingRef.current = null
+          }
+          setError(data.error || '扫描失败')
+          setPanelState('idle')
+        }
+      } catch (err: any) {
+        console.error('Poll error:', err)
+      }
+    }, 1000) // Poll every second
   }
 
   const handleExecute = async () => {
@@ -80,6 +158,17 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
     setSelectedIds(new Set())
     setExecuteDetails([])
     setError(null)
+    setScanProgress({
+      scanId: null,
+      totalConcepts: 0,
+      conceptsScanned: 0,
+      progress: 0,
+      estimatedTime: 0
+    })
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current)
+      pollingRef.current = null
+    }
   }
 
   const getConfidenceColor = (confidence: number) => {
@@ -87,6 +176,25 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
     if (confidence >= 0.7) return 'bg-yellow-100 text-yellow-700'
     return 'bg-gray-100 text-gray-600'
   }
+
+  const formatScanTime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}秒`
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (minutes < 60) return `${minutes}分${secs > 0 ? secs + '秒' : ''}`
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours}小时${mins > 0 ? mins + '分' : ''}`
+  }
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+      }
+    }
+  }, [])
 
   if (!isOpen) return null
 
@@ -132,7 +240,24 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
           <div className="text-center py-12">
             <RefreshCw className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
             <p className="text-gray-600">正在扫描概念...</p>
-            <p className="text-sm text-gray-400 mt-2">LLM 正在分析重复项</p>
+            {scanProgress.totalConcepts > 0 && (
+              <>
+                <p className="text-sm text-gray-500 mt-2">
+                  进度: {scanProgress.conceptsScanned}/{scanProgress.totalConcepts} ({Math.round(scanProgress.progress)}%)
+                </p>
+                {scanProgress.estimatedTime > 0 && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    预估剩余: {formatScanTime(scanProgress.estimatedTime)}
+                  </p>
+                )}
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-4">
+                  <div
+                    className="bg-blue-500 h-2 rounded-full transition-all"
+                    style={{ width: `${scanProgress.progress}%` }}
+                  />
+                </div>
+              </>
+            )}
           </div>
         )}
 
