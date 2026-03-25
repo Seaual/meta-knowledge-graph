@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
-import { papersApi, batchApi, foldersApi } from '../lib/api'
+import { papersApi, batchApi, foldersApi, ProcessSingleResponse } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
 
 interface Paper {
@@ -32,6 +32,17 @@ interface Contribution {
   root_concept?: string
 }
 
+interface QueueState {
+  pending: string[]
+  current: string | null
+  completed: number
+  successful: number
+  failed: number
+  estimatedTime: number
+  avgTimePerPaper: number
+  durations: number[]
+}
+
 export default function Papers() {
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
@@ -39,13 +50,17 @@ export default function Papers() {
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [batchProcessing, setBatchProcessing] = useState(false)
-  const [batchProgress, setBatchProgress] = useState<{
-    total: number
-    completed: number
-    successful: number
-    failed: number
-  } | null>(null)
+  const MAX_DURATIONS = 50
+  const [queueState, setQueueState] = useState<QueueState>({
+    pending: [],
+    current: null,
+    completed: 0,
+    successful: 0,
+    failed: 0,
+    estimatedTime: 0,
+    avgTimePerPaper: 0,
+    durations: []
+  })
 
   // Folder state
   const [folders, setFolders] = useState<FolderItem[]>([])
@@ -160,30 +175,92 @@ export default function Papers() {
       return
     }
 
-    if (!confirm(`确定要处理 ${pendingPapers.length} 篇论文？\n这可能需要一些时间。`)) {
+    // Check if already processing
+    if (queueState.current !== null) {
+      alert('已有批量处理任务进行中，请等待完成')
       return
     }
 
-    setBatchProcessing(true)
-    setBatchProgress({ total: pendingPapers.length, completed: 0, successful: 0, failed: 0 })
-
-    try {
-      const dois = pendingPapers.map(p => p.doi)
-      const res = await batchApi.process(`manual_${Date.now()}`, dois)
-
-      setBatchProgress({
-        total: res.data.total,
-        completed: res.data.completed,
-        successful: res.data.successful,
-        failed: res.data.failed,
-      })
-
-      loadPapers()
-    } catch (err: any) {
-      alert(err.response?.data?.detail || '批量处理失败')
-    } finally {
-      setBatchProcessing(false)
+    if (!confirm(`确定要处理 ${pendingPapers.length} 篇论文？\n这将按顺序逐个处理，显示实时进度。`)) {
+      return
     }
+
+    // Initialize queue
+    const dois = pendingPapers.map(p => p.doi)
+    setQueueState({
+      pending: dois,
+      current: dois[0],
+      completed: 0,
+      successful: 0,
+      failed: 0,
+      estimatedTime: 0,
+      avgTimePerPaper: 0,
+      durations: []
+    })
+
+    // Process sequentially
+    const newDurations: number[] = []
+    let successful = 0
+    let failed = 0
+
+    for (let i = 0; i < dois.length; i++) {
+      const doi = dois[i]
+
+      setQueueState(prev => ({
+        ...prev,
+        current: doi,
+        pending: dois.slice(i + 1),
+        completed: i,
+        avgTimePerPaper: newDurations.length > 0
+          ? newDurations.reduce((a, b) => a + b, 0) / newDurations.length
+          : 0
+      }))
+
+      try {
+        const res = await papersApi.processSingle(doi)
+        const duration = res.data.duration
+
+        // Limit durations array
+        if (newDurations.length >= MAX_DURATIONS) {
+          newDurations.shift()
+        }
+        newDurations.push(duration)
+
+        if (res.data.success) {
+          successful++
+        } else {
+          failed++
+        }
+      } catch (err) {
+        failed++
+        console.error(`Failed to process ${doi}:`, err)
+      }
+
+      // Update progress
+      const avgTime = newDurations.length > 0
+        ? newDurations.reduce((a, b) => a + b, 0) / newDurations.length
+        : 0
+      const remaining = dois.length - i - 1
+
+      setQueueState(prev => ({
+        ...prev,
+        completed: i + 1,
+        successful,
+        failed,
+        durations: [...newDurations],
+        avgTimePerPaper: avgTime,
+        estimatedTime: Math.ceil(avgTime * remaining)
+      }))
+    }
+
+    // Finish
+    setQueueState(prev => ({
+      ...prev,
+      current: null
+    }))
+
+    loadPapers()
+    loadFolders()
   }
 
   const handleProcess = async (doi: string) => {
@@ -243,6 +320,16 @@ export default function Papers() {
       failed: 'bg-red-100 text-red-800',
     }
     return colors[status] || 'bg-gray-100 text-gray-800'
+  }
+
+  const formatTime = (seconds: number): string => {
+    if (seconds < 60) return `${seconds}秒`
+    const minutes = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    if (minutes < 60) return `${minutes}分${secs > 0 ? secs + '秒' : ''}`
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    return `${hours}小时${mins > 0 ? mins + '分' : ''}`
   }
 
   if (loading) {
@@ -350,10 +437,10 @@ export default function Papers() {
               {papers.filter(p => p.status === 'pending').length > 0 && (
                 <button
                   onClick={handleBatchProcess}
-                  disabled={batchProcessing}
+                  disabled={queueState.current !== null}
                   className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
                 >
-                  {batchProcessing ? (
+                  {queueState.current !== null ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       处理中...
@@ -414,24 +501,31 @@ export default function Papers() {
             </div>
           )}
 
-          {/* Batch Progress */}
-          {batchProgress && (
+          {/* Queue Progress */}
+          {(queueState.current !== null || queueState.completed > 0) && (
             <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-medium mb-3">批量处理进度</h3>
+              <h3 className="font-medium mb-3">
+                {queueState.current !== null ? '批量处理中...' : '批量处理完成'}
+              </h3>
               <div className="flex items-center gap-4">
                 <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                   <div
                     className="bg-green-500 h-2.5 rounded-full transition-all"
-                    style={{ width: `${(batchProgress.completed / batchProgress.total) * 100}%` }}
+                    style={{ width: `${(queueState.completed / (queueState.completed + queueState.pending.length)) * 100}%` }}
                   />
                 </div>
                 <span className="text-sm text-gray-600">
-                  {batchProgress.completed}/{batchProgress.total}
+                  {queueState.completed}/{queueState.completed + queueState.pending.length}
                 </span>
               </div>
               <div className="flex gap-4 mt-2 text-sm">
-                <span className="text-green-600">成功: {batchProgress.successful}</span>
-                <span className="text-red-600">失败: {batchProgress.failed}</span>
+                <span className="text-green-600">成功: {queueState.successful}</span>
+                <span className="text-red-600">失败: {queueState.failed}</span>
+                {queueState.estimatedTime > 0 && queueState.current !== null && (
+                  <span className="text-gray-500">
+                    预估剩余: {formatTime(queueState.estimatedTime)}
+                  </span>
+                )}
               </div>
             </div>
           )}
