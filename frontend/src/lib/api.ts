@@ -72,9 +72,21 @@ interface DedupExecuteResponse {
   details: ExecuteDetail[]
 }
 
+interface ScanStatusResponse {
+  scan_id: string
+  status: string
+  total_concepts: number
+  concepts_scanned: number
+  progress: number
+  estimated_time: number
+  suggestions: MergeSuggestion[] | null
+  error?: string
+}
+
 // Dedup API
 export const dedupApi = {
-  scan: () => api.post<DedupScanResponse>('/concepts/dedup/scan'),
+  scan: () => api.post<{ scan_id: string; total_concepts: number; status: string }>('/concepts/dedup/scan'),
+  scanStatus: (scanId: string) => api.get<ScanStatusResponse>(`/concepts/dedup/scan-status/${scanId}`),
   execute: (scanId: string, mergeIds: string[]) =>
     api.post<DedupExecuteResponse>('/concepts/dedup/execute', {
       scan_id: scanId,
@@ -232,7 +244,7 @@ interface ProcessSingleResponse {
   concepts_count: number
 }
 
-export type { PaperContribution, ProcessSingleResponse }
+export type { PaperContribution, ProcessSingleResponse, ScanStatusResponse }
 
 // Folder API
 export const foldersApi = {
