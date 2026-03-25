@@ -1064,8 +1064,8 @@ class Database:
         """, (concept_id,))
         children = [row['child_id'] for row in cursor.fetchall()]
 
-        # 删除与父概念的关系
-        cursor.execute("DELETE FROM concept_relations WHERE child_id = ?", (concept_id,))
+        # 删除与父概念的关系以及作为父节点的关系
+        cursor.execute("DELETE FROM concept_relations WHERE child_id = ? OR parent_id = ?", (concept_id, concept_id))
 
         # 删除概念本身
         cursor.execute("DELETE FROM concepts WHERE id = ?", (concept_id,))
