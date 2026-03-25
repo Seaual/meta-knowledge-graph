@@ -511,7 +511,7 @@ export default function Papers() {
                 <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                   <div
                     className="bg-green-500 h-2.5 rounded-full transition-all"
-                    style={{ width: `${(queueState.completed / (queueState.completed + queueState.pending.length)) * 100}%` }}
+                    style={{ width: `${(queueState.completed + queueState.pending.length) > 0 ? (queueState.completed / (queueState.completed + queueState.pending.length)) * 100 : 0}%` }}
                   />
                 </div>
                 <span className="text-sm text-gray-600">

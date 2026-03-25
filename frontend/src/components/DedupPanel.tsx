@@ -122,6 +122,8 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
         }
       } catch (err: any) {
         console.error('Poll error:', err)
+        // 如果连续失败，设置错误状态
+        setError('获取扫描状态失败，请检查网络连接')
       }
     }, 1000) // Poll every second
   }
