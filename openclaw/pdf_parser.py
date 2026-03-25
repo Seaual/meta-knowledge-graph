@@ -39,43 +39,44 @@ class ConceptTree:
         "concept": "人工智能",
         "category": "field",
         "confidence": 0.95,
-        "children": [
-            {
-                "concept": "机器学习",
-                "category": "field",
-                "confidence": 0.9,
-                "children": [
-                    {
-                        "concept": "强化学习",
-                        "category": "direction",
-                        "confidence": 0.85,
-                        "children": [
-                            {
-                                "concept": "多智能体强化学习",
-                                "category": "direction",
-                                "confidence": 0.8
-                            }
-                        ]
-                    }
-                ]
-            }
-        ]
+        "is_anchor": true,  # 新增：是否为锚点节点
+        "contribution_role": null,  # 新增：proposed/improved/applied/analyzed
+        "children": [...]
     }
     """
     concept: str
-    category: str
-    confidence: float = 1.0
+    category: str = "method"
+    confidence: float = 0.9
+    is_anchor: bool = False  # 新增：是否为锚点节点
+    contribution_role: Optional[str] = None  # 新增: proposed/improved/applied/analyzed
     children: List['ConceptTree'] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         """转换为字典"""
-        return {
+        result = {
             'concept': self.concept,
             'category': self.category,
             'confidence': self.confidence,
-            'children': [child.to_dict() for child in self.children],
+            'is_anchor': self.is_anchor,
             'id': self._to_slug(self.concept)
         }
+        if self.contribution_role:
+            result['contribution_role'] = self.contribution_role
+        if self.children:
+            result['children'] = [child.to_dict() for child in self.children]
+        return result
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ConceptTree':
+        """从字典构建 ConceptTree"""
+        return cls(
+            concept=data.get('concept', ''),
+            category=data.get('category', 'method'),
+            confidence=data.get('confidence', 0.9),
+            is_anchor=data.get('is_anchor', False),
+            contribution_role=data.get('contribution_role'),
+            children=[cls.from_dict(c) for c in data.get('children', [])]
+        )
 
     def _to_slug(self, text: str) -> str:
         """转换为 slug ID（支持中文）"""
@@ -121,6 +122,11 @@ class LLMExtractedContent:
     datasets: List[str]
     metrics: List[str]
     raw_response: str
+    # 新增 Stage 1 摘要字段
+    one_sentence_summary: Optional[str] = None
+    research_context: Optional[Dict] = None  # {field, direction, existing_gap}
+    background_concepts: List[str] = field(default_factory=list)
+    novel_concepts: List[str] = field(default_factory=list)
 
 
 class PDFParser:
@@ -705,7 +711,9 @@ class LLMConceptExtractor:
         tree = ConceptTree(
             concept=data['concept'],
             category=data.get('category', 'method'),
-            confidence=data.get('confidence', 0.8)
+            confidence=data.get('confidence', 0.8),
+            is_anchor=data.get('is_anchor', False),
+            contribution_role=data.get('contribution_role')
         )
 
         for child_data in data.get('children', []):
