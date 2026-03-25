@@ -117,20 +117,62 @@ Modify:
 
 ### Frontend Changes
 
-**File: `frontend/src/pages/Papers.tsx`**
+#### File: `frontend/src/pages/Papers.tsx` - UI Layout Change
 
-- Add folder sidebar on the left
-- Show folder list with paper counts
-- Click folder to filter papers
-- Add "Create Folder" button
-- Add "Delete Folder" action (with confirmation)
+**Current layout**: Single column with table
+**New layout**: Two columns - folder sidebar on left, paper table on right
 
-**File: `frontend/src/pages/Concepts.tsx`**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 论文管理                    [刷新] [批量处理] [上传PDF]      │
+├──────────────┬──────────────────────────────────────────────┤
+│              │                                               │
+│  📁 默认 (5) │  标题           状态    节点数  根概念  操作  │
+│  📁 强化学习  │  ─────────────────────────────────────────── │
+│  📁 NLP论文  │  Paper 1        pending   -       -    [处理]│
+│              │  Paper 2        processed  12   深度学习  [删除]│
+│  [+ 新建文件夹]│  Paper 3        processed  8    机器学习  [删除]│
+│              │                                               │
+└──────────────┴──────────────────────────────────────────────┘
+```
 
-- Add folder selector in the header
-- Filter concept tree by selected folder
+**Changes:**
+1. Add folder sidebar (w-64) on the left
+2. Show folder list with paper counts
+3. Active folder highlighted
+4. "Create Folder" button at bottom of sidebar
+5. Folder right-click menu: Rename, Delete
+6. Paper table adds two columns:
+   - **节点数**: Number of concepts contributed by this paper
+   - **根概念**: The root concept name this paper's concepts belong to
 
-**File: `frontend/src/lib/api.ts`**
+#### File: `frontend/src/pages/ConceptsGraph.tsx` - Folder Selector
+
+**Add folder selector in header:**
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 概念图谱              [文件夹: 默认 ▼]      [导出] [去重]   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│                    [Force Graph Canvas]                     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Changes:**
+1. Add folder dropdown selector in header
+2. Graph filters to show only concepts from papers in selected folder
+3. Default folder is "默认"
+
+#### File: `frontend/src/components/CreateFolderModal.tsx` (new)
+
+Simple modal for creating new folder:
+- Folder name input
+- Description input (optional)
+- Cancel / Create buttons
+
+#### File: `frontend/src/lib/api.ts`
 
 Add `foldersApi`:
 ```typescript
@@ -140,6 +182,13 @@ export const foldersApi = {
   update: (id: string, data: UpdateFolderRequest) => api.patch<FolderResponse>(`/folders/${id}`, data),
   delete: (id: string) => api.delete(`/folders/${id}`),
 }
+```
+
+Modify `papersApi`:
+```typescript
+list: (status?: string, folder?: string) => api.get('/papers/', { params: { status, folder } }),
+upload: (file: File, folder?: string) => { ... },  // Add folder parameter
+moveToFolder: (doi: string, folderId: string) => api.patch(`/papers/${doi}/folder`, { folder_id: folderId }),
 ```
 
 ---
@@ -182,34 +231,50 @@ Modify `delete_paper()` to call `delete_paper_cascade()` instead of manual clean
 
 ### Phase 1: Concept Extraction Optimization
 
-- [ ] Add `get_concept_tree_summary()` to `openclaw/graph.py`
-- [ ] Modify `_build_extraction_prompt()` to accept and include existing concepts
-- [ ] Modify `process_paper()` to fetch and pass existing concepts
+- [ ] Add `get_concept_tree_summary()` to `openclaw/graph.py` - return simplified tree for prompt context
+- [ ] Modify `_build_extraction_prompt()` in `openclaw/pdf_parser.py` to accept and include existing concepts
+- [ ] Modify `process_paper()` in `backend/routes/papers.py` to fetch and pass existing concepts
 - [ ] Test with papers containing known concepts
 
-### Phase 2: Folder Management
+### Phase 2: Folder Management - Backend
 
-- [ ] Add `folders` table to database schema
-- [ ] Add `folder_id` column to `papers` table
-- [ ] Add folder CRUD methods to `database.py`
-- [ ] Create `backend/routes/folders.py`
-- [ ] Modify `papers.py` to support folder filtering
-- [ ] Update frontend Papers.tsx with folder sidebar
-- [ ] Update frontend Concepts.tsx with folder selector
-- [ ] Add `foldersApi` to frontend
+- [ ] Add `folders` table to `openclaw/database.py` schema
+- [ ] Add `folder_id` column to `papers` table (default 'default')
+- [ ] Insert default folder on first run
+- [ ] Add folder CRUD methods to `database.py`: `get_all_folders()`, `create_folder()`, `update_folder()`, `delete_folder()`
+- [ ] Add paper-folder methods: `get_papers_by_folder()`, `move_paper_to_folder()`
+- [ ] Create `backend/routes/folders.py` with folder endpoints
+- [ ] Modify `backend/routes/papers.py` to support folder filter and upload with folder
+- [ ] Add `get_paper_contribution()` method to return node count and root concept for a paper
 
-### Phase 3: Cascade Delete
+### Phase 3: Folder Management - Frontend
 
-- [ ] Add `delete_paper_cascade()` to `database.py`
-- [ ] Modify `delete_paper()` in `papers.py`
-- [ ] Test: delete paper, verify concepts are cleaned up
+- [ ] Add `foldersApi` and update `papersApi` in `frontend/src/lib/api.ts`
+- [ ] Create `frontend/src/components/CreateFolderModal.tsx`
+- [ ] Modify `frontend/src/pages/Papers.tsx`:
+  - Add folder sidebar (left side, w-64)
+  - Show folder list with paper counts
+  - Click folder to filter papers
+  - Add "Create Folder" button
+  - Right-click folder for rename/delete
+  - Add "节点数" and "根概念" columns to paper table
+- [ ] Modify `frontend/src/pages/ConceptsGraph.tsx`:
+  - Add folder dropdown selector in header
+  - Filter graph by selected folder
+
+### Phase 4: Cascade Delete
+
+- [ ] Add `delete_paper_cascade()` to `openclaw/database.py`
+- [ ] Modify `delete_paper()` in `backend/routes/papers.py` to use cascade delete
+- [ ] Test: delete paper, verify orphaned concepts are removed
 
 ---
 
 ## Testing Plan
 
 1. **Concept Matching**: Upload paper with "深度学习", verify it appears under "人工智能→机器学习"
-2. **Folder Creation**: Create folder, verify it appears in list
+2. **Folder Creation**: Create folder, verify it appears in sidebar
 3. **Paper Assignment**: Upload paper to folder, verify filter works
-4. **Folder Delete**: Delete folder, verify papers move to default
-5. **Cascade Delete**: Delete paper, verify orphaned concepts are removed
+4. **Paper Contribution**: Verify node count and root concept show in paper table
+5. **Folder Delete**: Delete folder, verify papers move to default
+6. **Cascade Delete**: Delete paper, verify orphaned concepts are removed
