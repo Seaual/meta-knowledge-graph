@@ -30,6 +30,11 @@ class PaperMetadataUpdate(BaseModel):
     keywords: Optional[List[str]] = None
     contributions: Optional[List[str]] = None
 
+
+class MovePaperRequest(BaseModel):
+    """移动论文到文件夹"""
+    folder_id: str = "default"
+
 router = APIRouter(prefix="/api/papers", tags=["papers"])
 
 # Global instances
@@ -169,8 +174,6 @@ def get_paper(doi: str):
 @router.post("/upload")
 async def upload_paper(file: UploadFile = File(...), folder: str = Form("default")):
     """Upload a PDF file to pending folder"""
-    import os
-
     # Create papers directory structure
     project_root = Path(__file__).parent.parent.parent
     pending_dir = project_root / "papers" / "pending"
@@ -579,14 +582,14 @@ def delete_paper(doi: str):
 
 
 @router.patch("/{doi:path}/folder")
-def move_paper(doi: str, request: dict):
+def move_paper(doi: str, request: MovePaperRequest):
     """Move paper to a different folder"""
     db = get_db()
     paper = db.get_paper(doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
 
-    folder_id = request.get('folder_id', 'default')
+    folder_id = request.folder_id
     folder = db.get_folder(folder_id)
     if not folder:
         raise HTTPException(status_code=404, detail="Folder not found")
