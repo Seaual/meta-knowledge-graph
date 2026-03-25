@@ -530,7 +530,7 @@ async def start_dedup_scan(request: DedupScanRequest):
     # Create scan job
     scan_id = f"scan-{uuid.uuid4().hex[:8]}"
     total_concepts = db.get_concept_count(folder_id=request.folder_id)
-    db.create_scan_job(scan_id, total_concepts, folder_id=request.folder_id)
+    db.create_scan_job(scan_id, total_concepts)
 
     # Start background task
     asyncio.create_task(run_dedup_scan_background(scan_id, request.folder_id))
