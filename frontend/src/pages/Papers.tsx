@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch } from 'lucide-react'
+import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
 import { papersApi, batchApi, foldersApi } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
 
@@ -52,6 +52,7 @@ export default function Papers() {
   const [activeFolder, setActiveFolder] = useState('default')
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   const loadPapers = () => {
     papersApi.list(undefined, activeFolder).then(res => {
@@ -228,46 +229,85 @@ export default function Papers() {
   return (
     <div className="flex h-[calc(100vh-80px)]">
       {/* Folder Sidebar */}
-      <div className="w-64 bg-white border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h2 className="font-semibold text-gray-700">文件夹</h2>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {folders.map(folder => (
-            <div
-              key={folder.id}
-              className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 ${
-                activeFolder === folder.id ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500' : 'text-gray-700'
-              }`}
-              onClick={() => setActiveFolder(folder.id)}
-            >
-              <div className="flex items-center gap-2">
-                <Folder className="h-4 w-4" />
-                <span className="text-sm">{folder.name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-400">{folder.paper_count}</span>
-                {folder.id !== 'default' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id) }}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="p-4 border-t">
+      <div className={`bg-white border-r flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+        {/* Collapse Toggle Button */}
+        <div className="p-2 border-b flex justify-end">
           <button
-            onClick={() => setShowCreateFolder(true)}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
           >
-            <FolderPlus className="h-4 w-4" />
-            新建文件夹
+            {sidebarCollapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
           </button>
         </div>
+        {!sidebarCollapsed && (
+          <>
+            <div className="px-4 py-2 border-b">
+              <h2 className="font-semibold text-gray-700 text-sm">文件夹</h2>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {folders.map(folder => (
+                <div
+                  key={folder.id}
+                  className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 ${
+                    activeFolder === folder.id ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500' : 'text-gray-700'
+                  }`}
+                  onClick={() => setActiveFolder(folder.id)}
+                >
+                  <div className="flex items-center gap-2">
+                    <Folder className="h-4 w-4" />
+                    <span className="text-sm">{folder.name}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400">{folder.paper_count}</span>
+                    {folder.id !== 'default' && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id) }}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="p-4 border-t">
+              <button
+                onClick={() => setShowCreateFolder(true)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <FolderPlus className="h-4 w-4" />
+                新建文件夹
+              </button>
+            </div>
+          </>
+        )}
+        {sidebarCollapsed && (
+          <div className="flex-1 flex flex-col items-center py-2 gap-1">
+            {folders.map(folder => (
+              <button
+                key={folder.id}
+                onClick={() => { setActiveFolder(folder.id); setSidebarCollapsed(false) }}
+                className={`p-2 rounded hover:bg-gray-100 ${activeFolder === folder.id ? 'bg-blue-100 text-blue-600' : 'text-gray-500'}`}
+                title={folder.name}
+              >
+                <Folder className="h-4 w-4" />
+              </button>
+            ))}
+            <button
+              onClick={() => setShowCreateFolder(true)}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+              title="新建文件夹"
+            >
+              <FolderPlus className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Main Content */}
