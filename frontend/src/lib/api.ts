@@ -53,13 +53,6 @@ interface MergeSuggestion {
   rationale: string
 }
 
-interface DedupScanResponse {
-  scan_id: string
-  status: string
-  candidates_found: number
-  merge_suggestions: MergeSuggestion[]
-}
-
 interface ExecuteDetail {
   source: string
   target: string

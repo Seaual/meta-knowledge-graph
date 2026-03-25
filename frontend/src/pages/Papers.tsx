@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
-import { papersApi, batchApi, foldersApi, ProcessSingleResponse } from '../lib/api'
+import { papersApi, foldersApi } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
 
 interface Paper {
@@ -68,7 +68,7 @@ export default function Papers() {
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
-  const uploadTimerRef = useRef<NodeJS.Timeout | null>(null)
+  const uploadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadPapers = () => {
     papersApi.list(undefined, activeFolder).then(res => {

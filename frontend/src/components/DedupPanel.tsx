@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, RefreshCw, Check, AlertCircle, Merge } from 'lucide-react'
-import { dedupApi, ScanStatusResponse } from '../lib/api'
+import { dedupApi } from '../lib/api'
 
 // Types
 interface MergeSuggestion {
@@ -47,7 +47,7 @@ export default function DedupPanel({ isOpen, onClose }: DedupPanelProps) {
     progress: 0,
     estimatedTime: 0
   })
-  const pollingRef = useRef<NodeJS.Timeout | null>(null)
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const handleScan = async () => {
     setPanelState('scanning')
