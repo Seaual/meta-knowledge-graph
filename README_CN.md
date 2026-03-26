@@ -91,7 +91,6 @@ docker pull danceinsophy/meta-knowledge-graph:latest
 
 # 运行容器
 docker run -d -p 8088:8088 \
-  -e ANTHROPIC_API_KEY=sk-ant-xxx \
   -v mkg-data:/app/data \
   -v mkg-papers:/app/papers \
   danceinsophy/meta-knowledge-graph:latest
@@ -99,7 +98,9 @@ docker run -d -p 8088:8088 \
 
 访问 http://localhost:8088 即可使用。
 
-> 将 `ANTHROPIC_API_KEY` 替换为你的 API Key，也支持 `GOOGLE_API_KEY`、`OPENAI_API_KEY` 或 `DASHSCOPE_API_KEY`
+**配置 LLM**：进入浏览器中的「设置」页面配置 API Key（支持 Claude、OpenAI、Gemini、通义千问、DeepSeek 等）
+
+> 💡 API Key 保存在本地数据库中，无需设置环境变量。
 
 ### Docker Compose 部署
 
@@ -107,9 +108,6 @@ docker run -d -p 8088:8088 \
 # 克隆项目
 git clone https://github.com/Seaual/meta-knowledge-graph.git
 cd meta-knowledge-graph/docker
-
-# 设置 API Key
-export ANTHROPIC_API_KEY=sk-ant-xxx
 
 # 启动服务
 docker-compose up -d
