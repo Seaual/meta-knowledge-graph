@@ -75,9 +75,6 @@ class MergeExecutor:
 
                     self.db.conn.commit()
 
-                    # 重新计算深度缓存（在事务外执行）
-                    self._recalculate_depth_cache_safe()
-
                     return MergeResult(source_id=source_id, target_id=target_id, status='success')
                 except Exception as e:
                     self.db.conn.rollback()
@@ -85,34 +82,6 @@ class MergeExecutor:
 
         except Exception as e:
             return MergeResult(source_id=source_id, target_id=target_id, status='failed', message=str(e))
-
-    def _recalculate_depth_cache_safe(self):
-        """安全地重新计算深度缓存"""
-        try:
-            cursor = self.db.conn.cursor()
-            cursor.execute("UPDATE concepts SET depth_cache = -1")
-
-            cursor.execute("""
-                SELECT id FROM concepts c
-                LEFT JOIN concept_relations cr ON c.id = cr.child_id
-                WHERE cr.parent_id IS NULL
-            """)
-            roots = [row['id'] for row in cursor.fetchall()]
-
-            from collections import deque
-            queue = deque([(root_id, 0) for root_id in roots])
-
-            while queue:
-                node_id, depth = queue.popleft()
-                cursor.execute("UPDATE concepts SET depth_cache = ? WHERE id = ?", (depth, node_id))
-                cursor.execute("SELECT child_id FROM concept_relations WHERE parent_id = ?", (node_id,))
-                children = [row['child_id'] for row in cursor.fetchall()]
-                for child_id in children:
-                    queue.append((child_id, depth + 1))
-
-            self.db.conn.commit()
-        except Exception as e:
-            print(f"Warning: Failed to recalculate depth cache: {e}")
 
     def _detect_cycle(self, concept_id: str, merged_relations: Dict) -> bool:
         """检测合并后的层级关系是否会产生循环"""
