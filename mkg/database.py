@@ -9,6 +9,7 @@ SQLite 数据库管理 - 论文、概念、动态层级关系存储
 
 import sqlite3
 import json
+import threading
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -20,13 +21,40 @@ class Database:
     def __init__(self, db_path: str = "mkg.db"):
         self.db_path = Path(db_path)
         self.conn: Optional[sqlite3.Connection] = None
+        self._lock = threading.Lock()
 
     def connect(self):
         """连接到数据库"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
+        # 启用 WAL 模式以支持并发读写
+        self.conn.execute("PRAGMA journal_mode=WAL")
+        # 设置繁忙超时为 30 秒
+        self.conn.execute("PRAGMA busy_timeout=30000")
+        # 设置外键约束
+        self.conn.execute("PRAGMA foreign_keys=ON")
         self._init_tables()
         self.ensure_default_folder()  # 确保默认文件夹存在
+
+    def get_cursor(self):
+        """获取数据库游标（线程安全）"""
+        with self._lock:
+            return self.conn.cursor()
+
+    def execute_write(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
+        """执行写操作（线程安全）"""
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(query, params)
+            self.conn.commit()
+            return cursor
+
+    def execute_read(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
+        """执行读操作（线程安全）"""
+        with self._lock:
+            cursor = self.conn.cursor()
+            cursor.execute(query, params)
+            return cursor
 
     def close(self):
         """关闭连接"""
