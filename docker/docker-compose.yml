@@ -1,5 +1,6 @@
 services:
   mkg:
+    image: danceinsophy/meta-knowledge-graph:latest
     build:
       context: ..
       dockerfile: Dockerfile

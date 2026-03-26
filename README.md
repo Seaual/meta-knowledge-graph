@@ -85,15 +85,32 @@
 ### Docker (Recommended)
 
 ```bash
+# Pull and run
+docker pull danceinsophy/meta-knowledge-graph:latest
 docker run -d -p 8088:8088 \
   -e ANTHROPIC_API_KEY=sk-ant-xxx \
-  -v ./data:/app/data \
-  ghcr.io/seaual/meta-knowledge-graph:latest
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  danceinsophy/meta-knowledge-graph:latest
 ```
 
 Open http://localhost:8088
 
-> Replace `ANTHROPIC_API_KEY` with your API key. Also supports `GOOGLE_API_KEY` or `DASHSCOPE_API_KEY`
+> Replace `ANTHROPIC_API_KEY` with your API key. Also supports `GOOGLE_API_KEY`, `OPENAI_API_KEY`, or `DASHSCOPE_API_KEY`
+
+### Docker Compose
+
+```bash
+# Clone and run
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph/docker
+
+# Set your API key
+export ANTHROPIC_API_KEY=sk-ant-xxx
+
+# Start
+docker-compose up -d
+```
 
 ### Manual Setup
 

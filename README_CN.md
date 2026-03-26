@@ -84,15 +84,34 @@
 ### Docker 一键部署（推荐）
 
 ```bash
+# 拉取镜像
+docker pull danceinsophy/meta-knowledge-graph:latest
+
+# 运行容器
 docker run -d -p 8088:8088 \
   -e ANTHROPIC_API_KEY=sk-ant-xxx \
-  -v ./data:/app/data \
-  ghcr.io/seaual/meta-knowledge-graph:latest
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  danceinsophy/meta-knowledge-graph:latest
 ```
 
 访问 http://localhost:8088 即可使用。
 
-> 将 `ANTHROPIC_API_KEY` 替换为你的 API Key，也支持 `GOOGLE_API_KEY` 或 `DASHSCOPE_API_KEY`
+> 将 `ANTHROPIC_API_KEY` 替换为你的 API Key，也支持 `GOOGLE_API_KEY`、`OPENAI_API_KEY` 或 `DASHSCOPE_API_KEY`
+
+### Docker Compose 部署
+
+```bash
+# 克隆项目
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph/docker
+
+# 设置 API Key
+export ANTHROPIC_API_KEY=sk-ant-xxx
+
+# 启动服务
+docker-compose up -d
+```
 
 ### 手动部署
 
