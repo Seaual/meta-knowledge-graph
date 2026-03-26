@@ -13,16 +13,26 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Seaual/meta-knowledge-graph/stargazers"><img src="https://img.shields.io/github/stars/Seaual/meta-knowledge-graph?style=social" alt="Stars" /></a>
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
-  <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.3.0-blue" alt="Version">
+  <img src="https://img.shields.io/github/license/Seaual/meta-knowledge-graph" alt="License">
+  <img src="https://img.shields.io/github/v/release/Seaual/meta-knowledge-graph" alt="Release">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini%20%7C%20Qwen-8A2BE2" alt="LLM">
 </p>
 
 <p align="center">
   Automatically extract hierarchical concepts from PDF papers<br>
   with interactive force-directed graph visualization
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#key-features">Features</a> •
+  <a href="#concept-hierarchy">Concepts</a> •
+  <a href="#roadmap">Roadmap</a> •
+  <a href="https://github.com/Seaual/meta-knowledge-graph/issues">Issues</a>
 </p>
 
 ---

@@ -7,15 +7,13 @@ __pycache__/
 env/
 venv/
 ENV/
-build/
+/build/
 develop-eggs/
-dist/
+/dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
-parts/
+/parts/
 sdist/
 var/
 wheels/
@@ -36,6 +34,7 @@ papers/
 openclaw.db
 openclaw_relations.db
 openclaw_enhanced.db
+mkg.db
 .env
 .extract_cache/
 obsidian_vault/
@@ -43,12 +42,17 @@ backend.log
 research/
 .superpowers/
 
+# Desktop Client (not ready for release)
+app/
+
 # Web UI
 frontend/node_modules/
 frontend/dist/
 frontend/package-lock.json
-__pycache__/
-*.pyc
+
+# Data files (generated)
+concept_tree_output.json
+paper_analysis.json
 
 # OS
 .DS_Store
