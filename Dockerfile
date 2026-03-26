@@ -53,7 +53,7 @@ ENV PYTHONUNBUFFERED=1
 ENV FRONTEND_DIST=/app/frontend/dist
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8088/api/graph/stats || exit 1
 
 # Start command

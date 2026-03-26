@@ -1,0 +1,37 @@
+services:
+  mkg:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: meta-knowledge-graph
+    ports:
+      - "8088:8088"
+    volumes:
+      # Persist data
+      - mkg-data:/app/data
+      - mkg-papers:/app/papers
+      # Persist database
+      - mkg-db:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FRONTEND_DIST=/app/frontend/dist
+      # LLM API Keys (set these in .env or uncomment)
+      # - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      # - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8088/api/graph/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  mkg-data:
+    name: mkg-data
+  mkg-papers:
+    name: mkg-papers
+  mkg-db:
+    name: mkg-db
