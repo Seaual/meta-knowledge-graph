@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.3.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
 </p>
@@ -54,6 +54,8 @@
 | 🔄 **Smart Deduplication** | Three merge types: synonym, absorption, translation |
 | 📤 **Multi-format Export** | HTML, Obsidian Canvas, Markdown |
 | 📁 **Folder Management** | Collapsible sidebar for paper organization |
+| ⚡ **Queue Processing** | Sequential batch processing with time estimation |
+| 🐳 **Docker Ready** | One-command deployment with Docker Hub image |
 
 ---
 

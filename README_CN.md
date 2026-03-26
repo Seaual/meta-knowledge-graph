@@ -15,7 +15,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.3.0-blue" alt="Version">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
 </p>
@@ -53,6 +53,8 @@
 | 🔄 **智能概念去重** | 三种合并类型：同义词、粒度吸收、翻译对应 |
 | 📤 **多格式导出** | 支持 HTML、Obsidian Canvas、Markdown |
 | 📁 **文件夹管理** | 可折叠侧边栏，论文分类管理 |
+| ⚡ **队列处理** | 顺序批量处理，实时预估剩余时间 |
+| 🐳 **Docker 部署** | 一键拉取镜像，快速部署使用 |
 
 ---
 
