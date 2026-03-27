@@ -222,8 +222,13 @@ class Database:
             CREATE TABLE IF NOT EXISTS scan_jobs (
                 id TEXT PRIMARY KEY,
                 status TEXT DEFAULT 'pending',
+                phase TEXT DEFAULT 'prefiltering',
                 total_concepts INTEGER DEFAULT 0,
                 concepts_scanned INTEGER DEFAULT 0,
+                batches_total INTEGER DEFAULT 0,
+                batches_completed INTEGER DEFAULT 0,
+                filtered_count INTEGER DEFAULT 0,
+                high_confidence_count INTEGER DEFAULT 0,
                 suggestions TEXT,
                 error TEXT,
                 created_at REAL,
@@ -231,6 +236,28 @@ class Database:
                 completed_at REAL
             )
         """)
+
+        # Add new columns to existing scan_jobs table
+        try:
+            cursor.execute("ALTER TABLE scan_jobs ADD COLUMN phase TEXT DEFAULT 'prefiltering'")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE scan_jobs ADD COLUMN batches_total INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE scan_jobs ADD COLUMN batches_completed INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE scan_jobs ADD COLUMN filtered_count INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE scan_jobs ADD COLUMN high_confidence_count INTEGER DEFAULT 0")
+        except sqlite3.OperationalError:
+            pass
 
         # 创建索引
         cursor.execute("""
