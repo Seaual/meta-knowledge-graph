@@ -43,7 +43,7 @@ fi
 
 # 创建数据目录
 echo ">>> 创建数据目录..."
-mkdir -p ./mkg-data
+mkdir -p ./mkg-data ./mkg-papers
 
 # 启动容器
 echo ">>> 启动容器..."
