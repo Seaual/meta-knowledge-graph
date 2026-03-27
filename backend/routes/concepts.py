@@ -598,7 +598,7 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
                     "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                     "confidence": hc['confidence'],
                     "rationale": hc['rationale'],
-                    "merged_relations": {"parents": [], "children": []}
+                    "merge_type": hc.get('merge_type', 'synonym')
                 })
 
         # Process candidates in batches
@@ -621,7 +621,7 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
                                 "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                                 "confidence": s.confidence,
                                 "rationale": s.rationale,
-                                "merged_relations": s.merged_relations
+                                "merge_type": s.merge_type
                             })
 
             except Exception as e:
