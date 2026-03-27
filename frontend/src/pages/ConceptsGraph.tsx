@@ -118,7 +118,7 @@ export default function ConceptsGraph() {
 
   // Folder state
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([])
-  const [activeFolder, setActiveFolder] = useState('default')
+  const [activeFolder, setActiveFolder] = useState<string>('')
   const [showFolderMenu, setShowFolderMenu] = useState(false)
 
   // Research points state
@@ -581,11 +581,24 @@ export default function ConceptsGraph() {
             className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
           >
             <Folder className="h-4 w-4" />
-            {folders.find(f => f.id === activeFolder)?.name || '默认'}
+            {activeFolder ? (folders.find(f => f.id === activeFolder)?.name || '全部') : '全部'}
             <ChevronDown className="h-4 w-4" />
           </button>
           {showFolderMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-brand-gradient rounded-xl shadow-brand-lg border border-brand overflow-hidden z-20">
+              {/* 全部选项 */}
+              <button
+                onClick={() => {
+                  setActiveFolder('')
+                  setShowFolderMenu(false)
+                }}
+                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-brand-fill flex items-center gap-2 transition-colors ${
+                  activeFolder === '' ? 'bg-brand-fill text-brand-700' : 'text-gray-700'
+                }`}
+              >
+                <Folder className="h-4 w-4" />
+                全部
+              </button>
               {folders.map(folder => (
                 <button
                   key={folder.id}

@@ -64,7 +64,7 @@ export default function Papers() {
 
   // Folder state
   const [folders, setFolders] = useState<FolderItem[]>([])
-  const [activeFolder, setActiveFolder] = useState('default')
+  const [activeFolder, setActiveFolder] = useState<string>('')
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
@@ -363,6 +363,23 @@ export default function Papers() {
               </h2>
             </div>
             <div className="flex-1 overflow-y-auto py-2">
+              {/* 全部选项 */}
+              <div
+                className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-all ${
+                  activeFolder === ''
+                    ? 'bg-brand-fill text-brand-700 border-r-2 border-brand-600 mx-2 rounded-xl'
+                    : 'text-gray-700 hover:bg-gray-50 mx-2 rounded-xl'
+                }`}
+                onClick={() => setActiveFolder('')}
+              >
+                <div className="flex items-center gap-2">
+                  <Folder className="h-4 w-4" />
+                  <span className="text-sm">全部</span>
+                </div>
+                <span className="text-xs text-gray-400">
+                  {folders.reduce((sum, f) => sum + f.paper_count, 0)}
+                </span>
+              </div>
               {folders.map(folder => (
                 <div
                   key={folder.id}
@@ -404,6 +421,14 @@ export default function Papers() {
         )}
         {sidebarCollapsed && (
           <div className="flex-1 flex flex-col items-center py-2 gap-1">
+            {/* 全部图标 */}
+            <button
+              onClick={() => { setActiveFolder(''); setSidebarCollapsed(false) }}
+              className={`p-2 rounded-lg transition-all ${activeFolder === '' ? 'bg-brand-fill text-brand-600' : 'text-gray-500 hover:bg-gray-100'}`}
+              title="全部"
+            >
+              <Folder className="h-4 w-4" />
+            </button>
             {folders.map(folder => (
               <button
                 key={folder.id}
