@@ -93,18 +93,21 @@
 
 ## 快速开始
 
-### Docker 一键部署（推荐）
+### 一键部署（推荐）
 
+**Linux / Mac:**
 ```bash
-# 拉取镜像
-docker pull danceinsophy/meta-knowledge-graph:latest
-
-# 运行容器
-docker run -d -p 8088:8088 \
-  -v mkg-data:/app/data \
-  -v mkg-papers:/app/papers \
-  danceinsophy/meta-knowledge-graph:latest
+curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.sh | bash
 ```
+
+**Windows:**
+```cmd
+curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.bat -o deploy.bat && deploy.bat
+```
+
+或下载脚本后运行：
+- Linux/Mac: `chmod +x deploy.sh && ./deploy.sh`
+- Windows: 双击 `deploy.bat`
 
 访问 http://localhost:8088 即可使用。
 
@@ -138,17 +141,14 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac，Windows 用: venv\Scripts\activate
 pip install -r requirements.txt
 
-# 配置 LLM
-cp .env.example .env
-# 编辑 .env 文件，填入 API Key
-
-# 前端配置
-cd frontend && npm install
-
-# 启动服务
+# 启动后端
 python -m uvicorn backend.main:app --port 8088 --reload &
+
+# 启动前端
 cd frontend && npm run dev
 ```
+
+访问 http://localhost:8088，在「设置」页面配置 API Key。
 
 </details>
 
