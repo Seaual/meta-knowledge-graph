@@ -67,7 +67,7 @@ export default function Papers() {
   const [activeFolder, setActiveFolder] = useState('default')
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const uploadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const loadPapers = () => {
