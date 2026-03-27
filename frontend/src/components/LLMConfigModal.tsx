@@ -7,14 +7,6 @@ interface Props {
   onSave: () => void
 }
 
-interface Provider {
-  value: string
-  label: string
-  requires_api_key: boolean
-  default_base_url?: string
-  models: string[]
-}
-
 interface ProviderConfig {
   function_group?: string
   provider: string
@@ -26,29 +18,26 @@ interface ProviderConfig {
 }
 
 export default function LLMConfigModal({ onClose, onSave }: Props) {
-  const [mode, setMode] = useState<'single' | 'per_function'>('single')
-  const [providers, setProviders] = useState<Provider[]>([])
-  const [_functionGroups, setFunctionGroups] = useState<any[]>([])
-  const [configs, setConfigs] = useState<ProviderConfig[]>([{ provider: 'claude_cli', is_active: true }])
+  const [configType, setConfigType] = useState<'claude_cli' | 'custom'>('custom')
+  const [configs, setConfigs] = useState<ProviderConfig[]>([{ provider: 'custom', is_active: true }])
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    llmApi.providers().then(res => {
-      setProviders(res.data.providers)
-      setFunctionGroups(res.data.function_groups)
-    })
     llmApi.getConfig().then(res => {
-      if (res.data.mode) setMode(res.data.mode as 'single' | 'per_function')
-      if (res.data.providers?.length > 0) setConfigs(res.data.providers)
+      if (res.data.providers?.length > 0) {
+        const savedConfig = res.data.providers[0]
+        setConfigs(res.data.providers)
+        // Set configType based on saved provider
+        if (savedConfig.provider === 'claude_cli') {
+          setConfigType('claude_cli')
+        } else {
+          setConfigType('custom')
+        }
+      }
     })
   }, [])
-
-  const currentProvider = providers.find(p => p.value === configs[0]?.provider)
-  const requiresApiKey = currentProvider?.requires_api_key ?? true
-  const defaultBaseUrl = currentProvider?.default_base_url
-  const recommendedModels = currentProvider?.models || []
 
   const updateConfig = (index: number, field: string, value: any) => {
     setConfigs(prev => {
@@ -64,13 +53,11 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
     setTestResult(null)
     try {
       const config = configs[0]
-      // Handle custom model
-      const model = config.model === '__custom__' ? config.custom_model : config.model
       const res = await llmApi.test({
         provider: config.provider,
         api_key: config.api_key,
         base_url: config.base_url,
-        model: model,
+        model: config.model,
       })
       setTestResult({ success: true, message: res.data.message })
     } catch (err: any) {
@@ -85,13 +72,7 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
     setSaving(true)
     try {
       const config = configs[0]
-      // Handle custom model before saving
-      const saveConfig = { ...config }
-      if (saveConfig.model === '__custom__') {
-        saveConfig.model = saveConfig.custom_model
-        delete saveConfig.custom_model
-      }
-      await llmApi.saveConfig({ mode, providers: [saveConfig] })
+      await llmApi.saveConfig({ mode: 'single', providers: [config] })
       onSave()
     } catch (err) {
       alert('保存失败')
@@ -113,124 +94,91 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          {/* Mode */}
+          {/* Config Type Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">配置模式</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">配置类型</label>
             <div className="flex gap-2">
               <button
-                onClick={() => setMode('single')}
+                onClick={() => {
+                  setConfigType('claude_cli')
+                  setConfigs([{ provider: 'claude_cli', is_active: true }])
+                  setTestResult(null)
+                }}
                 className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium ${
-                  mode === 'single' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
+                  configType === 'claude_cli' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
                 }`}
               >
-                单一服务商
+                Claude Code CLI
               </button>
               <button
-                onClick={() => setMode('per_function')}
+                onClick={() => {
+                  setConfigType('custom')
+                  setConfigs([{ provider: 'custom', is_active: true }])
+                  setTestResult(null)
+                }}
                 className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium ${
-                  mode === 'per_function' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
+                  configType === 'custom' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
                 }`}
               >
-                按功能分配
+                自定义配置
               </button>
             </div>
           </div>
 
-          {/* Provider Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">服务商</label>
-            <select
-              value={configs[0]?.provider || 'openai'}
-              onChange={e => updateConfig(0, 'provider', e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            >
-              {providers.map(p => (
-                <option key={p.value} value={p.value}>{p.label}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Claude CLI notice */}
-          {configs[0]?.provider === 'claude_cli' && (
+          {configType === 'claude_cli' && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
               <Check className="inline h-4 w-4 mr-1" />
               Claude Code CLI 仅限本地开发使用，Docker 环境不可用
             </div>
           )}
 
-          {/* API Key */}
-          {requiresApiKey && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">API Key</label>
-              <input
-                type="password"
-                value={configs[0]?.api_key || ''}
-                onChange={e => updateConfig(0, 'api_key', e.target.value)}
-                placeholder="sk-..."
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
-          )}
+          {/* Custom Config Form */}
+          {configType === 'custom' && (
+            <>
+              {/* Base URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Base URL <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={configs[0]?.base_url || ''}
+                  onChange={e => updateConfig(0, 'base_url', e.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!configs[0]?.base_url ? 'border-red-300' : ''}`}
+                />
+                <p className="text-xs text-gray-500 mt-1">支持 OpenAI/Anthropic 官方 API 及兼容服务</p>
+              </div>
 
-          {/* Base URL */}
-          {requiresApiKey && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Base URL <span className="text-gray-400 font-normal">（可选，留空使用默认）</span>
-              </label>
-              <input
-                type="text"
-                value={configs[0]?.base_url || ''}
-                onChange={e => updateConfig(0, 'base_url', e.target.value)}
-                placeholder={defaultBaseUrl || '自动填充'}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-              {defaultBaseUrl && !configs[0]?.base_url && (
-                <p className="text-xs text-gray-400 mt-1">默认: {defaultBaseUrl}</p>
-              )}
-            </div>
-          )}
+              {/* API Key */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  API Key <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  value={configs[0]?.api_key || ''}
+                  onChange={e => updateConfig(0, 'api_key', e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
 
-          {/* Model */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              模型 {recommendedModels.length > 0 && <span className="text-gray-400">（推荐）</span>}
-            </label>
-            {recommendedModels.length > 0 ? (
-              <select
-                value={configs[0]?.model || ''}
-                onChange={e => updateConfig(0, 'model', e.target.value)}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              >
-                <option value="">选择模型...</option>
-                {recommendedModels.map(m => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-                <option value="__custom__">自定义模型名称...</option>
-              </select>
-            ) : (
-              <input
-                type="text"
-                value={configs[0]?.model || ''}
-                onChange={e => updateConfig(0, 'model', e.target.value)}
-                placeholder="claude-sonnet-4-20250514, gpt-4o..."
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            )}
-          </div>
-
-          {/* Custom model input when "自定义" is selected */}
-          {configs[0]?.model === '__custom__' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">自定义模型名称</label>
-              <input
-                type="text"
-                value={configs[0]?.custom_model || ''}
-                onChange={e => updateConfig(0, 'custom_model', e.target.value)}
-                placeholder="输入模型名称"
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-              />
-            </div>
+              {/* Model Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  模型名称 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={configs[0]?.model || ''}
+                  onChange={e => updateConfig(0, 'model', e.target.value)}
+                  placeholder="gpt-4o-mini, claude-3-5-sonnet-20241022..."
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                />
+              </div>
+            </>
           )}
 
           {/* Test Result */}

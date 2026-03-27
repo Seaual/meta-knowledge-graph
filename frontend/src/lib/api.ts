@@ -60,9 +60,18 @@ interface ExecuteDetail {
   message?: string
 }
 
+interface FloatingConceptDetail {
+  concept: string
+  parent?: string
+  status: 'fixed' | 'skipped' | 'failed'
+  reason?: string
+}
+
 interface DedupExecuteResponse {
   executed: number
   details: ExecuteDetail[]
+  floating_fixed?: number
+  floating_details?: FloatingConceptDetail[]
 }
 
 interface ScanStatusResponse {
