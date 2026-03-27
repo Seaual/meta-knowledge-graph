@@ -1116,8 +1116,17 @@ class Database:
                           (data['description'], folder_id))
         self.conn.commit()
 
-    def delete_folder(self, folder_id: str) -> bool:
-        """删除文件夹（论文移到 default）"""
+    def delete_folder(self, folder_id: str, delete_contents: bool = True) -> bool:
+        """删除文件夹
+
+        Args:
+            folder_id: 文件夹ID
+            delete_contents: 如果为 True，删除文件夹中的论文和孤立概念；
+                            如果为 False，将论文移动到默认文件夹
+
+        Returns:
+            是否删除成功
+        """
         if folder_id == 'default':
             return False  # 不能删除默认文件夹
 
@@ -1127,8 +1136,18 @@ class Database:
         if not cursor.fetchone():
             return False  # 文件夹不存在
 
-        # 将论文移到 default
-        cursor.execute("UPDATE papers SET folder_id = 'default' WHERE folder_id = ?", (folder_id,))
+        if delete_contents:
+            # 获取该文件夹中的所有论文
+            cursor.execute("SELECT doi FROM papers WHERE folder_id = ?", (folder_id,))
+            papers = [row['doi'] for row in cursor.fetchall()]
+
+            # 删除每篇论文及其关联的概念（会自动清理孤立概念）
+            for doi in papers:
+                self.delete_paper_cascade(doi)
+        else:
+            # 将论文移到 default
+            cursor.execute("UPDATE papers SET folder_id = 'default' WHERE folder_id = ?", (folder_id,))
+
         # 删除文件夹
         cursor.execute("DELETE FROM folders WHERE id = ?", (folder_id,))
         self.conn.commit()

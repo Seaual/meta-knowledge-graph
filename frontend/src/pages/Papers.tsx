@@ -301,10 +301,10 @@ export default function Papers() {
   }
 
   const handleDeleteFolder = async (folderId: string) => {
-    if (!confirm('确定删除此文件夹？论文将移到默认文件夹。')) return
+    if (!confirm('确定删除此文件夹？文件夹中的论文和图谱将被永久删除！')) return
     try {
       await foldersApi.delete(folderId)
-      if (activeFolder === folderId) setActiveFolder('default')
+      if (activeFolder === folderId) setActiveFolder('')
       loadFolders()
       loadPapers()
     } catch {
