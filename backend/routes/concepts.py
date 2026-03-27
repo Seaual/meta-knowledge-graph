@@ -13,6 +13,8 @@ import asyncio
 import uuid
 import time
 
+BATCH_SIZE = 10  # Batch size for LLM analysis
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
@@ -543,22 +545,36 @@ async def start_dedup_scan(request: DedupScanRequest):
 
 
 async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
-    """Background task for dedup scan"""
+    """Background task for dedup scan with batch processing"""
     try:
         db = get_db()
         deduplicator = get_deduplicator()
 
-        # Get candidates filtered by folder
-        candidates = deduplicator.candidate_generator.generate_candidates(folder_id=folder_id)
+        # Phase 1: Pre-filtering
+        db.update_scan_job(scan_id, status='scanning', phase='prefiltering', started_at=time.time())
 
-        # Update total to actual candidate count
-        total_candidates = len(candidates)
-        db.update_scan_job(scan_id, status='scanning', started_at=time.time(), total_concepts=total_candidates)
+        prefiltered = deduplicator.candidate_generator.generate_candidates_with_prefilter(folder_id=folder_id)
 
-        if not candidates:
+        candidates = prefiltered['candidates']
+        high_confidence = prefiltered['high_confidence']
+        stats = prefiltered['stats']
+
+        # Update job with prefilter stats
+        total_batches = (len(candidates) + BATCH_SIZE - 1) // BATCH_SIZE if candidates else 0
+        db.update_scan_job(
+            scan_id,
+            phase='analyzing',
+            total_concepts=len(candidates),
+            batches_total=total_batches,
+            filtered_count=stats.get('filtered', 0),
+            high_confidence_count=len(high_confidence)
+        )
+
+        if not candidates and not high_confidence:
             db.update_scan_job(
                 scan_id,
                 status='completed',
+                phase='completed',
                 suggestions=[],
                 completed_at=time.time()
             )
@@ -568,13 +584,34 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
         deduplicator.merge_analyzer._get_parent_names = lambda cid: [p['id'] for p in db.get_concept_parents(cid)]
         deduplicator.merge_analyzer._get_child_names = lambda cid: [c['id'] for c in db.get_concept_children(cid)]
 
-        # Process candidates one by one for progress tracking
+        # Phase 2: Batch LLM analysis
         suggestions = []
-        for i, candidate in enumerate(candidates):
+
+        # Add high confidence suggestions first
+        for i, hc in enumerate(high_confidence):
+            source = db.get_concept(hc['source_id'])
+            target = db.get_concept(hc['target_id'])
+            if source and target:
+                suggestions.append({
+                    "id": f"merge-{scan_id}-{len(suggestions)}",
+                    "source": {"id": source['id'], "text": source['text'], "paper_count": source.get('paper_count', 0)},
+                    "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
+                    "confidence": hc['confidence'],
+                    "rationale": hc['rationale'],
+                    "merged_relations": {"parents": [], "children": []}
+                })
+
+        # Process candidates in batches
+        batches_completed = 0
+        for batch_start in range(0, len(candidates), BATCH_SIZE):
+            batch = candidates[batch_start:batch_start + BATCH_SIZE]
+
             try:
-                result = deduplicator.merge_analyzer.analyze([candidate])
-                if result:
-                    for s in result:
+                # Batch LLM call
+                batch_suggestions = deduplicator.merge_analyzer.analyze(batch)
+
+                if batch_suggestions:
+                    for s in batch_suggestions:
                         source = db.get_concept(s.source_id)
                         target = db.get_concept(s.target_id)
                         if source and target:
@@ -586,23 +623,51 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
                                 "rationale": s.rationale,
                                 "merged_relations": s.merged_relations
                             })
+
             except Exception as e:
-                print(f"Error analyzing candidate {i}: {e}")
+                # Batch failed - try individual analysis as fallback
+                print(f"Batch analysis failed, falling back to individual: {e}")
+                for candidate in batch:
+                    try:
+                        result = deduplicator.merge_analyzer.analyze([candidate])
+                        if result:
+                            for s in result:
+                                source = db.get_concept(s.source_id)
+                                target = db.get_concept(s.target_id)
+                                if source and target:
+                                    suggestions.append({
+                                        "id": f"merge-{scan_id}-{len(suggestions)}",
+                                        "source": {"id": source['id'], "text": source['text'], "paper_count": source.get('paper_count', 0)},
+                                        "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
+                                        "confidence": s.confidence,
+                                        "rationale": s.rationale,
+                                        "merged_relations": s.merged_relations
+                                    })
+                    except Exception as e2:
+                        print(f"Individual analysis also failed: {e2}")
 
-            # Update progress
-            db.update_scan_job(scan_id, concepts_scanned=i + 1)
+            # Update progress after each batch
+            batches_completed += 1
+            db.update_scan_job(
+                scan_id,
+                concepts_scanned=min(batch_start + BATCH_SIZE, len(candidates)),
+                batches_completed=batches_completed
+            )
 
-        # Complete
+        # Phase 3: Complete
         db.update_scan_job(
             scan_id,
             status='completed',
+            phase='completed',
             suggestions=suggestions,
             completed_at=time.time()
         )
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         db = get_db()
-        db.update_scan_job(scan_id, status='failed', error=str(e), completed_at=time.time())
+        db.update_scan_job(scan_id, status='failed', phase='failed', error=str(e), completed_at=time.time())
 
 
 @router.get("/dedup/scan-status/{scan_id}")
@@ -640,8 +705,13 @@ def get_dedup_scan_status(scan_id: str):
     return {
         "scan_id": scan_id,
         "status": job['status'],
+        "phase": job.get('phase', 'unknown'),
         "total_concepts": job['total_concepts'],
         "concepts_scanned": job['concepts_scanned'],
+        "batches_total": job.get('batches_total', 0),
+        "batches_completed": job.get('batches_completed', 0),
+        "filtered_count": job.get('filtered_count', 0),
+        "high_confidence_count": job.get('high_confidence_count', 0),
         "progress": progress,
         "estimated_time": estimated_time,
         "suggestions": job.get('suggestions') if job['status'] == 'completed' else None,
