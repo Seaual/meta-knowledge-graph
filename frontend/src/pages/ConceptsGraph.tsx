@@ -565,7 +565,7 @@ export default function ConceptsGraph() {
         {viewMode === 'concept' && (
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
           >
             ← 返回全部概念
           </button>
@@ -578,14 +578,14 @@ export default function ConceptsGraph() {
         <div className="relative">
           <button
             onClick={() => setShowFolderMenu(!showFolderMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
           >
             <Folder className="h-4 w-4" />
             {folders.find(f => f.id === activeFolder)?.name || '默认'}
             <ChevronDown className="h-4 w-4" />
           </button>
           {showFolderMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
+            <div className="absolute right-0 mt-2 w-48 bg-brand-gradient rounded-xl shadow-brand-lg border border-brand overflow-hidden z-20">
               {folders.map(folder => (
                 <button
                   key={folder.id}
@@ -593,8 +593,8 @@ export default function ConceptsGraph() {
                     setActiveFolder(folder.id)
                     setShowFolderMenu(false)
                   }}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-blue-50 flex items-center gap-2 ${
-                    activeFolder === folder.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-brand-fill flex items-center gap-2 transition-colors ${
+                    activeFolder === folder.id ? 'bg-brand-fill text-brand-700' : 'text-gray-700'
                   }`}
                 >
                   <Folder className="h-4 w-4" />
@@ -604,67 +604,71 @@ export default function ConceptsGraph() {
             </div>
           )}
         </div>
-        {/* Export Dropdown */}
-        <div className="relative">
+        {/* Export Dropdown - only show in 'all' view */}
+        {viewMode === 'all' && (
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
+            >
+              <Download className="h-4 w-4" />
+              导出
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showExportMenu && (
+              <div className="absolute right-0 mt-2 w-48 bg-brand-gradient rounded-xl shadow-brand-lg border border-brand overflow-hidden z-20">
+                <button
+                  onClick={() => { handleExportHtml(); setShowExportMenu(false); }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-brand-fill flex items-center gap-3 transition-colors"
+                >
+                  <span className="text-lg">🌐</span>
+                  <div>
+                    <div className="font-medium">HTML 页面</div>
+                    <div className="text-xs text-gray-400">交互式物理渲染</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { handleExportCanvas(); setShowExportMenu(false); }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-brand-fill flex items-center gap-3 transition-colors"
+                >
+                  <span className="text-lg">🎨</span>
+                  <div>
+                    <div className="font-medium">Canvas 格式</div>
+                    <div className="text-xs text-gray-400">带颜色和布局</div>
+                  </div>
+                </button>
+                <button
+                  onClick={() => { handleExportMarkdown(); setShowExportMenu(false); }}
+                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                >
+                  <span className="text-lg">📝</span>
+                  <div>
+                    <div className="font-medium">Markdown 格式</div>
+                    <div className="text-xs text-gray-400">纯文本双链</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {viewMode === 'all' && (
           <button
-            onClick={() => setShowExportMenu(!showExportMenu)}
-            className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
+            onClick={() => setDedupOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-button backdrop-blur rounded-xl shadow-brand text-sm font-medium text-white hover:shadow-brand-lg transition-all"
           >
-            <Download className="h-4 w-4" />
-            导出
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            🔄 去重扫描
           </button>
-          {showExportMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden z-20">
-              <button
-                onClick={() => { handleExportHtml(); setShowExportMenu(false); }}
-                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-blue-50 flex items-center gap-3"
-              >
-                <span className="text-lg">🌐</span>
-                <div>
-                  <div className="font-medium">HTML 页面</div>
-                  <div className="text-xs text-gray-400">交互式物理渲染</div>
-                </div>
-              </button>
-              <button
-                onClick={() => { handleExportCanvas(); setShowExportMenu(false); }}
-                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-purple-50 flex items-center gap-3"
-              >
-                <span className="text-lg">🎨</span>
-                <div>
-                  <div className="font-medium">Canvas 格式</div>
-                  <div className="text-xs text-gray-400">带颜色和布局</div>
-                </div>
-              </button>
-              <button
-                onClick={() => { handleExportMarkdown(); setShowExportMenu(false); }}
-                className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
-              >
-                <span className="text-lg">📝</span>
-                <div>
-                  <div className="font-medium">Markdown 格式</div>
-                  <div className="text-xs text-gray-400">纯文本双链</div>
-                </div>
-              </button>
-            </div>
-          )}
-        </div>
-        <button
-          onClick={() => setDedupOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-white/90 backdrop-blur rounded-xl shadow-lg text-sm font-medium text-gray-700 hover:bg-white transition-colors"
-        >
-          🔄 去重扫描
-        </button>
+        )}
       </div>
 
       {/* Info Panel */}
-      <div className="absolute bottom-16 left-4 bg-white/90 backdrop-blur rounded-xl shadow-lg p-3 z-10">
-        <div className="text-xs text-gray-500">
+      <div className="absolute bottom-16 left-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-4 z-10 border border-brand">
+        <div className="text-xs text-brand-500 font-medium">
           {viewMode === 'all' ? '知识图谱' : '概念详情'}
         </div>
-        <div className="font-bold text-gray-900">
+        <div className="font-bold text-gray-900 text-lg">
           {viewMode === 'all' ? `${concepts.length} 个概念` : selectedConcept?.text}
         </div>
         <div className="text-xs text-gray-500 mt-1">
@@ -674,10 +678,10 @@ export default function ConceptsGraph() {
           }
         </div>
         {/* Force Strength Slider */}
-        <div className="mt-3 pt-3 border-t border-gray-200">
+        <div className="mt-3 pt-3 border-t border-brand-200">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-500">节点斥力</span>
-            <span className="text-xs font-medium text-gray-700">{forceStrength}</span>
+            <span className="text-xs font-medium text-brand-600">{forceStrength}</span>
           </div>
           <input
             type="range"
@@ -685,7 +689,7 @@ export default function ConceptsGraph() {
             max="400"
             value={forceStrength}
             onChange={(e) => setForceStrength(Number(e.target.value))}
-            className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-500"
+            className="w-full h-1.5 bg-brand-100 rounded-lg appearance-none cursor-pointer accent-brand-600"
           />
           <div className="flex justify-between text-[10px] text-gray-400 mt-1">
             <span>紧凑</span>
@@ -696,14 +700,14 @@ export default function ConceptsGraph() {
 
       {/* Concept Action Panel - 点击概念后显示 */}
       {showConceptActions && selectedConcept && (
-        <div className="absolute top-4 right-4 bg-white rounded-xl shadow-xl border border-gray-100 p-4 z-20 w-72">
+        <div className="absolute top-4 right-4 bg-brand-gradient rounded-2xl shadow-brand-lg p-4 z-20 w-72 border border-brand">
           <div className="flex items-start justify-between mb-3">
             <div>
               <h3 className="font-bold text-gray-900 text-sm">{selectedConcept.text}</h3>
               <div className="flex items-center gap-2 mt-1">
                 {selectedConcept.category && (
                   <span
-                    className="px-2 py-0.5 rounded text-xs font-medium"
+                    className="px-2 py-0.5 rounded-full text-xs font-medium"
                     style={{
                       backgroundColor: CATEGORY_COLORS[selectedConcept.category] + '20',
                       color: CATEGORY_COLORS[selectedConcept.category],
@@ -720,7 +724,7 @@ export default function ConceptsGraph() {
                 setShowConceptActions(false)
                 setSelectedConcept(null)
               }}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 hover:text-brand-600 transition-colors"
             >
               ✕
             </button>
@@ -728,14 +732,14 @@ export default function ConceptsGraph() {
           <div className="space-y-2">
             <button
               onClick={handleDiscoverResearchPoints}
-              className="w-full px-4 py-2.5 bg-gradient-to-r from-purple-500 to-blue-500 text-white text-sm font-medium rounded-lg hover:from-purple-600 hover:to-blue-600 transition-all flex items-center justify-center gap-2"
+              className="w-full px-4 py-2.5 bg-brand-button text-white text-sm font-medium rounded-xl hover:shadow-brand transition-all flex items-center justify-center gap-2"
             >
               🔍 发现研究点
             </button>
             {selectedConcept.papers && selectedConcept.papers.length > 0 && (
               <button
                 onClick={handleViewPapers}
-                className="w-full px-4 py-2.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                className="w-full px-4 py-2.5 bg-brand-fill text-brand-700 text-sm font-medium rounded-xl hover:shadow-brand transition-all flex items-center justify-center gap-2"
               >
                 📄 查看相关论文 ({selectedConcept.papers.length})
               </button>
@@ -746,23 +750,23 @@ export default function ConceptsGraph() {
 
       {/* Hover Tooltip - 简单显示 */}
       {hoverNode && !showConceptActions && (
-        <div className="absolute top-4 right-4 bg-white/90 backdrop-blur rounded-xl shadow-lg p-3 z-10 max-w-xs pointer-events-none">
+        <div className="absolute top-4 right-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-3 z-10 max-w-xs pointer-events-none border border-brand">
           <div className="font-semibold text-gray-900 text-sm">
             {hoverNode.name}
           </div>
           <div className="flex items-center gap-2 mt-1">
             {hoverNode.type === 'paper' ? (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-600">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
                 论文
               </span>
             ) : hoverNode.type === 'center' ? (
-              <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-600">
+              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-600">
                 中心概念
               </span>
             ) : (
               <>
                 <span
-                  className="px-2 py-0.5 rounded text-xs font-medium"
+                  className="px-2 py-0.5 rounded-full text-xs font-medium"
                   style={{
                     backgroundColor: CATEGORY_COLORS[hoverNode.category || 'method'] + '20',
                     color: CATEGORY_COLORS[hoverNode.category || 'method'],
@@ -785,15 +789,15 @@ export default function ConceptsGraph() {
 
       {/* Paper Detail Panel */}
       {selectedPaper && (
-        <div className="absolute bottom-20 right-4 w-96 bg-white rounded-xl shadow-xl border border-gray-100 z-20 max-h-[70vh] overflow-y-auto">
-          <div className="p-4 border-b border-gray-100 sticky top-0 bg-white">
+        <div className="absolute bottom-20 right-4 w-96 bg-brand-gradient rounded-2xl shadow-brand-lg z-20 max-h-[70vh] overflow-y-auto border border-brand">
+          <div className="p-4 border-b border-brand sticky top-0 bg-brand-gradient">
             <div className="flex items-start justify-between">
               <h3 className="font-bold text-gray-900 text-sm leading-tight pr-2">
                 {selectedPaper.title}
               </h3>
               <button
                 onClick={() => setSelectedPaper(null)}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                className="text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0"
               >
                 ✕
               </button>
@@ -803,14 +807,14 @@ export default function ConceptsGraph() {
           <div className="p-4 space-y-4">
             {/* DOI */}
             <div>
-              <div className="text-xs font-semibold text-gray-400 mb-1">DOI</div>
+              <div className="text-xs font-semibold text-brand-500 mb-1">DOI</div>
               <div className="text-xs text-blue-500 break-all">{selectedPaper.doi}</div>
             </div>
 
             {/* Authors */}
             {selectedPaper.authors && selectedPaper.authors.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-gray-400 mb-1">作者</div>
+                <div className="text-xs font-semibold text-brand-500 mb-1">作者</div>
                 <div className="text-sm text-gray-700">
                   {selectedPaper.authors.slice(0, 5).join(', ')}
                   {selectedPaper.authors.length > 5 && (
@@ -823,12 +827,12 @@ export default function ConceptsGraph() {
             {/* Keywords */}
             {selectedPaper.keywords && selectedPaper.keywords.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-gray-400 mb-2">关键词</div>
+                <div className="text-xs font-semibold text-brand-500 mb-2">关键词</div>
                 <div className="flex flex-wrap gap-1">
                   {selectedPaper.keywords.map((kw, i) => (
                     <span
                       key={i}
-                      className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs"
+                      className="px-2 py-0.5 bg-brand-fill text-brand-700 rounded-full text-xs"
                     >
                       {kw}
                     </span>
@@ -837,10 +841,10 @@ export default function ConceptsGraph() {
               </div>
             )}
 
-            {/* Abstract / Chinese Summary */}
+            {/* Abstract */}
             {selectedPaper.abstract && (
               <div>
-                <div className="text-xs font-semibold text-gray-400 mb-1">摘要</div>
+                <div className="text-xs font-semibold text-brand-500 mb-1">摘要</div>
                 <div className="text-sm text-gray-600 leading-relaxed">
                   {selectedPaper.abstract}
                 </div>
@@ -850,11 +854,11 @@ export default function ConceptsGraph() {
             {/* Contributions */}
             {selectedPaper.contributions && selectedPaper.contributions.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-gray-400 mb-2">主要贡献</div>
+                <div className="text-xs font-semibold text-brand-500 mb-2">主要贡献</div>
                 <ul className="text-sm text-gray-600 space-y-1">
                   {selectedPaper.contributions.slice(0, 3).map((c, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="text-blue-500 mt-1">•</span>
+                      <span className="text-brand-500 mt-1">•</span>
                       <span>{c}</span>
                     </li>
                   ))}
@@ -867,8 +871,8 @@ export default function ConceptsGraph() {
 
       {/* Research Points Panel */}
       {showResearchPanel && (
-        <div className="absolute top-20 left-4 w-[480px] bg-white rounded-xl shadow-xl border border-gray-100 z-20 max-h-[75vh] overflow-y-auto">
-          <div className="p-4 border-b border-gray-100 sticky top-0 bg-white">
+        <div className="absolute top-20 left-4 w-[480px] bg-brand-gradient rounded-2xl shadow-brand-lg z-20 max-h-[75vh] overflow-y-auto border border-brand">
+          <div className="p-4 border-b border-brand sticky top-0 bg-brand-gradient">
             <div className="flex items-start justify-between">
               <div>
                 <h3 className="font-bold text-gray-900 text-base">🔍 研究点发现</h3>
@@ -878,7 +882,7 @@ export default function ConceptsGraph() {
               </div>
               <button
                 onClick={() => setShowResearchPanel(false)}
-                className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+                className="text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0"
               >
                 ✕
               </button>
@@ -889,7 +893,7 @@ export default function ConceptsGraph() {
             {loadingResearchPoints ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-purple-500 border-t-transparent mx-auto" />
+                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-brand-500 border-t-transparent mx-auto" />
                   <p className="mt-3 text-sm text-gray-500">正在分析知识图谱...</p>
                   <p className="text-xs text-gray-400 mt-1">追溯上游节点，遍历边缘节点</p>
                 </div>
@@ -897,19 +901,19 @@ export default function ConceptsGraph() {
             ) : researchPoints ? (
               <>
                 {/* Analysis Context Summary */}
-                <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-gray-500 mb-2">分析上下文</div>
+                <div className="bg-brand-fill rounded-xl p-3">
+                  <div className="text-xs font-semibold text-brand-600 mb-2">分析上下文</div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <div className="text-lg font-bold text-purple-600">{researchPoints.analysis_context.ancestors.length}</div>
+                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.ancestors.length}</div>
                       <div className="text-xs text-gray-500">上游节点</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-blue-600">{researchPoints.analysis_context.descendants.length}</div>
+                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.descendants.length}</div>
                       <div className="text-xs text-gray-500">下游节点</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-green-600">{researchPoints.analysis_context.edge_nodes.length}</div>
+                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.edge_nodes.length}</div>
                       <div className="text-xs text-gray-500">边缘节点</div>
                     </div>
                   </div>
@@ -918,13 +922,13 @@ export default function ConceptsGraph() {
                 {/* Research Points */}
                 <div className="space-y-3">
                   {researchPoints.research_points.map((point, i) => (
-                    <div key={i} className="border border-gray-100 rounded-lg p-3 hover:border-purple-200 hover:bg-purple-50/30 transition-colors">
+                    <div key={i} className="border border-brand-100 rounded-xl p-3 hover:border-brand-300 hover:bg-brand-50/50 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="font-semibold text-gray-900 text-sm">{point.title}</h4>
                         <div className="flex gap-1 flex-shrink-0">
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.difficulty === 'low' ? 'bg-green-100 text-green-600' :
-                            point.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-600' :
+                            point.difficulty === 'low' ? 'bg-emerald-100 text-emerald-600' :
+                            point.difficulty === 'medium' ? 'bg-amber-100 text-amber-600' :
                             point.difficulty === 'high' ? 'bg-red-100 text-red-600' :
                             'bg-gray-100 text-gray-500'
                           }`}>
@@ -955,7 +959,7 @@ export default function ConceptsGraph() {
                         </div>
                       </div>
                       {point.hypothesis && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs text-blue-700 italic">
+                        <div className="mt-2 p-2 bg-blue-50 rounded-lg text-xs text-blue-700 italic">
                           💡 {point.hypothesis}
                         </div>
                       )}
@@ -979,7 +983,7 @@ export default function ConceptsGraph() {
                           <div className="text-xs text-gray-400 mb-1">相关概念</div>
                           <div className="flex flex-wrap gap-1">
                             {point.related_concepts.slice(0, 5).map((c, j) => (
-                              <span key={j} className="px-2 py-0.5 bg-blue-50 text-blue-600 rounded text-xs">
+                              <span key={j} className="px-2 py-0.5 bg-brand-fill text-brand-700 rounded-full text-xs">
                                 {c}
                               </span>
                             ))}
@@ -996,19 +1000,19 @@ export default function ConceptsGraph() {
       )}
 
       {/* Legend */}
-      <div className="absolute bottom-16 right-4 bg-white/90 backdrop-blur rounded-xl shadow-lg p-3 z-10">
-        <div className="text-xs font-semibold text-gray-500 mb-2">图例</div>
-        <div className="space-y-1">
+      <div className="absolute bottom-16 right-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-4 z-10 border border-brand">
+        <div className="text-xs font-semibold text-brand-600 mb-2">图例</div>
+        <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.field }} />
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-red-400 to-red-500" />
             <span className="text-xs text-gray-600">概念节点</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PAPER_COLOR }} />
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-500" />
             <span className="text-xs text-gray-600">论文节点</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CENTER_COLOR }} />
+            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-500" />
             <span className="text-xs text-gray-600">中心概念</span>
           </div>
         </div>
