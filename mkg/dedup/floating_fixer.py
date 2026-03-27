@@ -93,12 +93,13 @@ def get_candidate_parents(db, category: str) -> List[Dict]:
     return [{'id': r['id'], 'text': r['text'], 'category': r['category']} for r in cur.fetchall()]
 
 
-def infer_parent_with_llm(llm_client, floating: Dict, candidates: List[Dict]) -> Optional[str]:
+def infer_parent(db, llm_client, floating_concept: Dict, candidates: List[Dict]) -> Optional[str]:
     """让 LLM 推断父节点
 
     Args:
+        db: Database 实例（保留用于未来扩展）
         llm_client: LLM 客户端
-        floating: 漂浮概念信息
+        floating_concept: 漂浮概念信息
         candidates: 候选父节点列表
 
     Returns:
@@ -110,13 +111,13 @@ def infer_parent_with_llm(llm_client, floating: Dict, candidates: List[Dict]) ->
         indent=2
     )
 
-    children_names = [c['text'] for c in floating['children']]
+    children_names = [c['text'] for c in floating_concept['children']]
 
     prompt = f"""为以下概念从候选列表中选择最合适的父节点。
 
 ## 待匹配概念
-- 名称：{floating['text']}
-- 层级：{floating['category']}
+- 名称：{floating_concept['text']}
+- 层级：{floating_concept['category']}
 - 子节点：{json.dumps(children_names, ensure_ascii=False)}
 
 ## 候选父概念
@@ -180,7 +181,7 @@ def fix_floating_concepts(db, llm_client) -> Dict:
             })
             continue
 
-        parent_id = infer_parent_with_llm(llm_client, fc, candidates)
+        parent_id = infer_parent(db, llm_client, fc, candidates)
 
         if parent_id:
             parent = db.get_concept(parent_id)
