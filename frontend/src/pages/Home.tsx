@@ -99,39 +99,45 @@ export default function Home() {
       </div>
 
       {/* Quick Actions */}
-      <div className="bg-white rounded-lg shadow p-6">
-        <h2 className="text-lg font-semibold mb-4">快速操作</h2>
+      <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
+        <h2 className="text-lg font-semibold mb-4 text-brand-600">快速操作</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Link
             to="/papers"
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50"
+            className="flex items-center p-4 bg-brand-fill rounded-xl hover:shadow-brand transition-all"
           >
-            <FileText className="h-6 w-6 text-blue-500 mr-3" />
+            <div className="h-10 w-10 bg-brand-button rounded-lg flex items-center justify-center mr-3">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
             <div>
-              <p className="font-medium">上传论文</p>
-              <p className="text-sm text-gray-500">上传 PDF 并提取概念</p>
+              <p className="font-medium text-brand-700">上传论文</p>
+              <p className="text-sm text-brand-500">上传 PDF 并提取概念</p>
             </div>
           </Link>
 
           <Link
             to="/concepts"
-            className="flex items-center p-4 border rounded-lg hover:bg-gray-50"
+            className="flex items-center p-4 bg-brand-fill rounded-xl hover:shadow-brand transition-all"
           >
-            <GitBranch className="h-6 w-6 text-green-500 mr-3" />
+            <div className="h-10 w-10 bg-brand-button rounded-lg flex items-center justify-center mr-3">
+              <GitBranch className="h-5 w-5 text-white" />
+            </div>
             <div>
-              <p className="font-medium">浏览概念</p>
-              <p className="text-sm text-gray-500">查看概念层级树</p>
+              <p className="font-medium text-brand-700">浏览概念</p>
+              <p className="text-sm text-brand-500">查看概念层级树</p>
             </div>
           </Link>
 
           <button
             onClick={() => setShowLLMModal(true)}
-            className="flex items-center p-4 border rounded-lg hover:bg-purple-50 text-left"
+            className="flex items-center p-4 bg-brand-fill rounded-xl hover:shadow-brand transition-all text-left"
           >
-            <Settings className="h-6 w-6 text-purple-500 mr-3" />
+            <div className="h-10 w-10 bg-brand-button rounded-lg flex items-center justify-center mr-3">
+              <Settings className="h-5 w-5 text-white" />
+            </div>
             <div>
-              <p className="font-medium">LLM 配置</p>
-              <p className="text-sm text-gray-500">{llmStatus || '配置 AI 服务商'}</p>
+              <p className="font-medium text-brand-700">LLM 配置</p>
+              <p className="text-sm text-brand-500">{llmStatus || '配置 AI 服务商'}</p>
             </div>
           </button>
         </div>
@@ -154,13 +160,13 @@ export default function Home() {
 
       {/* Paper Status */}
       {stats?.papers && (
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">论文状态</h2>
+        <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
+          <h2 className="text-lg font-semibold mb-4 text-brand-600">论文状态</h2>
           <div className="flex gap-6">
             {Object.entries(stats.papers).filter(([k]) => k !== 'total').map(([status, count]) => (
-              <div key={status} className="text-center">
-                <p className="text-2xl font-bold">{count}</p>
-                <p className="text-sm text-gray-500">{status}</p>
+              <div key={status} className="text-center p-4 bg-brand-fill rounded-xl">
+                <p className="text-2xl font-bold text-brand-700">{count}</p>
+                <p className="text-sm text-brand-500">{status}</p>
               </div>
             ))}
           </div>
