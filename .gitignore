@@ -35,6 +35,8 @@ openclaw.db
 openclaw_relations.db
 openclaw_enhanced.db
 mkg.db
+mkg.db-shm
+mkg.db-wal
 .env
 .extract_cache/
 obsidian_vault/
