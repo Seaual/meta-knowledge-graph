@@ -45,6 +45,8 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
   const [suggestions, setSuggestions] = useState<MergeSuggestion[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [executeDetails, setExecuteDetails] = useState<ExecuteDetail[]>([])
+  const [floatingFixed, setFloatingFixed] = useState(0)
+  const [floatingDetails, setFloatingDetails] = useState<Array<{concept: string; parent?: string; status: string}>>([])
   const [error, setError] = useState<string | null>(null)
   const [scanProgress, setScanProgress] = useState<ScanProgress>({
     scanId: null,
@@ -156,6 +158,8 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
     try {
       const res = await dedupApi.execute(scanId, Array.from(selectedIds))
       setExecuteDetails(res.data.details)
+      setFloatingFixed(res.data.floating_fixed || 0)
+      setFloatingDetails(res.data.floating_details || [])
       setPanelState('result')
     } catch (err: any) {
       setError(err.response?.data?.detail || '执行失败')
@@ -181,6 +185,8 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
     setSuggestions([])
     setSelectedIds(new Set())
     setExecuteDetails([])
+    setFloatingFixed(0)
+    setFloatingDetails([])
     setError(null)
     setScanProgress({
       scanId: null,
@@ -376,6 +382,11 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
             <div className="mb-4">
               <p className="text-sm text-gray-500">
                 已完成 <span className="font-semibold text-green-600">{executeDetails.filter(d => d.status === 'success').length}</span> 项合并
+                {floatingFixed > 0 && (
+                  <span className="ml-2">
+                    ，修复 <span className="font-semibold text-blue-600">{floatingFixed}</span> 个漂浮概念
+                  </span>
+                )}
               </p>
             </div>
 
@@ -405,6 +416,21 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
                 </div>
               ))}
             </div>
+
+            {/* 漂浮概念修复详情 */}
+            {floatingDetails && floatingDetails.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <p className="text-xs font-semibold text-gray-500 mb-2">漂浮概念修复</p>
+                <div className="space-y-1">
+                  {floatingDetails.filter(d => d.status === 'fixed').map((detail, index) => (
+                    <div key={index} className="text-xs text-gray-600 flex items-center gap-1">
+                      <Check className="w-3 h-3 text-blue-500" />
+                      {detail.concept} → {detail.parent}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               onClick={handleReset}
