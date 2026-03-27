@@ -404,13 +404,6 @@ export default function Papers() {
         )}
         {sidebarCollapsed && (
           <div className="flex-1 flex flex-col items-center py-2 gap-1">
-            <button
-              onClick={() => setSidebarCollapsed(false)}
-              className="p-2 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg mb-2"
-              title="展开侧边栏"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
             {folders.map(folder => (
               <button
                 key={folder.id}
