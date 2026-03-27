@@ -156,17 +156,14 @@ python -m venv venv
 source venv/bin/activate  # Linux/Mac, or: venv\Scripts\activate (Windows)
 pip install -r requirements.txt
 
-# Configure LLM
-cp .env.example .env
-# Edit .env with your API key
-
-# Frontend
-cd frontend && npm install
-
-# Start
+# Start Backend
 python -m uvicorn backend.main:app --port 8088 --reload &
+
+# Start Frontend
 cd frontend && npm run dev
 ```
+
+Open http://localhost:8088 and configure your API Key in **Settings** page.
 
 </details>
 
