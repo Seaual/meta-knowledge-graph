@@ -41,12 +41,7 @@ export default function Home() {
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">Meta Knowledge Graph</h1>
-        <p className="mt-2 text-gray-600">学术知识图谱引擎</p>
-      </div>
-
+    <div className="space-y-8 p-6">
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
