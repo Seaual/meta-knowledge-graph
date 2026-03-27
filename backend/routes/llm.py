@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
-from mkg.pdf_parser import AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.pdf_parser import LiteLLMClient, ClaudeCLIClient
 from backend.schemas import (
     LLMConfigResponse, LLMConfigRequest, LLMTestRequest, LLMTestResponse, LLMProviderConfig
 )
@@ -29,77 +29,20 @@ def get_db():
     return _db
 
 
-# Available providers with configuration hints
+# Available providers - 极简配置
 PROVIDERS = [
     {
         "value": "claude_cli",
-        "label": "Claude Code CLI（Docker不可用）",
+        "label": "Claude Code CLI（本地开发）",
         "requires_api_key": False,
-        "default_base_url": None,
         "models": []
     },
     {
-        "value": "openai",
-        "label": "OpenAI",
+        "value": "custom",
+        "label": "自定义配置",
         "requires_api_key": True,
-        "default_base_url": "https://api.openai.com/v1",
-        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
-    },
-    {
-        "value": "anthropic",
-        "label": "Anthropic Claude",
-        "requires_api_key": True,
-        "default_base_url": "https://api.anthropic.com",
-        "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"]
-    },
-    {
-        "value": "google",
-        "label": "Google Gemini",
-        "requires_api_key": True,
-        "default_base_url": None,
-        "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
-    },
-    {
-        "value": "deepseek",
-        "label": "DeepSeek",
-        "requires_api_key": True,
-        "default_base_url": "https://api.deepseek.com/v1",
-        "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
-    },
-    {
-        "value": "dashscope",
-        "label": "阿里云 DashScope（通义千问）",
-        "requires_api_key": True,
-        "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-        "models": ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long"]
-    },
-    {
-        "value": "minimax",
-        "label": "MiniMax",
-        "requires_api_key": True,
-        "default_base_url": "https://api.minimax.chat/v1",
-        "models": ["abab6.5s-chat", "abab6.5g-chat", "abab5.5-chat"]
-    },
-    {
-        "value": "openrouter",
-        "label": "OpenRouter",
-        "requires_api_key": True,
-        "default_base_url": "https://openrouter.ai/api/v1",
-        "models": ["anthropic/claude-sonnet-4", "openai/gpt-4o", "google/gemini-2.0-flash-exp"]
-    },
-    {
-        "value": "moonshot",
-        "label": "Moonshot（Kimi）",
-        "requires_api_key": True,
-        "default_base_url": "https://api.moonshot.cn/v1",
-        "models": ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
-    },
-    {
-        "value": "zhipu",
-        "label": "智谱 AI（GLM）",
-        "requires_api_key": True,
-        "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "models": ["glm-4", "glm-4-flash", "glm-4-plus"]
+        "requires_base_url": True,
+        "models": []
     },
 ]
 
@@ -147,81 +90,43 @@ def save_config(request: LLMConfigRequest):
 
 @router.post("/test", response_model=LLMTestResponse)
 def test_connection(request: LLMTestRequest):
-    """Test LLM connection"""
+    """Test LLM connection using LiteLLM"""
     try:
         if request.provider == "claude_cli":
+            # Claude CLI 特殊处理
             client = ClaudeCLIClient()
             result = client.extract_concepts("Say 'OK' if you can read this.")
             return LLMTestResponse(success=True, message="Claude CLI 连接成功", model="claude-code")
 
-        elif request.provider == "openai":
-            if not request.api_key:
-                raise HTTPException(status_code=400, detail="API Key 是必需的")
-            client = OpenAICompatibleClient(
-                request.api_key,
-                base_url=request.base_url or "https://api.openai.com/v1",
-                model=request.model or "gpt-3.5-turbo"
-            )
-            result = client.extract_concepts("Say 'OK' if you can read this.")
-            return LLMTestResponse(success=True, message="OpenAI 连接成功", model=request.model)
+        # 所有其他服务商通过 LiteLLM 统一处理
+        client = LiteLLMClient(
+            provider=request.provider,
+            api_key=request.api_key,
+            model=request.model,
+            base_url=request.base_url  # 可选，用于代理或私有部署
+        )
+        result = client.extract_concepts("Say 'OK' if you can read this.")
 
-        elif request.provider == "anthropic":
-            if not request.api_key:
-                raise HTTPException(status_code=400, detail="API Key 是必需的")
-            client = AnthropicClient(
-                request.api_key,
-                model=request.model or "claude-sonnet-4-20250514",
-                base_url=request.base_url
-            )
-            result = client.extract_concepts("Say 'OK' if you can read this.")
-            return LLMTestResponse(success=True, message="Anthropic 连接成功", model=request.model)
-
-        elif request.provider == "google":
-            if not request.api_key:
-                raise HTTPException(status_code=400, detail="API Key 是必需的")
-            client = GoogleClient(request.api_key)
-            result = client.extract_concepts("Say 'OK' if you can read this.")
-            return LLMTestResponse(success=True, message="Google Gemini 连接成功", model="gemini")
-
-        elif request.provider in ("dashscope", "openrouter", "minimax", "deepseek", "moonshot", "zhipu"):
-            if not request.api_key:
-                raise HTTPException(status_code=400, detail="API Key 是必需的")
-            base_urls = {
-                "dashscope": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-                "openrouter": "https://openrouter.ai/api/v1",
-                "minimax": "https://api.minimax.chat/v1",
-                "deepseek": "https://api.deepseek.com/v1",
-                "moonshot": "https://api.moonshot.cn/v1",
-                "zhipu": "https://open.bigmodel.cn/api/paas/v4",
-            }
-            default_models = {
-                "dashscope": "qwen-plus",
-                "openrouter": "openai/gpt-4o-mini",
-                "minimax": "abab6.5s-chat",
-                "deepseek": "deepseek-chat",
-                "moonshot": "moonshot-v1-8k",
-                "zhipu": "glm-4-flash",
-            }
-            client = OpenAICompatibleClient(
-                request.api_key,
-                base_url=request.base_url or base_urls.get(request.provider),
-                model=request.model or default_models.get(request.provider)
-            )
-            result = client.extract_concepts("Say 'OK' if you can read this.")
-            return LLMTestResponse(success=True, message=f"{request.provider} 连接成功", model=request.model)
-
-        else:
-            raise HTTPException(status_code=400, detail=f"未知的服务商: {request.provider}")
+        provider_label = next((p["label"] for p in PROVIDERS if p["value"] == request.provider), request.provider)
+        return LLMTestResponse(
+            success=True,
+            message=f"{provider_label} 连接成功",
+            model=request.model or "default"
+        )
 
     except HTTPException:
         raise
     except Exception as e:
-        error_msg = str(e)
-        if "api_key" in error_msg.lower() or "unauthorized" in error_msg.lower():
+        error_msg = str(e).lower()
+
+        # 友好的错误提示
+        if "api_key" in error_msg or "unauthorized" in error_msg or "invalid" in error_msg:
             raise HTTPException(status_code=401, detail="API Key 无效，请检查后重试")
-        elif "connection" in error_msg.lower() or "timeout" in error_msg.lower():
-            raise HTTPException(status_code=503, detail="网络连接失败，请检查 Base URL")
-        elif "model" in error_msg.lower() or "not found" in error_msg.lower():
-            raise HTTPException(status_code=404, detail="模型不存在，请确认模型名称")
+        elif "connection" in error_msg or "timeout" in error_msg or "network" in error_msg:
+            raise HTTPException(status_code=503, detail="网络连接失败，请检查网络或代理设置")
+        elif "model" in error_msg or "not found" in error_msg:
+            raise HTTPException(status_code=404, detail=f"模型 '{request.model}' 不存在，请确认模型名称")
+        elif "rate" in error_msg or "limit" in error_msg:
+            raise HTTPException(status_code=429, detail="请求频率超限，请稍后重试")
         else:
-            raise HTTPException(status_code=500, detail=f"测试失败: {error_msg}")
+            raise HTTPException(status_code=500, detail=f"连接失败: {str(e)}")
