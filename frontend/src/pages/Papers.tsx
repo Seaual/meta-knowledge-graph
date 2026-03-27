@@ -314,12 +314,12 @@ export default function Papers() {
 
   const getStatusBadge = (status: string) => {
     const colors: Record<string, string> = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      downloaded: 'bg-blue-100 text-blue-800',
-      processed: 'bg-green-100 text-green-800',
-      failed: 'bg-red-100 text-red-800',
+      pending: 'bg-amber-100 text-amber-700',
+      downloaded: 'bg-blue-100 text-blue-700',
+      processed: 'bg-emerald-100 text-emerald-700',
+      failed: 'bg-red-100 text-red-700',
     }
-    return colors[status] || 'bg-gray-100 text-gray-800'
+    return colors[status] || 'bg-gray-100 text-gray-700'
   }
 
   const formatTime = (seconds: number): string => {
@@ -339,12 +339,12 @@ export default function Papers() {
   return (
     <div className="flex h-[calc(100vh-80px)]">
       {/* Folder Sidebar */}
-      <div className={`bg-white border-r flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+      <div className={`bg-brand-gradient flex flex-col transition-all duration-300 border-r border-brand ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
         {/* Collapse Toggle Button */}
-        <div className="p-2 border-b flex justify-end">
+        <div className="p-2 border-b border-brand flex justify-end">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+            className="p-1.5 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg"
             title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
           >
             {sidebarCollapsed ? (
@@ -356,15 +356,20 @@ export default function Papers() {
         </div>
         {!sidebarCollapsed && (
           <>
-            <div className="px-4 py-2 border-b">
-              <h2 className="font-semibold text-gray-700 text-sm">文件夹</h2>
+            <div className="px-4 py-3 border-b border-brand">
+              <h2 className="font-semibold text-brand-600 text-sm flex items-center gap-2">
+                <Folder className="h-4 w-4" />
+                文件夹
+              </h2>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto py-2">
               {folders.map(folder => (
                 <div
                   key={folder.id}
-                  className={`flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-gray-50 ${
-                    activeFolder === folder.id ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-500' : 'text-gray-700'
+                  className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-all ${
+                    activeFolder === folder.id
+                      ? 'bg-brand-fill text-brand-700 border-r-2 border-brand-600 mx-2 rounded-xl'
+                      : 'text-gray-700 hover:bg-gray-50 mx-2 rounded-xl'
                   }`}
                   onClick={() => setActiveFolder(folder.id)}
                 >
@@ -386,10 +391,10 @@ export default function Papers() {
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t">
+            <div className="p-4 border-t border-brand">
               <button
                 onClick={() => setShowCreateFolder(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-brand-300 rounded-xl text-sm text-brand-600 hover:bg-brand-50 transition-all"
               >
                 <FolderPlus className="h-4 w-4" />
                 新建文件夹
@@ -399,11 +404,18 @@ export default function Papers() {
         )}
         {sidebarCollapsed && (
           <div className="flex-1 flex flex-col items-center py-2 gap-1">
+            <button
+              onClick={() => setSidebarCollapsed(false)}
+              className="p-2 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg mb-2"
+              title="展开侧边栏"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
             {folders.map(folder => (
               <button
                 key={folder.id}
                 onClick={() => { setActiveFolder(folder.id); setSidebarCollapsed(false) }}
-                className={`p-2 rounded hover:bg-gray-100 ${activeFolder === folder.id ? 'bg-blue-100 text-blue-600' : 'text-gray-500'}`}
+                className={`p-2 rounded-lg transition-all ${activeFolder === folder.id ? 'bg-brand-fill text-brand-600' : 'text-gray-500 hover:bg-gray-100'}`}
                 title={folder.name}
               >
                 <Folder className="h-4 w-4" />
@@ -411,7 +423,7 @@ export default function Papers() {
             ))}
             <button
               onClick={() => setShowCreateFolder(true)}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+              className="p-2 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg mt-2"
               title="新建文件夹"
             >
               <FolderPlus className="h-4 w-4" />
@@ -425,11 +437,11 @@ export default function Papers() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold">论文管理</h1>
-            <div className="flex gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">论文管理</h1>
+            <div className="flex gap-3">
               <button
                 onClick={() => { loadPapers(); loadFolders(); }}
-                className="flex items-center px-4 py-2 border rounded-lg hover:bg-gray-50"
+                className="flex items-center px-4 py-2.5 bg-brand-gradient border border-brand rounded-xl hover:shadow-brand text-gray-700 transition-all"
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 刷新
@@ -438,7 +450,7 @@ export default function Papers() {
                 <button
                   onClick={handleBatchProcess}
                   disabled={queueState.current !== null}
-                  className="flex items-center px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+                  className="flex items-center px-4 py-2.5 bg-brand-button text-white rounded-xl hover:shadow-brand-lg disabled:opacity-50 transition-all"
                 >
                   {queueState.current !== null ? (
                     <>
@@ -453,7 +465,7 @@ export default function Papers() {
                   )}
                 </button>
               )}
-              <label className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg cursor-pointer hover:bg-blue-600">
+              <label className="flex items-center px-4 py-2.5 bg-brand-button text-white rounded-xl cursor-pointer hover:shadow-brand-lg transition-all">
                 <Upload className="h-4 w-4 mr-2" />
                 {uploading ? '上传中...' : '上传 PDF'}
                 <input
@@ -471,13 +483,13 @@ export default function Papers() {
 
           {/* Upload Results */}
           {uploadResults.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-medium mb-3">上传结果</h3>
+            <div className="bg-brand-gradient rounded-2xl shadow-brand p-4 border border-brand">
+              <h3 className="font-medium mb-3 text-brand-600">上传结果</h3>
               <div className="space-y-2">
                 {uploadResults.map((result, idx) => (
-                  <div key={idx} className={`flex items-start p-2 rounded ${result.success ? 'bg-green-50' : 'bg-red-50'}`}>
+                  <div key={idx} className={`flex items-start p-3 rounded-xl ${result.success ? 'bg-emerald-50' : 'bg-red-50'}`}>
                     {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-green-500 mr-2 mt-0.5" />
+                      <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 mt-0.5" />
                     ) : (
                       <XCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
                     )}
@@ -487,7 +499,7 @@ export default function Papers() {
                         <div className="text-sm text-gray-500">{result.title}</div>
                       )}
                       {result.message && (
-                        <div className={`text-sm ${result.status === 'processed' ? 'text-green-600' : result.status === 'pending' ? 'text-yellow-600' : 'text-gray-500'}`}>
+                        <div className={`text-sm ${result.status === 'processed' ? 'text-emerald-600' : result.status === 'pending' ? 'text-amber-600' : 'text-gray-500'}`}>
                           {result.message}
                         </div>
                       )}
@@ -503,23 +515,23 @@ export default function Papers() {
 
           {/* Queue Progress */}
           {(queueState.current !== null || queueState.completed > 0) && (
-            <div className="bg-white rounded-lg shadow p-4">
-              <h3 className="font-medium mb-3">
+            <div className="bg-brand-gradient rounded-2xl shadow-brand p-4 border border-brand">
+              <h3 className="font-medium mb-3 text-brand-600">
                 {queueState.current !== null ? '批量处理中...' : '批量处理完成'}
               </h3>
               <div className="flex items-center gap-4">
                 <div className="flex-1 bg-gray-200 rounded-full h-2.5">
                   <div
-                    className="bg-green-500 h-2.5 rounded-full transition-all"
+                    className="bg-brand-button h-2.5 rounded-full transition-all"
                     style={{ width: `${(queueState.completed + queueState.pending.length) > 0 ? (queueState.completed / (queueState.completed + queueState.pending.length)) * 100 : 0}%` }}
                   />
                 </div>
-                <span className="text-sm text-gray-600">
+                <span className="text-sm text-gray-600 font-medium">
                   {queueState.completed}/{queueState.completed + queueState.pending.length}
                 </span>
               </div>
               <div className="flex gap-4 mt-2 text-sm">
-                <span className="text-green-600">成功: {queueState.successful}</span>
+                <span className="text-emerald-600">成功: {queueState.successful}</span>
                 <span className="text-red-600">失败: {queueState.failed}</span>
                 {queueState.estimatedTime > 0 && queueState.current !== null && (
                   <span className="text-gray-500">
@@ -532,25 +544,25 @@ export default function Papers() {
 
           {/* Paper Table */}
           {papers.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-lg shadow">
-              <FileText className="h-12 w-12 mx-auto text-gray-400" />
-              <p className="mt-4 text-gray-500">暂无论文，上传 PDF 开始</p>
+            <div className="text-center py-12 bg-brand-gradient rounded-2xl shadow-brand border border-brand">
+              <FileText className="h-12 w-12 mx-auto text-brand-300" />
+              <p className="mt-4 text-brand-500">暂无论文，上传 PDF 开始</p>
             </div>
           ) : (
-            <div className="bg-white rounded-lg shadow overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="bg-brand-gradient rounded-2xl shadow-brand border border-brand overflow-hidden">
+              <table className="min-w-full divide-y divide-brand-100">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">标题</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">状态</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">节点数</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">根概念</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">操作</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">标题</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">状态</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">节点数</th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">根概念</th>
+                    <th className="px-6 py-4 text-right text-xs font-semibold text-brand-600 uppercase tracking-wider">操作</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="divide-y divide-brand-50">
                   {papers.map(paper => (
-                    <tr key={paper.doi} className="hover:bg-gray-50">
+                    <tr key={paper.doi} className="hover:bg-brand-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{paper.title}</div>
                         {paper.authors && paper.authors.length > 0 && (
@@ -560,7 +572,7 @@ export default function Papers() {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadge(paper.status)}`}>
+                        <span className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusBadge(paper.status)}`}>
                           {paper.status}
                         </span>
                       </td>
@@ -579,7 +591,7 @@ export default function Papers() {
                             <button
                               onClick={() => handleProcess(paper.doi)}
                               disabled={processing === paper.doi}
-                              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                              className="p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
                               title="处理论文"
                             >
                               {processing === paper.doi ? (
@@ -591,7 +603,7 @@ export default function Papers() {
                           )}
                           <button
                             onClick={() => handleDelete(paper.doi)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded"
+                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                             title="删除"
                           >
                             <Trash2 className="h-4 w-4" />
