@@ -22,8 +22,13 @@ type PanelState = 'idle' | 'scanning' | 'review' | 'executing' | 'result'
 
 interface ScanProgress {
   scanId: string | null
+  phase: 'prefiltering' | 'analyzing' | 'completed' | 'failed' | 'unknown'
   totalConcepts: number
   conceptsScanned: number
+  batchesTotal: number
+  batchesCompleted: number
+  filteredCount: number
+  highConfidenceCount: number
   progress: number
   estimatedTime: number
 }
@@ -43,8 +48,13 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
   const [error, setError] = useState<string | null>(null)
   const [scanProgress, setScanProgress] = useState<ScanProgress>({
     scanId: null,
+    phase: 'unknown',
     totalConcepts: 0,
     conceptsScanned: 0,
+    batchesTotal: 0,
+    batchesCompleted: 0,
+    filteredCount: 0,
+    highConfidenceCount: 0,
     progress: 0,
     estimatedTime: 0
   })
@@ -55,8 +65,13 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
     setError(null)
     setScanProgress({
       scanId: null,
+      phase: 'unknown',
       totalConcepts: 0,
       conceptsScanned: 0,
+      batchesTotal: 0,
+      batchesCompleted: 0,
+      filteredCount: 0,
+      highConfidenceCount: 0,
       progress: 0,
       estimatedTime: 0
     })
@@ -94,8 +109,13 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
 
         setScanProgress({
           scanId,
+          phase: data.phase || 'unknown',
           totalConcepts: data.total_concepts,
           conceptsScanned: data.concepts_scanned,
+          batchesTotal: data.batches_total || 0,
+          batchesCompleted: data.batches_completed || 0,
+          filteredCount: data.filtered_count || 0,
+          highConfidenceCount: data.high_confidence_count || 0,
           progress: data.progress,
           estimatedTime: data.estimated_time
         })
@@ -164,8 +184,13 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
     setError(null)
     setScanProgress({
       scanId: null,
+      phase: 'unknown',
       totalConcepts: 0,
       conceptsScanned: 0,
+      batchesTotal: 0,
+      batchesCompleted: 0,
+      filteredCount: 0,
+      highConfidenceCount: 0,
       progress: 0,
       estimatedTime: 0
     })
@@ -243,7 +268,18 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
         {panelState === 'scanning' && (
           <div className="text-center py-12">
             <RefreshCw className="w-12 h-12 text-blue-500 mx-auto mb-4 animate-spin" />
-            <p className="text-gray-600">正在扫描概念...</p>
+            {scanProgress.phase === 'prefiltering' ? (
+              <p className="text-gray-600">正在预筛选候选对...</p>
+            ) : (
+              <>
+                <p className="text-gray-600">正在分析候选对...</p>
+                {scanProgress.batchesTotal > 0 && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    批次: {scanProgress.batchesCompleted}/{scanProgress.batchesTotal}
+                  </p>
+                )}
+              </>
+            )}
             {scanProgress.totalConcepts > 0 && (
               <>
                 <p className="text-sm text-gray-500 mt-2">
@@ -260,6 +296,11 @@ export default function DedupPanel({ isOpen, onClose, folderId = 'default' }: De
                     style={{ width: `${scanProgress.progress}%` }}
                   />
                 </div>
+                {scanProgress.highConfidenceCount > 0 && (
+                  <p className="text-sm text-green-600 mt-2">
+                    {scanProgress.highConfidenceCount} 个高置信度自动合并
+                  </p>
+                )}
               </>
             )}
           </div>

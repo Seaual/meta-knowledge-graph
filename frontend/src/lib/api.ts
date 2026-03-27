@@ -68,8 +68,13 @@ interface DedupExecuteResponse {
 interface ScanStatusResponse {
   scan_id: string
   status: string
+  phase?: 'prefiltering' | 'analyzing' | 'completed' | 'failed'
   total_concepts: number
   concepts_scanned: number
+  batches_total?: number
+  batches_completed?: number
+  filtered_count?: number
+  high_confidence_count?: number
   progress: number
   estimated_time: number
   suggestions: MergeSuggestion[] | null
@@ -117,7 +122,7 @@ interface BatchProcessResponse {
 }
 
 interface BatchJobStatus {
-  id: string  // Database column is 'id', not 'job_id'
+  id: string
   status: string
   total: number
   completed: number
