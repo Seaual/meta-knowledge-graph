@@ -49,42 +49,50 @@ export default function Home() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
           <div className="flex items-center">
-            <FileText className="h-8 w-8 text-blue-500" />
+            <div className="h-11 w-11 bg-brand-button rounded-xl flex items-center justify-center">
+              <FileText className="h-5 w-5 text-white" />
+            </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">论文总数</p>
-              <p className="text-2xl font-bold">{stats?.papers?.total || 0}</p>
+              <p className="text-sm text-brand-500 font-medium">论文总数</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.papers?.total || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
           <div className="flex items-center">
-            <GitBranch className="h-8 w-8 text-green-500" />
+            <div className="h-11 w-11 bg-brand-button rounded-xl flex items-center justify-center">
+              <GitBranch className="h-5 w-5 text-white" />
+            </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">概念总数</p>
-              <p className="text-2xl font-bold">{stats?.concepts?.total || 0}</p>
+              <p className="text-sm text-brand-500 font-medium">概念总数</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.concepts?.total || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
           <div className="flex items-center">
-            <Network className="h-8 w-8 text-purple-500" />
+            <div className="h-11 w-11 bg-brand-button rounded-xl flex items-center justify-center">
+              <Network className="h-5 w-5 text-white" />
+            </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">层级关系</p>
-              <p className="text-2xl font-bold">{stats?.relations || 0}</p>
+              <p className="text-sm text-brand-500 font-medium">层级关系</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.relations || 0}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-brand-gradient rounded-2xl shadow-brand p-6 border border-brand">
           <div className="flex items-center">
-            <TrendingUp className="h-8 w-8 text-orange-500" />
+            <div className="h-11 w-11 bg-brand-button rounded-xl flex items-center justify-center">
+              <TrendingUp className="h-5 w-5 text-white" />
+            </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">根概念</p>
-              <p className="text-2xl font-bold">{stats?.root_concepts || 0}</p>
+              <p className="text-sm text-brand-500 font-medium">根概念</p>
+              <p className="text-2xl font-bold text-gray-900">{stats?.root_concepts || 0}</p>
             </div>
           </div>
         </div>
