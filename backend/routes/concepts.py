@@ -19,7 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
 from mkg.graph import KnowledgeGraph
-from mkg.pdf_parser import LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.pdf_parser import LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
 from mkg.dedup import ConceptDeduplicator
 from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
 
@@ -83,7 +83,7 @@ def get_extractor():
 
 
 def _create_client_from_config(config: dict):
-    """Create LLM client from database config"""
+    """Create LLM client from database config using LiteLLM"""
     provider = config.get('provider')
     api_key = config.get('api_key')
     base_url = config.get('base_url')
@@ -91,49 +91,24 @@ def _create_client_from_config(config: dict):
 
     if provider == 'claude_cli':
         return LLMConceptExtractor(ClaudeCLIClient())
-    elif provider == 'anthropic':
-        return LLMConceptExtractor(AnthropicClient(api_key, model=model or 'claude-sonnet-4-20250514', base_url=base_url))
-    elif provider == 'google':
-        return LLMConceptExtractor(GoogleClient(api_key))
-    else:
-        # OpenAI-compatible providers
-        default_urls = {
-            'openai': 'https://api.openai.com/v1',
-            'dashscope': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-            'openrouter': 'https://openrouter.ai/api/v1',
-            'minimax': 'https://api.minimax.chat/v1',
-            'deepseek': 'https://api.deepseek.com/v1',
-            'moonshot': 'https://api.moonshot.cn/v1',
-            'zhipu': 'https://open.bigmodel.cn/api/paas/v4',
-        }
-        default_models = {
-            'openai': 'gpt-4o-mini',
-            'dashscope': 'qwen-plus',
-            'openrouter': 'openai/gpt-4o-mini',
-            'minimax': 'abab6.5s-chat',
-            'deepseek': 'deepseek-chat',
-            'moonshot': 'moonshot-v1-8k',
-            'zhipu': 'glm-4-flash',
-        }
-        return LLMConceptExtractor(OpenAICompatibleClient(
-            api_key,
-            base_url=base_url or default_urls.get(provider),
-            model=model or default_models.get(provider)
-        ))
+
+    # 所有其他服务商通过 LiteLLM 统一处理
+    return LLMConceptExtractor(LiteLLMClient(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        base_url=base_url
+    ))
 
 
 def _create_client_from_env():
-    """Create LLM client from environment variables"""
-    api_key = os.getenv("ANTHROPIC_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("DASHSCOPE_API_KEY")
-    if not api_key:
-        return None
-    if os.getenv("ANTHROPIC_API_KEY"):
-        client = AnthropicClient(api_key)
-    elif os.getenv("GOOGLE_API_KEY"):
-        client = GoogleClient(api_key)
-    else:
-        client = OpenAICompatibleClient(api_key)
-    return LLMConceptExtractor(client)
+    """Create LLM client from environment variables using LiteLLM"""
+    # 检查各种 API Key 环境变量
+    for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
+        api_key = os.getenv(env_key)
+        if api_key:
+            return LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
+    return None
 
 
 def get_deduplicator():
@@ -656,7 +631,7 @@ async def run_dedup_scan_background(scan_id: str, folder_id: str = 'default'):
                                         "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                                         "confidence": s.confidence,
                                         "rationale": s.rationale,
-                                        "merged_relations": s.merged_relations
+                                        "merge_type": s.merge_type
                                     })
                     except Exception as e2:
                         print(f"Individual analysis also failed: {e2}")

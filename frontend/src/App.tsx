@@ -15,13 +15,13 @@ function App() {
             </Link>
             <nav className="flex gap-6">
               <Link to="/" className="text-gray-600 hover:text-gray-900">
-                首页
+                Home
               </Link>
               <Link to="/papers" className="text-gray-600 hover:text-gray-900">
-                论文
+                Papers
               </Link>
               <Link to="/concepts" className="text-gray-600 hover:text-gray-900">
-                概念
+                Concepts
               </Link>
             </nav>
           </div>

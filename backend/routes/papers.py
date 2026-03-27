@@ -17,7 +17,7 @@ import time
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
-from mkg.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient, ClaudeCLIClient
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
 from mkg.graph import KnowledgeGraph
 from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
 
@@ -96,7 +96,7 @@ def get_extractor():
 
 
 def _create_client_from_config(config: dict):
-    """Create LLM client from database config"""
+    """Create LLM client from database config using LiteLLM"""
     provider = config.get('provider')
     api_key = config.get('api_key')
     base_url = config.get('base_url')
@@ -104,45 +104,24 @@ def _create_client_from_config(config: dict):
 
     if provider == 'claude_cli':
         return LLMConceptExtractor(ClaudeCLIClient())
-    elif provider == 'anthropic':
-        return LLMConceptExtractor(AnthropicClient(api_key, model=model or 'claude-sonnet-4-20250514', base_url=base_url))
-    elif provider == 'google':
-        return LLMConceptExtractor(GoogleClient(api_key))
-    else:  # openai, dashscope, openrouter, minimax
-        default_urls = {
-            'dashscope': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-            'openrouter': 'https://openrouter.ai/api/v1',
-        }
-        return LLMConceptExtractor(OpenAICompatibleClient(
-            api_key,
-            base_url=base_url or default_urls.get(provider),
-            model=model
-        ))
+
+    # 所有其他服务商通过 LiteLLM 统一处理
+    return LLMConceptExtractor(LiteLLMClient(
+        provider=provider,
+        api_key=api_key,
+        model=model,
+        base_url=base_url
+    ))
 
 
 def _create_client_from_env():
-    """Create LLM client from environment variables"""
-    anthropic_token = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")
-    anthropic_base_url = os.getenv("ANTHROPIC_BASE_URL")
-    anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
-    openai_key = os.getenv("OPENAI_API_KEY")
-    openai_base_url = os.getenv("OPENAI_BASE_URL")
-    openai_model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
-    google_key = os.getenv("GOOGLE_API_KEY")
-    dashscope_key = os.getenv("DASHSCOPE_API_KEY")
-
-    if not anthropic_token and not openai_key and not google_key and not dashscope_key:
-        return None
-
-    if anthropic_token:
-        client = AnthropicClient(anthropic_token, model=anthropic_model, base_url=anthropic_base_url)
-    elif openai_key:
-        client = OpenAICompatibleClient(openai_key, base_url=openai_base_url, model=openai_model)
-    elif google_key:
-        client = GoogleClient(google_key)
-    else:
-        client = OpenAICompatibleClient(dashscope_key)
-    return LLMConceptExtractor(client)
+    """Create LLM client from environment variables using LiteLLM"""
+    # 检查各种 API Key 环境变量
+    for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
+        api_key = os.getenv(env_key)
+        if api_key:
+            return LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
+    return None
 
 
 @router.get("/", response_model=List[PaperResponse])

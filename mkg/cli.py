@@ -13,7 +13,7 @@ from rich.panel import Panel
 from rich.tree import Tree
 
 from mkg.database import Database
-from mkg.pdf_parser import PDFParser, LLMConceptExtractor, AnthropicClient, GoogleClient, OpenAICompatibleClient
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor, LiteLLMClient
 from mkg.graph import KnowledgeGraph
 from mkg.neo4j_graph import Neo4jGraph
 from mkg.obsidian_exporter import ObsidianExporter
@@ -57,35 +57,18 @@ def get_extractor() -> LLMConceptExtractor:
     """获取 LLM 概念提取器"""
     global _extractor
     if _extractor is None:
-        # 支持 Anthropic 兼容接口（如 DashScope）
-        anthropic_token = os.getenv("ANTHROPIC_API_KEY") or os.getenv("ANTHROPIC_AUTH_TOKEN")
-        anthropic_base_url = os.getenv("ANTHROPIC_BASE_URL")
-        anthropic_model = os.getenv("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        # 检查各种 API Key 环境变量
+        for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
+            api_key = os.getenv(env_key)
+            if api_key:
+                console.print(f"[green]使用 {provider.upper()} API[/green]")
+                _extractor = LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
+                return _extractor
 
-        google_key = os.getenv("GOOGLE_API_KEY")
-        dashscope_key = os.getenv("DASHSCOPE_API_KEY")
-
-        if not anthropic_token and not google_key and not dashscope_key:
-            console.print("[red]请配置 API Key:[/red]")
-            console.print("  ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN")
-            console.print("  GOOGLE_API_KEY")
-            console.print("  DASHSCOPE_API_KEY")
-            raise typer.Exit(1)
-
-        if anthropic_token:
-            client = AnthropicClient(anthropic_token, model=anthropic_model, base_url=anthropic_base_url)
-            if anthropic_base_url:
-                console.print(f"[green]使用 Anthropic 兼容 API ({anthropic_base_url})[/green]")
-            else:
-                console.print("[green]使用 Anthropic Claude API[/green]")
-        elif google_key:
-            client = GoogleClient(google_key)
-            console.print("[green]使用 Google Gemini API[/green]")
-        else:
-            client = OpenAICompatibleClient(dashscope_key)
-            console.print("[green]使用 OpenAI 兼容 API[/green]")
-
-        _extractor = LLMConceptExtractor(client)
+        console.print("[red]请配置 API Key:[/red]")
+        for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
+            console.print(f"  {env_key}")
+        raise typer.Exit(1)
     return _extractor
 
 

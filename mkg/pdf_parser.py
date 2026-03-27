@@ -1017,70 +1017,118 @@ class LLMClient:
         raise NotImplementedError
 
 
-class AnthropicClient(LLMClient):
-    """Anthropic Claude 客户端（支持自定义 base_url）"""
+class LiteLLMClient(LLMClient):
+    """统一 LLM 客户端，基于 LiteLLM 支持所有主流服务商
 
-    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514", base_url: str = None):
-        import anthropic
-        self.model = model
-        if base_url:
-            self.client = anthropic.Anthropic(api_key=api_key, base_url=base_url)
-        else:
-            self.client = anthropic.Anthropic(api_key=api_key)
+    支持的服务商：
+    - openai: gpt-4o, gpt-4o-mini, gpt-4-turbo
+    - anthropic: claude-sonnet-4-20250514, claude-3-5-sonnet
+    - deepseek: deepseek-chat, deepseek-coder, deepseek-reasoner
+    - minimax: abab6.5s-chat, abab6.5g-chat
+    - zhipu: glm-4, glm-4-flash, glm-4-plus
+    - moonshot: moonshot-v1-8k, moonshot-v1-32k
+    - dashscope (阿里云): qwen-max, qwen-plus, qwen-turbo
+    - openrouter: anthropic/claude-sonnet-4, openai/gpt-4o
+    - gemini: gemini-2.0-flash, gemini-1.5-pro
+    """
+
+    # 服务商环境变量映射
+    ENV_KEY_MAP = {
+        'openai': 'OPENAI_API_KEY',
+        'anthropic': 'ANTHROPIC_API_KEY',
+        'deepseek': 'DEEPSEEK_API_KEY',
+        'minimax': 'MINIMAX_API_KEY',
+        'zhipu': 'ZHIPU_API_KEY',
+        'moonshot': 'MOONSHOT_API_KEY',
+        'dashscope': 'DASHSCOPE_API_KEY',
+        'openrouter': 'OPENROUTER_API_KEY',
+        'gemini': 'GEMINI_API_KEY',
+        'custom': 'CUSTOM_API_KEY',
+    }
+
+    def __init__(self, provider: str, api_key: str = None, model: str = None, base_url: str = None):
+        """
+        Args:
+            provider: 服务商名称 (openai, deepseek, minimax, zhipu 等)
+            api_key: API 密钥（可选，也可通过环境变量设置）
+            model: 模型名称
+            base_url: 自定义 API 地址（可选，一般不需要）
+        """
+        self.provider = provider
+        self.model = model or self._get_default_model(provider)
+        self.api_key = api_key
+
+        # MiniMax 使用 Anthropic 兼容 API
+        if provider == 'minimax' and not base_url:
+            base_url = 'https://api.minimaxi.com/anthropic'
+        self.base_url = base_url
+
+        # 设置环境变量（LiteLLM 会自动读取）
+        if api_key:
+            env_key = self.ENV_KEY_MAP.get(provider, f'{provider.upper()}_API_KEY')
+            import os
+            os.environ[env_key] = api_key
+
+    def _get_default_model(self, provider: str) -> str:
+        """获取服务商的默认模型"""
+        defaults = {
+            'openai': 'gpt-5.4-mini',
+            'anthropic': 'claude-3.5-sonnet-20250514',
+            'deepseek': 'deepseek-v3.2',
+            'minimax': 'minimax-m2.7',
+            'zhipu': 'glm-5-turbo',
+            'moonshot': 'moonshot-v1-8k',
+            'dashscope': 'qwen3.5-plus',
+            'openrouter': 'openai/gpt-5.4-mini',
+            'gemini': 'gemini-3.1-flash',
+        }
+        return defaults.get(provider, 'gpt-5.4-mini')
+
+    def _get_litellm_model(self) -> str:
+        """转换为 LiteLLM 模型格式"""
+        # MiniMax 使用 Anthropic 兼容 API
+        if self.provider == 'minimax':
+            return f"anthropic/{self.model}"
+
+        # 自定义配置：根据 base_url 判断使用哪种格式
+        if self.provider == 'custom':
+            if self.base_url and 'anthropic' in self.base_url.lower():
+                return f"anthropic/{self.model}"
+            else:
+                # 默认使用 OpenAI 格式
+                return f"openai/{self.model}"
+
+        # LiteLLM 格式：provider/model
+        if '/' in self.model:
+            return self.model  # 已经是正确格式
+        return f"{self.provider}/{self.model}"
 
     def extract_concepts(self, prompt: str) -> str:
-        """使用 Claude 提取概念"""
-        response = self.client.messages.create(
-            model=self.model,
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return response.content[0].text
+        """使用 LiteLLM 提取概念"""
+        from litellm import completion
+        import os
 
-    def generate(self, prompt: str) -> str:
-        """生成响应"""
-        return self.extract_concepts(prompt)
+        model = self._get_litellm_model()
 
-
-class GoogleClient(LLMClient):
-    """Google AI Studio 客户端"""
-
-    def __init__(self, api_key: str):
-        import google.generativeai as genai
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel('gemini-2.0-flash')
-
-    def extract_concepts(self, prompt: str) -> str:
-        """使用 Gemini 提取概念"""
-        response = self.model.generate_content(prompt)
-        return response.text
-
-    def generate(self, prompt: str) -> str:
-        """生成响应"""
-        return self.extract_concepts(prompt)
-
-
-class OpenAICompatibleClient(LLMClient):
-    """OpenAI 兼容 API 客户端（支持 DashScope、DeepSeek 等）"""
-
-    def __init__(self, api_key: str, base_url: str = None, model: str = None):
-        from openai import OpenAI
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url=base_url or "https://dashscope.aliyuncs.com/compatible-mode/v1"
-        )
-        self.model = model or "qwen-plus"
-
-    def extract_concepts(self, prompt: str) -> str:
-        """使用 OpenAI 兼容 API 提取概念"""
-        response = self.client.chat.completions.create(
-            model=self.model,
-            messages=[
+        kwargs = {
+            "model": model,
+            "messages": [
                 {"role": "system", "content": "You are an academic knowledge graph builder. Extract concepts and their hierarchical relationships from research papers."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=4096
-        )
+            "max_tokens": 4096,
+        }
+
+        # 自定义 base_url（如代理或私有部署）
+        if self.base_url:
+            kwargs["api_base"] = self.base_url
+
+        # 自定义配置需要显式传递 api_key
+        if self.provider == 'custom':
+            if self.api_key:
+                kwargs["api_key"] = self.api_key
+
+        response = completion(**kwargs)
         return response.choices[0].message.content
 
     def generate(self, prompt: str) -> str:

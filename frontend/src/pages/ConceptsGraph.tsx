@@ -10,7 +10,7 @@ import DedupPanel from '../components/DedupPanel'
 interface Concept {
   id: string
   text: string
-  category: string | null
+  category: string | null | undefined
   paper_count: number
   parents?: Concept[]
   children?: Concept[]
@@ -20,9 +20,9 @@ interface Concept {
 interface Paper {
   doi: string
   title: string
-  authors: string[]
-  keywords: string[]
-  contributions: string[]
+  authors?: string[]
+  keywords?: string[]
+  contributions?: string[]
   abstract: string | null
   status: string
 }
