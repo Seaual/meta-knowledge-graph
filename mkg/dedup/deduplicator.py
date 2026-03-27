@@ -10,6 +10,7 @@ from typing import Dict, Optional, List
 from .candidate import CandidateGenerator
 from .analyzer import MergeAnalyzer
 from .executor import MergeExecutor
+from .floating_fixer import fix_floating_concepts
 
 
 _scan_results: Dict[str, dict] = {}
@@ -78,10 +79,6 @@ class ConceptDeduplicator:
             store_scan_result(scan_id, result)
             return result
 
-        # 注入 db 方法
-        self.merge_analyzer._get_parent_names = lambda cid: [p['id'] for p in self.db.get_concept_parents(cid)]
-        self.merge_analyzer._get_child_names = lambda cid: [c['id'] for c in self.db.get_concept_children(cid)]
-
         suggestions = self.merge_analyzer.analyze(candidates)
 
         merge_suggestions = []
@@ -96,7 +93,7 @@ class ConceptDeduplicator:
                 "target": {"id": target['id'], "text": target['text'], "paper_count": target.get('paper_count', 0)},
                 "confidence": s.confidence,
                 "rationale": s.rationale,
-                "merged_relations": s.merged_relations
+                "merge_type": s.merge_type
             })
 
         result = {"scan_id": scan_id, "status": "completed", "candidates_found": len(candidates),
@@ -124,8 +121,7 @@ class ConceptDeduplicator:
 
             result = self.merge_executor.execute(
                 source_id=suggestion['source']['id'],
-                target_id=suggestion['target']['id'],
-                merged_relations=suggestion['merged_relations']
+                target_id=suggestion['target']['id']
             )
 
             details.append({
@@ -138,4 +134,14 @@ class ConceptDeduplicator:
             if result.status == 'success':
                 executed += 1
 
-        return {"executed": executed, "details": details}
+        # 自动修复漂浮概念
+        floating_result = {'fixed': 0, 'details': []}
+        if executed > 0:
+            floating_result = fix_floating_concepts(self.db, self.llm_client)
+
+        return {
+            "executed": executed,
+            "details": details,
+            "floating_fixed": floating_result['fixed'],
+            "floating_details": floating_result.get('details', [])
+        }
