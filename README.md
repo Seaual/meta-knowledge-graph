@@ -94,7 +94,29 @@
 
 ## Quick Start
 
-### Docker (Recommended)
+### One-Click Deploy (Recommended)
+
+**Linux / Mac:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.sh | bash
+```
+
+**Windows:**
+```cmd
+curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.bat -o deploy.bat && deploy.bat
+```
+
+Or download and run:
+- Linux/Mac: `chmod +x deploy.sh && ./deploy.sh`
+- Windows: Double-click `deploy.bat`
+
+Open http://localhost:8088
+
+**Configure LLM**: Go to **Settings** page in the browser to configure your API Key (supports Claude, OpenAI, Gemini, Qwen, DeepSeek, etc.)
+
+> 💡 API Keys are saved locally in the database, no environment variables needed.
+
+### Docker Manual
 
 ```bash
 # Pull and run
@@ -102,14 +124,11 @@ docker pull danceinsophy/meta-knowledge-graph:latest
 docker run -d -p 8088:8088 \
   -v mkg-data:/app/data \
   -v mkg-papers:/app/papers \
+  --restart unless-stopped \
   danceinsophy/meta-knowledge-graph:latest
 ```
 
 Open http://localhost:8088
-
-**Configure LLM**: Go to **Settings** page in the browser to configure your API Key (supports Claude, OpenAI, Gemini, Qwen, DeepSeek, etc.)
-
-> 💡 API Keys are saved locally in the database, no environment variables needed.
 
 ### Docker Compose
 
