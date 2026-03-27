@@ -5,6 +5,7 @@
 import json
 import re
 import logging
+import sqlite3
 from typing import List, Dict, Optional
 
 logger = logging.getLogger("mkg.dedup")
@@ -23,8 +24,6 @@ def find_floating_concepts(db) -> List[Dict]:
     Returns:
         [{'id', 'text', 'category', 'paper_count', 'children': [...]}]
     """
-    import sqlite3
-
     conn = db.conn
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -73,8 +72,6 @@ def get_candidate_parents(db, category: str) -> List[Dict]:
     Returns:
         [{'id', 'text', 'category'}]
     """
-    import sqlite3
-
     conn = db.conn
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
@@ -186,13 +183,14 @@ def fix_floating_concepts(db, llm_client) -> Dict:
         if parent_id:
             parent = db.get_concept(parent_id)
             if parent:
-                # 执行修复
-                cursor = db.conn.cursor()
-                cursor.execute('''
-                    INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
-                    VALUES (?, ?)
-                ''', (parent_id, fc['id']))
-                db.conn.commit()
+                # 使用线程安全的方式执行写操作
+                with db._lock:
+                    cursor = db.conn.cursor()
+                    cursor.execute('''
+                        INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
+                        VALUES (?, ?)
+                    ''', (parent_id, fc['id']))
+                    db.conn.commit()
 
                 fixes.append({
                     'concept': fc['text'],
