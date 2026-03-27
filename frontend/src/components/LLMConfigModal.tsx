@@ -7,20 +7,29 @@ interface Props {
   onSave: () => void
 }
 
+interface Provider {
+  value: string
+  label: string
+  requires_api_key: boolean
+  default_base_url?: string
+  models: string[]
+}
+
 interface ProviderConfig {
   function_group?: string
   provider: string
   api_key?: string
   base_url?: string
   model?: string
+  custom_model?: string
   is_active: boolean
 }
 
 export default function LLMConfigModal({ onClose, onSave }: Props) {
   const [mode, setMode] = useState<'single' | 'per_function'>('single')
-  const [providers, setProviders] = useState<any[]>([])
+  const [providers, setProviders] = useState<Provider[]>([])
   const [_functionGroups, setFunctionGroups] = useState<any[]>([])
-  const [configs, setConfigs] = useState<ProviderConfig[]>([{ provider: 'openai', is_active: true }])
+  const [configs, setConfigs] = useState<ProviderConfig[]>([{ provider: 'claude_cli', is_active: true }])
   const [testing, setTesting] = useState(false)
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [saving, setSaving] = useState(false)
@@ -38,6 +47,8 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
 
   const currentProvider = providers.find(p => p.value === configs[0]?.provider)
   const requiresApiKey = currentProvider?.requires_api_key ?? true
+  const defaultBaseUrl = currentProvider?.default_base_url
+  const recommendedModels = currentProvider?.models || []
 
   const updateConfig = (index: number, field: string, value: any) => {
     setConfigs(prev => {
@@ -53,15 +64,18 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
     setTestResult(null)
     try {
       const config = configs[0]
+      // Handle custom model
+      const model = config.model === '__custom__' ? config.custom_model : config.model
       const res = await llmApi.test({
         provider: config.provider,
         api_key: config.api_key,
         base_url: config.base_url,
-        model: config.model,
+        model: model,
       })
       setTestResult({ success: true, message: res.data.message })
     } catch (err: any) {
-      setTestResult({ success: false, message: err.response?.data?.detail || '测试失败' })
+      const errorMsg = err.response?.data?.detail || '测试失败'
+      setTestResult({ success: false, message: errorMsg })
     } finally {
       setTesting(false)
     }
@@ -70,7 +84,14 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      await llmApi.saveConfig({ mode, providers: configs })
+      const config = configs[0]
+      // Handle custom model before saving
+      const saveConfig = { ...config }
+      if (saveConfig.model === '__custom__') {
+        saveConfig.model = saveConfig.custom_model
+        delete saveConfig.custom_model
+      }
+      await llmApi.saveConfig({ mode, providers: [saveConfig] })
       onSave()
     } catch (err) {
       alert('保存失败')
@@ -154,28 +175,63 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
           {/* Base URL */}
           {requiresApiKey && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Base URL（可选）</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Base URL <span className="text-gray-400 font-normal">（可选，留空使用默认）</span>
+              </label>
               <input
                 type="text"
                 value={configs[0]?.base_url || ''}
                 onChange={e => updateConfig(0, 'base_url', e.target.value)}
-                placeholder={currentProvider?.default_base_url || 'https://api.openai.com/v1'}
+                placeholder={defaultBaseUrl || '自动填充'}
                 className="w-full border rounded-lg px-3 py-2 text-sm"
               />
+              {defaultBaseUrl && !configs[0]?.base_url && (
+                <p className="text-xs text-gray-400 mt-1">默认: {defaultBaseUrl}</p>
+              )}
             </div>
           )}
 
           {/* Model */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">模型</label>
-            <input
-              type="text"
-              value={configs[0]?.model || ''}
-              onChange={e => updateConfig(0, 'model', e.target.value)}
-              placeholder="gpt-4, claude-sonnet-4-20250514, gemini-2.0-flash..."
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              模型 {recommendedModels.length > 0 && <span className="text-gray-400">（推荐）</span>}
+            </label>
+            {recommendedModels.length > 0 ? (
+              <select
+                value={configs[0]?.model || ''}
+                onChange={e => updateConfig(0, 'model', e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              >
+                <option value="">选择模型...</option>
+                {recommendedModels.map(m => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+                <option value="__custom__">自定义模型名称...</option>
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={configs[0]?.model || ''}
+                onChange={e => updateConfig(0, 'model', e.target.value)}
+                placeholder="claude-sonnet-4-20250514, gpt-4o..."
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            )}
           </div>
+
+          {/* Custom model input when "自定义" is selected */}
+          {configs[0]?.model === '__custom__' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">自定义模型名称</label>
+              <input
+                type="text"
+                value={configs[0]?.custom_model || ''}
+                onChange={e => updateConfig(0, 'custom_model', e.target.value)}
+                placeholder="输入模型名称"
+                className="w-full border rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+          )}
 
           {/* Test Result */}
           {testResult && (

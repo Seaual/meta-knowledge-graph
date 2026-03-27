@@ -29,15 +29,78 @@ def get_db():
     return _db
 
 
-# Available providers
+# Available providers with configuration hints
 PROVIDERS = [
-    {"value": "claude_cli", "label": "Claude Code CLI（Docker不可用）", "requires_api_key": False},
-    {"value": "openai", "label": "OpenAI 兼容接口", "requires_api_key": True, "default_base_url": "https://api.openai.com/v1"},
-    {"value": "anthropic", "label": "Anthropic Claude", "requires_api_key": True},
-    {"value": "google", "label": "Google Gemini", "requires_api_key": True},
-    {"value": "dashscope", "label": "阿里云 DashScope", "requires_api_key": True},
-    {"value": "openrouter", "label": "OpenRouter", "requires_api_key": True, "default_base_url": "https://openrouter.ai/api/v1"},
-    {"value": "minimax", "label": "MiniMax", "requires_api_key": True},
+    {
+        "value": "claude_cli",
+        "label": "Claude Code CLI（Docker不可用）",
+        "requires_api_key": False,
+        "default_base_url": None,
+        "models": []
+    },
+    {
+        "value": "openai",
+        "label": "OpenAI",
+        "requires_api_key": True,
+        "default_base_url": "https://api.openai.com/v1",
+        "models": ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-3.5-turbo"]
+    },
+    {
+        "value": "anthropic",
+        "label": "Anthropic Claude",
+        "requires_api_key": True,
+        "default_base_url": "https://api.anthropic.com",
+        "models": ["claude-sonnet-4-20250514", "claude-3-5-sonnet-20241022", "claude-3-haiku-20240307"]
+    },
+    {
+        "value": "google",
+        "label": "Google Gemini",
+        "requires_api_key": True,
+        "default_base_url": None,
+        "models": ["gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash"]
+    },
+    {
+        "value": "deepseek",
+        "label": "DeepSeek",
+        "requires_api_key": True,
+        "default_base_url": "https://api.deepseek.com/v1",
+        "models": ["deepseek-chat", "deepseek-coder", "deepseek-reasoner"]
+    },
+    {
+        "value": "dashscope",
+        "label": "阿里云 DashScope（通义千问）",
+        "requires_api_key": True,
+        "default_base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "models": ["qwen-max", "qwen-plus", "qwen-turbo", "qwen-long"]
+    },
+    {
+        "value": "minimax",
+        "label": "MiniMax",
+        "requires_api_key": True,
+        "default_base_url": "https://api.minimax.chat/v1",
+        "models": ["abab6.5s-chat", "abab6.5g-chat", "abab5.5-chat"]
+    },
+    {
+        "value": "openrouter",
+        "label": "OpenRouter",
+        "requires_api_key": True,
+        "default_base_url": "https://openrouter.ai/api/v1",
+        "models": ["anthropic/claude-sonnet-4", "openai/gpt-4o", "google/gemini-2.0-flash-exp"]
+    },
+    {
+        "value": "moonshot",
+        "label": "Moonshot（Kimi）",
+        "requires_api_key": True,
+        "default_base_url": "https://api.moonshot.cn/v1",
+        "models": ["moonshot-v1-8k", "moonshot-v1-32k", "moonshot-v1-128k"]
+    },
+    {
+        "value": "zhipu",
+        "label": "智谱 AI（GLM）",
+        "requires_api_key": True,
+        "default_base_url": "https://open.bigmodel.cn/api/paas/v4",
+        "models": ["glm-4", "glm-4-flash", "glm-4-plus"]
+    },
 ]
 
 FUNCTION_GROUPS = [
@@ -120,18 +183,29 @@ def test_connection(request: LLMTestRequest):
             result = client.extract_concepts("Say 'OK' if you can read this.")
             return LLMTestResponse(success=True, message="Google Gemini 连接成功", model="gemini")
 
-        elif request.provider in ("dashscope", "openrouter", "minimax"):
+        elif request.provider in ("dashscope", "openrouter", "minimax", "deepseek", "moonshot", "zhipu"):
             if not request.api_key:
                 raise HTTPException(status_code=400, detail="API Key 是必需的")
             base_urls = {
                 "dashscope": "https://dashscope.aliyuncs.com/compatible-mode/v1",
                 "openrouter": "https://openrouter.ai/api/v1",
-                "minimax": request.base_url
+                "minimax": "https://api.minimax.chat/v1",
+                "deepseek": "https://api.deepseek.com/v1",
+                "moonshot": "https://api.moonshot.cn/v1",
+                "zhipu": "https://open.bigmodel.cn/api/paas/v4",
+            }
+            default_models = {
+                "dashscope": "qwen-plus",
+                "openrouter": "openai/gpt-4o-mini",
+                "minimax": "abab6.5s-chat",
+                "deepseek": "deepseek-chat",
+                "moonshot": "moonshot-v1-8k",
+                "zhipu": "glm-4-flash",
             }
             client = OpenAICompatibleClient(
                 request.api_key,
-                base_url=base_urls.get(request.provider, request.base_url),
-                model=request.model or "qwen-plus"
+                base_url=request.base_url or base_urls.get(request.provider),
+                model=request.model or default_models.get(request.provider)
             )
             result = client.extract_concepts("Say 'OK' if you can read this.")
             return LLMTestResponse(success=True, message=f"{request.provider} 连接成功", model=request.model)

@@ -95,15 +95,30 @@ def _create_client_from_config(config: dict):
         return LLMConceptExtractor(AnthropicClient(api_key, model=model or 'claude-sonnet-4-20250514', base_url=base_url))
     elif provider == 'google':
         return LLMConceptExtractor(GoogleClient(api_key))
-    else:  # openai, dashscope, openrouter, minimax
+    else:
+        # OpenAI-compatible providers
         default_urls = {
+            'openai': 'https://api.openai.com/v1',
             'dashscope': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
             'openrouter': 'https://openrouter.ai/api/v1',
+            'minimax': 'https://api.minimax.chat/v1',
+            'deepseek': 'https://api.deepseek.com/v1',
+            'moonshot': 'https://api.moonshot.cn/v1',
+            'zhipu': 'https://open.bigmodel.cn/api/paas/v4',
+        }
+        default_models = {
+            'openai': 'gpt-4o-mini',
+            'dashscope': 'qwen-plus',
+            'openrouter': 'openai/gpt-4o-mini',
+            'minimax': 'abab6.5s-chat',
+            'deepseek': 'deepseek-chat',
+            'moonshot': 'moonshot-v1-8k',
+            'zhipu': 'glm-4-flash',
         }
         return LLMConceptExtractor(OpenAICompatibleClient(
             api_key,
             base_url=base_url or default_urls.get(provider),
-            model=model
+            model=model or default_models.get(provider)
         ))
 
 
