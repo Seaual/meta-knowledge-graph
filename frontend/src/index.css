@@ -9,7 +9,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #f8fafc;
+  /* 渐变背景 */
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
 }
 
 /* React Flow styles */
@@ -36,4 +37,24 @@ body {
 
 .react-flow__background {
   background-color: #f8fafc;
+}
+
+/* 品牌色渐变背景卡片 */
+.bg-brand-gradient {
+  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+}
+
+/* 品牌色填充渐变 */
+.bg-brand-fill {
+  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+}
+
+/* 品牌色按钮渐变 */
+.bg-brand-button {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+}
+
+/* 品牌色边框 */
+.border-brand {
+  border-color: rgba(99, 102, 241, 0.1);
 }
