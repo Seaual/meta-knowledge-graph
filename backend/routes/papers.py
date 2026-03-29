@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from mkg.database import Database
 from mkg.pdf_parser import PDFParser, LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
 from mkg.graph import KnowledgeGraph
+from mkg.semantic_scholar import SemanticScholarClient
 from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
 
 
@@ -124,6 +125,15 @@ def _create_client_from_env():
     return None
 
 
+def get_s2_client():
+    """获取 Semantic Scholar 客户端（如果已配置）"""
+    db = get_db()
+    config = db.get_s2_config()
+    if config and config.get('api_key') and config.get('enabled', True):
+        return SemanticScholarClient(config['api_key'])
+    return None
+
+
 @router.get("/", response_model=List[PaperResponse])
 def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
     """Get all papers or filter by status/folder"""
@@ -200,6 +210,14 @@ async def upload_paper(file: UploadFile = File(...), folder: str = Form("default
             'pdf_path': str(file_path),
         }
 
+    # Semantic Scholar 元数据增强
+    s2_client = get_s2_client()
+    if s2_client and paper_data.get('title'):
+        try:
+            paper_data = s2_client.enhance_paper_data(paper_data['title'], paper_data)
+        except Exception as e:
+            print(f"S2 enhancement failed: {e}")  # 静默失败
+
     doi = db.add_paper(paper_data)
 
     # Update paper with folder
@@ -266,6 +284,14 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
                     'authors': [],
                     'pdf_path': str(file_path),
                 }
+
+            # Semantic Scholar 元数据增强
+            s2_client = get_s2_client()
+            if s2_client and paper_data.get('title'):
+                try:
+                    paper_data = s2_client.enhance_paper_data(paper_data['title'], paper_data)
+                except Exception as e:
+                    print(f"S2 enhancement failed: {e}")  # 静默失败
 
             doi = db.add_paper(paper_data)
             uploaded.append({

@@ -338,7 +338,10 @@ class Database:
                 UPDATE papers SET
                     title = ?, abstract = ?, authors = ?,
                     keywords = ?, contributions = ?,
-                    pdf_path = ?, published_date = ?, updated_at = CURRENT_TIMESTAMP
+                    pdf_path = ?, published_date = ?,
+                    s2_paper_id = ?, venue = ?, year = ?,
+                    citation_count = ?, reference_count = ?, influential_citation_count = ?,
+                    open_access_pdf = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE doi = ?
             """, (
                 paper_data.get('title'),
@@ -348,6 +351,13 @@ class Database:
                 json.dumps(paper_data.get('contributions', [])),
                 paper_data.get('pdf_path'),
                 paper_data.get('published'),
+                paper_data.get('s2_paper_id'),
+                paper_data.get('venue'),
+                paper_data.get('year'),
+                paper_data.get('citation_count'),
+                paper_data.get('reference_count'),
+                paper_data.get('influential_citation_count'),
+                paper_data.get('open_access_pdf'),
                 paper_data.get('doi')
             ))
             doi = existing['doi']
@@ -355,8 +365,9 @@ class Database:
             # 插入
             doi = paper_data.get('doi', paper_data.get('arxiv_id'))
             cursor.execute("""
-                INSERT INTO papers (doi, arxiv_id, title, abstract, authors, keywords, contributions, pdf_path, published_date, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+                INSERT INTO papers (doi, arxiv_id, title, abstract, authors, keywords, contributions, pdf_path, published_date, status,
+                    s2_paper_id, venue, year, citation_count, reference_count, influential_citation_count, open_access_pdf)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
             """, (
                 doi,
                 paper_data.get('arxiv_id'),
@@ -366,7 +377,14 @@ class Database:
                 json.dumps(paper_data.get('keywords', [])),
                 json.dumps(paper_data.get('contributions', [])),
                 paper_data.get('pdf_path'),
-                paper_data.get('published')
+                paper_data.get('published'),
+                paper_data.get('s2_paper_id'),
+                paper_data.get('venue'),
+                paper_data.get('year'),
+                paper_data.get('citation_count'),
+                paper_data.get('reference_count'),
+                paper_data.get('influential_citation_count'),
+                paper_data.get('open_access_pdf')
             ))
 
         self.conn.commit()
