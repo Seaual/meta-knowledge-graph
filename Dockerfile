@@ -39,7 +39,7 @@ COPY mkg/ ./mkg/
 COPY --from=frontend-builder /app/frontend/dist ./frontend/dist
 
 # Copy demo database
-COPY data/mkg-demo.db /app/data/mkg-demo.db
+COPY data/mkg-demo.db /app/mkg-demo.db
 
 # Create data directories
 RUN mkdir -p /app/papers/pending /app/papers/processed /app/data

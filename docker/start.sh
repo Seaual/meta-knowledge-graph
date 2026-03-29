@@ -7,16 +7,16 @@ echo "Starting Meta Knowledge Graph..."
 mkdir -p /app/papers/pending /app/papers/processed /app/data
 
 # Initialize database - load demo if first run
-if [ ! -f /app/data/mkg.db ]; then
+if [ ! -f /app/mkg.db ]; then
     echo "Initializing database..."
-    if [ -f /app/data/mkg-demo.db ]; then
+    if [ -f /app/mkg-demo.db ]; then
         echo "Loading demo data..."
-        cp /app/data/mkg-demo.db /app/data/mkg.db
+        cp /app/mkg-demo.db /app/mkg.db
         echo "Demo database loaded (10 LLM papers with concept graph)"
     else
         python -c "
 from mkg.database import Database
-db = Database('/app/data/mkg.db')
+db = Database('/app/mkg.db')
 db.connect()
 print('Empty database initialized')
 db.close()
