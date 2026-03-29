@@ -459,8 +459,33 @@ export default function ConceptsGraph() {
           color = CATEGORY_COLORS[node.category || 'method'] || '#94A3B8'
         }
 
+        // Calculate opacity based on search and category filter
+        let opacity = 1
+        if (searchQuery) {
+          const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
+          opacity = matchesSearch ? 1 : 0.2
+        } else if (node.category && !selectedCategories.includes(node.category)) {
+          opacity = 0.15
+        }
+
+        // Highlighted node always visible
+        if (highlightedNodeId === node.id) {
+          opacity = 1
+        }
+
         const x = node.x || 0
         const y = node.y || 0
+
+        // Highlighted node glow effect
+        if (highlightedNodeId === node.id) {
+          ctx.beginPath()
+          ctx.arc(x, y, size + 8, 0, 2 * Math.PI)
+          ctx.fillStyle = 'rgba(255, 200, 0, 0.4)'
+          ctx.fill()
+        }
+
+        // Apply opacity for filter effect
+        ctx.globalAlpha = opacity
 
         // Draw outer circle
         ctx.beginPath()
@@ -520,6 +545,9 @@ export default function ConceptsGraph() {
           const label = node.name && node.name.length > 30 ? node.name.substring(0, 30) + '...' : (node.name || '')
           ctx.fillText(label, x, y + size + 4 / globalScale)
         }
+
+        // Reset opacity
+        ctx.globalAlpha = 1
       })
       .linkColor((link: any) => {
         const source = link.source
