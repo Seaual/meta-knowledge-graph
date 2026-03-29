@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { FileText, GitBranch, Network, TrendingUp, Settings } from 'lucide-react'
-import { graphApi, llmApi } from '../lib/api'
+import { FileText, GitBranch, Network, TrendingUp, Settings, Database } from 'lucide-react'
+import { graphApi, llmApi, s2Api } from '../lib/api'
 import LLMConfigModal from '../components/LLMConfigModal'
+import S2ConfigModal from '../components/S2ConfigModal'
 
 interface Stats {
   papers: { total: number; [key: string]: number }
@@ -16,6 +17,8 @@ export default function Home() {
   const [loading, setLoading] = useState(true)
   const [llmStatus, setLlmStatus] = useState<string>('')
   const [showLLMModal, setShowLLMModal] = useState(false)
+  const [s2Status, setS2Status] = useState<string>('')
+  const [showS2Modal, setShowS2Modal] = useState(false)
 
   useEffect(() => {
     graphApi.stats().then(res => {
@@ -34,6 +37,16 @@ export default function Home() {
         setLlmStatus('未配置')
       }
     }).catch(() => setLlmStatus('未配置'))
+  }, [])
+
+  useEffect(() => {
+    s2Api.getConfig().then(res => {
+      if (res.data.has_api_key) {
+        setS2Status(res.data.enabled ? '已启用' : '已禁用')
+      } else {
+        setS2Status('未配置')
+      }
+    }).catch(() => setS2Status('未配置'))
   }, [])
 
   if (loading) {
@@ -135,6 +148,19 @@ export default function Home() {
               <p className="text-sm text-brand-500">{llmStatus || '配置 AI 服务商'}</p>
             </div>
           </button>
+
+          <button
+            onClick={() => setShowS2Modal(true)}
+            className="flex items-center p-4 bg-brand-fill rounded-xl hover:shadow-brand transition-all text-left"
+          >
+            <div className="h-10 w-10 bg-brand-button rounded-lg flex items-center justify-center mr-3">
+              <Database className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <p className="font-medium text-brand-700">S2 配置</p>
+              <p className="text-sm text-brand-500">{s2Status || '配置元数据增强'}</p>
+            </div>
+          </button>
         </div>
       </div>
 
@@ -151,6 +177,23 @@ export default function Home() {
             }
           })
         }} />
+      )}
+
+      {/* S2 Config Modal */}
+      {showS2Modal && (
+        <S2ConfigModal
+          onClose={() => setShowS2Modal(false)}
+          onSave={() => {
+            setShowS2Modal(false)
+            s2Api.getConfig().then(res => {
+              if (res.data.has_api_key) {
+                setS2Status(res.data.enabled ? '已启用' : '已禁用')
+              } else {
+                setS2Status('未配置')
+              }
+            })
+          }}
+        />
       )}
 
       {/* Paper Status */}
