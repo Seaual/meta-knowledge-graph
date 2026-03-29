@@ -1,8 +1,8 @@
 import { X, FileUp, Brain, Network, Search, Settings } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 
 interface Props {
   onClose: () => void
+  onOpenLLMConfig: () => void
 }
 
 const FEATURES = [
@@ -28,9 +28,7 @@ const FEATURES = [
   }
 ]
 
-export default function OnboardingModal({ onClose }: Props) {
-  const navigate = useNavigate()
-
+export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
   const handleClose = () => {
     localStorage.setItem('mkg_onboarding_dismissed', 'true')
     onClose()
@@ -39,7 +37,7 @@ export default function OnboardingModal({ onClose }: Props) {
   const handleGoToSettings = () => {
     localStorage.setItem('mkg_onboarding_dismissed', 'true')
     onClose()
-    navigate('/settings')
+    onOpenLLMConfig()
   }
 
   return (

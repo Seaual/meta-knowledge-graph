@@ -208,7 +208,10 @@ export default function Home() {
 
       {/* Onboarding Modal */}
       {showOnboarding && (
-        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+        <OnboardingModal
+          onClose={() => setShowOnboarding(false)}
+          onOpenLLMConfig={() => setShowLLMModal(true)}
+        />
       )}
 
       {/* Paper Status */}
