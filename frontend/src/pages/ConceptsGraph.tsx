@@ -3,8 +3,9 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
 import { conceptsApi, graphApi, papersApi, exportApi, foldersApi } from '../lib/api'
-import { Download, ChevronDown, Folder } from 'lucide-react'
+import { Download, ChevronDown, Folder, Search } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
+import FilterPanel from '../components/FilterPanel'
 
 // Types
 interface Concept {
@@ -25,6 +26,12 @@ interface Paper {
   contributions?: string[]
   abstract: string | null
   status: string
+  s2_doi?: string
+  venue?: string
+  year?: number
+  citation_count?: number
+  tldr?: string
+  s2_fields_of_study?: string[]
 }
 
 interface GraphEdge {
@@ -132,6 +139,35 @@ export default function ConceptsGraph() {
   // Graph data
   const [graphNodes, setGraphNodes] = useState<GraphNode[]>([])
   const [graphLinks, setGraphLinks] = useState<{ source: string; target: string }[]>([])
+
+  // Filter panel state
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Concept[]>([])
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([
+    'field', 'direction', 'subdirection', 'task', 'method', 'technique'
+  ])
+  const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
+
+  // Filter handlers
+  const handleSearch = useCallback((query: string, results: Concept[]) => {
+    setSearchQuery(query)
+    setSearchResults(results)
+  }, [])
+
+  const handleCategoryChange = useCallback((categories: string[]) => {
+    setSelectedCategories(categories)
+  }, [])
+
+  const handleFocusNode = useCallback((nodeId: string) => {
+    const node = graphNodes.find(n => n.id === nodeId)
+    if (node && graphRef.current) {
+      graphRef.current.centerAt(node.x, node.y, 1000)
+      graphRef.current.zoom(2, 1000)
+      setHighlightedNodeId(nodeId)
+      setTimeout(() => setHighlightedNodeId(null), 2000)
+    }
+  }, [graphNodes])
 
   // Load folders
   const loadFolders = () => {
@@ -818,11 +854,51 @@ export default function ConceptsGraph() {
           </div>
 
           <div className="p-4 space-y-4">
-            {/* DOI */}
+            {/* DOI - 优先显示 s2_doi 作为超链接 */}
             <div>
               <div className="text-xs font-semibold text-brand-500 mb-1">DOI</div>
-              <div className="text-xs text-blue-500 break-all">{selectedPaper.doi}</div>
+              {selectedPaper.s2_doi ? (
+                <a
+                  href={`https://doi.org/${selectedPaper.s2_doi}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all"
+                >
+                  {selectedPaper.s2_doi}
+                </a>
+              ) : (
+                <div className="text-xs text-gray-500 break-all">{selectedPaper.doi}</div>
+              )}
             </div>
+
+            {/* Venue & Year */}
+            {(selectedPaper.venue || selectedPaper.year) && (
+              <div>
+                <div className="text-xs font-semibold text-brand-500 mb-1">期刊/会议</div>
+                <div className="text-sm text-gray-700">
+                  {selectedPaper.venue}
+                  {selectedPaper.year && <span className="text-gray-400">, {selectedPaper.year}</span>}
+                </div>
+              </div>
+            )}
+
+            {/* Citation Count */}
+            {selectedPaper.citation_count !== undefined && (
+              <div>
+                <div className="text-xs font-semibold text-brand-500 mb-1">引用数</div>
+                <div className="text-sm text-gray-700">{selectedPaper.citation_count}</div>
+              </div>
+            )}
+
+            {/* TLDR - S2 AI Summary */}
+            {selectedPaper.tldr && (
+              <div>
+                <div className="text-xs font-semibold text-emerald-600 mb-1">TLDR (AI 概要)</div>
+                <div className="text-sm text-emerald-700 italic bg-emerald-50 p-2 rounded">
+                  {selectedPaper.tldr}
+                </div>
+              </div>
+            )}
 
             {/* Authors */}
             {selectedPaper.authors && selectedPaper.authors.length > 0 && (
