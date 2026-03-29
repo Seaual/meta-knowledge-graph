@@ -4,6 +4,7 @@ import { FileText, GitBranch, Network, TrendingUp, Settings, Database } from 'lu
 import { graphApi, llmApi, s2Api } from '../lib/api'
 import LLMConfigModal from '../components/LLMConfigModal'
 import S2ConfigModal from '../components/S2ConfigModal'
+import OnboardingModal from '../components/OnboardingModal'
 
 interface Stats {
   papers: { total: number; [key: string]: number }
@@ -19,6 +20,7 @@ export default function Home() {
   const [showLLMModal, setShowLLMModal] = useState(false)
   const [s2Status, setS2Status] = useState<string>('')
   const [showS2Modal, setShowS2Modal] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     graphApi.stats().then(res => {
@@ -47,6 +49,14 @@ export default function Home() {
         setS2Status('未配置')
       }
     }).catch(() => setS2Status('未配置'))
+  }, [])
+
+  // Check first visit for onboarding
+  useEffect(() => {
+    const dismissed = localStorage.getItem('mkg_onboarding_dismissed')
+    if (!dismissed) {
+      setShowOnboarding(true)
+    }
   }, [])
 
   if (loading) {
@@ -194,6 +204,11 @@ export default function Home() {
             })
           }}
         />
+      )}
+
+      {/* Onboarding Modal */}
+      {showOnboarding && (
+        <OnboardingModal onClose={() => setShowOnboarding(false)} />
       )}
 
       {/* Paper Status */}
