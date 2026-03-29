@@ -210,6 +210,23 @@ interface FunctionGroup {
   label: string
 }
 
+// Semantic Scholar Configuration types
+interface S2ConfigResponse {
+  has_api_key: boolean
+  enabled: boolean
+  masked_key?: string
+}
+
+interface S2ConfigRequest {
+  api_key: string
+  enabled?: boolean
+}
+
+interface S2TestResponse {
+  success: boolean
+  message: string
+}
+
 // LLM API
 export const llmApi = {
   providers: () => api.get<{ providers: ProviderInfo[]; function_groups: FunctionGroup[] }>('/llm/providers'),
@@ -217,6 +234,14 @@ export const llmApi = {
   saveConfig: (config: LLMConfigResponse) => api.post<LLMConfigResponse>('/llm/config', config),
   test: (params: { provider: string; api_key?: string; base_url?: string; model?: string }) =>
     api.post<LLMTestResponse>('/llm/test', params),
+}
+
+// Semantic Scholar API
+export const s2Api = {
+  getConfig: () => api.get<S2ConfigResponse>('/s2/config'),
+  saveConfig: (data: S2ConfigRequest) => api.post<S2ConfigResponse>('/s2/config', data),
+  test: (apiKey: string) => api.post<S2TestResponse>('/s2/test', { api_key: apiKey }),
+  enhance: (doi: string) => api.post(`/s2/papers/${encodeURIComponent(doi)}/enhance`),
 }
 
 // Folder types
@@ -251,7 +276,7 @@ interface ProcessSingleResponse {
   concepts_count: number
 }
 
-export type { PaperContribution, ProcessSingleResponse, ScanStatusResponse }
+export type { PaperContribution, ProcessSingleResponse, ScanStatusResponse, S2ConfigResponse, S2ConfigRequest, S2TestResponse }
 
 // Folder API
 export const foldersApi = {
