@@ -133,9 +133,11 @@ class SemanticScholarClient:
         headers = {"x-api-key": api_key}
 
         try:
+            # 使用 paper details 端点测试，更可靠
+            # 使用一个已知的论文 ID 进行测试
             response = requests.get(
-                "https://api.semanticscholar.org/graph/v1/paper/search/bulk",
-                params={"query": "test", "limit": 1},
+                "https://api.semanticscholar.org/graph/v1/paper/649def34f8be52c8b66281af98ae884c09aef38b",
+                params={"fields": "title"},
                 headers=headers,
                 timeout=10
             )
