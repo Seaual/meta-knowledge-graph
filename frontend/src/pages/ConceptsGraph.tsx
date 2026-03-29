@@ -638,6 +638,19 @@ export default function ConceptsGraph() {
 
       {/* Action Buttons */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
+        {/* Filter Button */}
+        <button
+          onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+          className={`flex items-center gap-2 px-4 py-2.5 backdrop-blur rounded-xl shadow-brand text-sm font-medium transition-all border ${
+            filterPanelOpen
+              ? 'bg-brand-fill text-brand-700 border-brand'
+              : 'bg-brand-gradient text-brand-600 hover:shadow-brand-lg border-brand'
+          }`}
+        >
+          <Search className="h-4 w-4" />
+          筛选
+        </button>
+
         {/* Folder Selector */}
         <div className="relative">
           <button
@@ -1137,6 +1150,17 @@ export default function ConceptsGraph() {
 
       {/* Dedup Panel */}
       <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} folderId={activeFolder} />
+
+      {/* Filter Panel */}
+      {filterPanelOpen && (
+        <FilterPanel
+          concepts={concepts}
+          onClose={() => setFilterPanelOpen(false)}
+          onSearch={handleSearch}
+          onCategoryChange={handleCategoryChange}
+          onFocusNode={handleFocusNode}
+        />
+      )}
     </div>
   )
 }
