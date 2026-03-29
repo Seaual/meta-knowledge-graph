@@ -5,7 +5,89 @@ Semantic Scholar API 客户端
 import requests
 import time
 import json
+import re
 from typing import Optional, Dict, List
+
+
+def clean_title(title: str) -> str:
+    """
+    清洗论文标题，移除无关文本，提高搜索匹配率
+
+    处理：
+    1. 移除会议/期刊信息（如 "Published as a conference paper at ICLR 2024"）
+    2. 移除特殊 Unicode 字符（如连字符 ﬂ, ﬁ 等）
+    3. 移除页眉页脚信息
+    4. 保留核心标题部分
+    """
+    if not title:
+        return title
+
+    original_title = title
+
+    # Unicode 连字符映射
+    unicode_replacements = {
+        '\ufb00': 'ff',  # ﬀ
+        '\ufb01': 'fi',  # ﬁ
+        '\ufb02': 'fl',  # ﬂ
+        '\ufb03': 'ffi', # ﬃ
+        '\ufb04': 'ffl', # ﬄ
+        '\u2010': '-',   # ‐
+        '\u2011': '-',   # ‑
+        '\u2012': '-',   # ‒
+        '\u2013': '-',   # –
+        '\u2014': '-',   # —
+        '\u2015': '-',   # ―
+    }
+
+    for uni_char, replacement in unicode_replacements.items():
+        title = title.replace(uni_char, replacement)
+
+    # 尝试提取标题核心部分（通常是大写字母开头的部分或冒号后的部分）
+    # 策略：如果标题包含 "Published as a conference paper at XXX YEAR TITLE"，
+    # 尝试提取 TITLE 部分
+
+    # 模式1: "Published as a conference paper at VENUE YEAR TITLE"
+    match = re.search(r'Published as a conference paper at \w+ \d{4}\s+(.+)', title, re.IGNORECASE)
+    if match:
+        title = match.group(1).strip()
+    else:
+        # 模式2: "YEAR CONFERENCE NAME (ACRONYM) TITLE"
+        match = re.search(r'^\d{4}\s+[\w/]+\s+Conference[^)]+\)\s*(.+)', title, re.IGNORECASE)
+        if match:
+            title = match.group(1).strip()
+        else:
+            # 模式3: 移除开头的会议信息
+            patterns_to_remove_at_start = [
+                r'^Published as a conference paper at[^,]+,?\s*',
+                r'^Published in[^,]+,?\s*',
+                r'^Appears in[^,]+,?\s*',
+                r'^\d{4}\s+(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV)[^,]*,?\s*',
+                r'^(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV)\s+\d{4}[^,]*,?\s*',
+            ]
+
+            for pattern in patterns_to_remove_at_start:
+                title = re.sub(pattern, '', title, flags=re.IGNORECASE)
+
+    # 移除 arXiv 标识
+    title = re.sub(r'arXiv:\d+\.\d+(v\d+)?\s*', '', title)
+    title = re.sub(r'\[arXiv[^]]*\]\s*', '', title)
+
+    # 移除 DOI
+    title = re.sub(r'DOI:\s*[\d./]+\s*', '', title)
+
+    # 移除版权信息
+    title = re.sub(r'©\s*\d{4}[^,]*,?\s*', '', title)
+    title = re.sub(r'Copyright\s*[^,]+,?\s*', '', title)
+
+    # 清理多余空格
+    title = re.sub(r'\s+', ' ', title)
+    title = title.strip()
+
+    # 如果清洗后太短或为空，返回原标题（已处理Unicode）
+    if len(title) < 5:
+        return original_title
+
+    return title.strip()
 
 
 class SemanticScholarClient:
@@ -45,13 +127,16 @@ class SemanticScholarClient:
             - influentialCitationCount: 影响力引用数
             - openAccessPdf: 开放获取 PDF 信息
         """
-        if not title or len(title.strip()) < 3:
+        # 清洗标题
+        cleaned_title = clean_title(title)
+
+        if not cleaned_title or len(cleaned_title.strip()) < 3:
             return None
 
         self._wait_for_rate_limit()
 
         params = {
-            "query": title,
+            "query": cleaned_title,
             "fields": "paperId,title,abstract,authors,year,venue,citationCount,referenceCount,influentialCitationCount,openAccessPdf",
             "limit": 1
         }
