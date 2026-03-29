@@ -6,16 +6,24 @@ echo "Starting Meta Knowledge Graph..."
 # Create directories if they don't exist
 mkdir -p /app/papers/pending /app/papers/processed /app/data
 
-# Initialize database with WAL mode if it doesn't exist
-if [ ! -f /app/mkg.db ]; then
+# Initialize database - load demo if first run
+if [ ! -f /app/data/mkg.db ]; then
     echo "Initializing database..."
-    python -c "
+    if [ -f /app/data/mkg-demo.db ]; then
+        echo "Loading demo data..."
+        cp /app/data/mkg-demo.db /app/data/mkg.db
+        echo "Demo database loaded (10 LLM papers with concept graph)"
+    else
+        python -c "
 from mkg.database import Database
-db = Database('/app/mkg.db')
+db = Database('/app/data/mkg.db')
 db.connect()
-print('Database initialized with WAL mode')
+print('Empty database initialized')
 db.close()
 "
+    fi
+else
+    echo "Database exists, skipping initialization"
 fi
 
 # Start the backend (which also serves frontend in Docker mode)
