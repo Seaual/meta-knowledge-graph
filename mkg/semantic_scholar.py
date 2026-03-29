@@ -109,7 +109,7 @@ class SemanticScholarClient:
 
     def search_by_title(self, title: str) -> Optional[Dict]:
         """
-        用标题搜索论文，返回第一个匹配结果
+        用标题搜索论文，返回最佳匹配结果
 
         Args:
             title: 论文标题
@@ -138,7 +138,7 @@ class SemanticScholarClient:
         params = {
             "query": cleaned_title,
             "fields": "paperId,title,abstract,authors,year,venue,citationCount,referenceCount,influentialCitationCount,openAccessPdf",
-            "limit": 1
+            "limit": 5  # 获取多个结果，选择最佳匹配
         }
 
         try:
@@ -156,7 +156,32 @@ class SemanticScholarClient:
             if not data.get("data"):
                 return None
 
-            return data["data"][0]
+            results = data["data"]
+            if len(results) == 1:
+                return results[0]
+
+            # 多个结果时，选择标题最匹配的
+            # 使用简单的词重叠率来匹配
+            def title_similarity(s2_title: str) -> float:
+                """计算标题相似度"""
+                if not s2_title:
+                    return 0.0
+                # 提取关键词
+                query_words = set(cleaned_title.lower().split())
+                result_words = set(s2_title.lower().split())
+                # 移除常见停用词
+                stop_words = {'a', 'an', 'the', 'for', 'of', 'and', 'in', 'on', 'to', 'with', 'is', 'are'}
+                query_words -= stop_words
+                result_words -= stop_words
+                if not query_words:
+                    return 0.0
+                # 计算重叠率
+                overlap = len(query_words & result_words)
+                return overlap / len(query_words)
+
+            # 按相似度排序，选择最匹配的
+            best_match = max(results, key=lambda r: title_similarity(r.get('title', '')))
+            return best_match
 
         except Exception as e:
             print(f"Semantic Scholar API error: {e}")
