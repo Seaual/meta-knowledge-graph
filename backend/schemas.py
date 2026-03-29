@@ -230,3 +230,23 @@ class PaperWithContribution(PaperResponse):
     """带贡献信息的论文响应"""
     node_count: int = 0
     root_concept: Optional[str] = None
+
+
+# Semantic Scholar Configuration schemas
+class S2ConfigResponse(BaseModel):
+    """S2 配置响应"""
+    has_api_key: bool
+    enabled: bool
+    masked_key: Optional[str] = None  # 脱敏后的 API Key
+
+
+class S2ConfigRequest(BaseModel):
+    """S2 配置请求"""
+    api_key: str
+    enabled: bool = True
+
+
+class S2TestResponse(BaseModel):
+    """S2 连接测试响应"""
+    success: bool
+    message: str
