@@ -143,16 +143,14 @@ export default function ConceptsGraph() {
   // Filter panel state
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Concept[]>([])
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
     'field', 'direction', 'subdirection', 'task', 'method', 'technique'
   ])
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
 
   // Filter handlers
-  const handleSearch = useCallback((query: string, results: Concept[]) => {
+  const handleSearch = useCallback((query: string) => {
     setSearchQuery(query)
-    setSearchResults(results)
   }, [])
 
   const handleCategoryChange = useCallback((categories: string[]) => {

@@ -4,14 +4,14 @@ import { X, Search, RotateCcw } from 'lucide-react'
 interface Concept {
   id: string
   text: string
-  category: string | null
+  category: string | null | undefined
   paper_count: number
 }
 
 interface Props {
   concepts: Concept[]
   onClose: () => void
-  onSearch: (query: string, results: Concept[]) => void
+  onSearch: (query: string) => void
   onCategoryChange: (categories: string[]) => void
   onFocusNode: (nodeId: string) => void
 }
@@ -57,7 +57,7 @@ export default function FilterPanel({
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([])
-      onSearch('', [])
+      onSearch('')
       return
     }
 
@@ -67,7 +67,7 @@ export default function FilterPanel({
       .slice(0, 10)
 
     setSearchResults(results)
-    onSearch(searchQuery, results)
+    onSearch(searchQuery)
   }, [searchQuery, concepts, onSearch])
 
   // Category 变化通知
