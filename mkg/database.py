@@ -80,6 +80,13 @@ class Database:
                 pdf_path TEXT,
                 status TEXT DEFAULT 'pending',  -- pending/downloaded/processed/failed
                 error_message TEXT,
+                s2_paper_id TEXT,  -- Semantic Scholar 论文 ID
+                venue TEXT,  -- 期刊/会议
+                year INTEGER,  -- 发表年份
+                citation_count INTEGER,  -- 引用数
+                reference_count INTEGER,  -- 参考文献数
+                influential_citation_count INTEGER,  -- 影响力引用数
+                open_access_pdf TEXT,  -- 开放获取 PDF 信息 (JSON)
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
@@ -272,6 +279,47 @@ class Database:
             CREATE INDEX IF NOT EXISTS idx_paper_concepts
             ON paper_concepts(concept_id)
         """)
+
+        # Semantic Scholar 配置表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS s2_config (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                api_key TEXT,
+                enabled BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 迁移：为已存在的 papers 表添加新字段
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_paper_id TEXT")
+        except sqlite3.OperationalError:
+            pass  # 字段已存在
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN venue TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN year INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN citation_count INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN reference_count INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN influential_citation_count INTEGER")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN open_access_pdf TEXT")
+        except sqlite3.OperationalError:
+            pass
 
         self.conn.commit()
 
@@ -1321,6 +1369,28 @@ class Database:
         # 递归检查子概念
         for child_id in children:
             self._delete_orphaned_concept(child_id)
+
+    # ==================== Semantic Scholar Config ====================
+
+    def get_s2_config(self) -> Optional[Dict]:
+        """获取 Semantic Scholar 配置"""
+        cursor = self.execute_read("SELECT * FROM s2_config WHERE id = 1")
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        return None
+
+    def save_s2_config(self, api_key: str, enabled: bool = True) -> Dict:
+        """保存 Semantic Scholar 配置"""
+        cursor = self.execute_write("""
+            INSERT INTO s2_config (id, api_key, enabled, updated_at)
+            VALUES (1, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(id) DO UPDATE SET
+                api_key = excluded.api_key,
+                enabled = excluded.enabled,
+                updated_at = CURRENT_TIMESTAMP
+        """, (api_key, enabled))
+        return self.get_s2_config()
 
     # ========== 上下文管理器 ==========
 
