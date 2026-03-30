@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Loader2, Database } from 'lucide-react'
 import { s2Api } from '../lib/api'
+import { useTranslation } from '../i18n'
 
 interface Props {
   onClose: () => void
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function S2ConfigModal({ onClose, onSave }: Props) {
+  const { t } = useTranslation()
   const [apiKey, setApiKey] = useState('')
   const [enabled, setEnabled] = useState(true)
   const [hasKey, setHasKey] = useState(false)
@@ -34,7 +36,7 @@ export default function S2ConfigModal({ onClose, onSave }: Props) {
       const res = await s2Api.test(apiKey)
       setTestResult({ success: res.data.success, message: res.data.message })
     } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || '测试失败'
+      const errorMsg = err.response?.data?.detail || 'Test failed'
       setTestResult({ success: false, message: errorMsg })
     } finally {
       setTesting(false)
@@ -48,40 +50,45 @@ export default function S2ConfigModal({ onClose, onSave }: Props) {
       await s2Api.saveConfig({ api_key: apiKey, enabled })
       onSave()
     } catch (err) {
-      alert('保存失败')
+      alert('Save failed')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
+      <div className="modal-academic w-full max-w-md animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <div className="flex items-center gap-2">
-            <Database className="h-5 w-5 text-purple-600" />
-            <h2 className="text-lg font-semibold">Semantic Scholar 配置</h2>
+        <div className="flex items-center justify-between p-5 border-b border-academic">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-medium bg-gradient-amber flex items-center justify-center">
+              <Database className="w-5 h-5 text-vellum" />
+            </div>
+            <h2 className="font-display text-lg text-sepia font-medium">{t.modal.s2Config.title}</h2>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-5">
           {/* Status */}
           {hasKey && maskedKey && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700">
-              <Check className="inline h-4 w-4 mr-1" />
-              已配置 API Key: {maskedKey}
+            <div className="bg-status-success/5 border border-status-success/20 rounded-medium p-3 font-body text-sm text-status-success">
+              <Check className="inline h-4 h-4 mr-1" />
+              {t.modal.s2Config.configured}: {maskedKey}
             </div>
           )}
 
           {/* API Key */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              API Key {!hasKey && <span className="text-red-500">*</span>}
+            <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+              {t.modal.s2Config.apiKey} {!hasKey && <span className="text-status-error">*</span>}
             </label>
             <input
               type="password"
@@ -90,27 +97,27 @@ export default function S2ConfigModal({ onClose, onSave }: Props) {
                 setApiKey(e.target.value)
                 setTestResult(null)
               }}
-              placeholder={hasKey ? "输入新 Key 更换" : "输入 Semantic Scholar API Key"}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
+              placeholder={hasKey ? t.modal.s2Config.enterNew : t.modal.s2Config.apiKeyPlaceholder}
+              className="input-academic w-full"
             />
-            <p className="text-xs text-gray-500 mt-1">
-              申请地址: <a href="https://www.semanticscholar.org/product/api" target="_blank" className="text-purple-600 hover:underline">Semantic Scholar API</a>
+            <p className="font-body text-xs text-faint mt-1">
+              {t.modal.s2Config.apiKeyHint}: <a href="https://www.semanticscholar.org/product/api" target="_blank" className="text-status-info hover:text-sepia hover:underline">Semantic Scholar API</a>
             </p>
           </div>
 
           {/* Enable Switch */}
-          <div className="flex items-center justify-between">
-            <label className="text-sm font-medium text-gray-700">
-              启用自动增强
+          <div className="flex items-center justify-between py-2">
+            <label className="font-body text-sm text-sepia">
+              {t.modal.s2Config.enableAuto}
             </label>
             <button
               onClick={() => setEnabled(!enabled)}
               className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                enabled ? 'bg-purple-600' : 'bg-gray-200'
+                enabled ? 'bg-sepia' : 'bg-paper'
               }`}
             >
               <span
-                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                className={`inline-block h-4 w-4 transform rounded-full bg-vellum shadow-paper transition-transform ${
                   enabled ? 'translate-x-6' : 'translate-x-1'
                 }`}
               />
@@ -119,30 +126,34 @@ export default function S2ConfigModal({ onClose, onSave }: Props) {
 
           {/* Test Result */}
           {testResult && (
-            <div className={`rounded-lg p-3 text-sm ${
-              testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
-            }`}>
+            <div
+              className={`rounded-medium p-3 font-body text-sm ${
+                testResult.success
+                  ? 'bg-status-success/5 border border-status-success/20 text-status-success'
+                  : 'bg-status-error/5 border border-status-error/20 text-status-error'
+              }`}
+            >
               {testResult.message}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 p-4 border-t bg-gray-50">
+        <div className="flex gap-3 p-5 border-t border-academic bg-paper/50">
           <button
             onClick={handleTest}
             disabled={testing || !apiKey}
-            className="flex-1 py-2 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+            className="btn-secondary flex-1 flex items-center justify-center gap-2"
           >
-            {testing ? <Loader2 className="inline h-4 w-4 animate-spin mr-1" /> : null}
-            测试连接
+            {testing && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t.modal.test}
           </button>
           <button
             onClick={handleSave}
             disabled={saving || (!apiKey && !hasKey)}
-            className="flex-1 py-2 px-4 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+            className="btn-primary flex-1"
           >
-            {saving ? '保存中...' : '保存配置'}
+            {saving ? t.modal.llmConfig.saving : t.modal.save}
           </button>
         </div>
       </div>

@@ -37,6 +37,19 @@
 
 ---
 
+## What's New in v2.0
+
+| Feature | Description |
+|---------|-------------|
+| 🎨 **Academic Light Theme** | Warm cream/sepia color palette with elegant typography (Playfair Display + Source Sans) |
+| 🌐 **Bilingual Support** | Full Chinese/English UI with automatic language detection |
+| 📚 **Semantic Scholar Integration** | Auto-enhance paper metadata (DOI, citations, venue, authors) |
+| 🔍 **Graph Search & Filter** | Search concepts by name, filter by category with visual highlighting |
+| 📊 **Category-based Node Sizes** | Node sizes decrease by hierarchy (field → direction → ... → technique) |
+| 🎓 **Onboarding Tutorial** | First-time user guide with demo data (10 classic LLM papers) |
+
+---
+
 ## Demo
 
 ### Knowledge Graph Interaction
@@ -59,12 +72,14 @@
 |---------|-------------|
 | 📄 **PDF Parsing** | Extract title, authors, abstract automatically |
 | 🧠 **Two-Stage Extraction** | Stage 1: Paper understanding → Stage 2: Core concept extraction |
-| 📊 **Visualization** | Obsidian/Neo4j-style force-directed graph |
+| 📊 **Visualization** | Obsidian/Neo4j-style force-directed graph with category-based node sizes |
 | 🔍 **Research Discovery** | Four methodologies: gap filling, leaf extension, bottleneck, transfer |
 | 🔄 **Smart Deduplication** | Three merge types: synonym, absorption, translation |
 | 📤 **Multi-format Export** | HTML, Obsidian Canvas, Markdown |
 | 📁 **Folder Management** | Collapsible sidebar for paper organization |
 | ⚡ **Queue Processing** | Sequential batch processing with time estimation |
+| 🌐 **Bilingual UI** | Full Chinese/English support with auto-detection |
+| 📚 **S2 Enhancement** | Auto-fetch metadata from Semantic Scholar API |
 | 🐳 **Docker Ready** | One-command deployment with Docker Hub image |
 
 ---
@@ -81,14 +96,14 @@
 │                  Backend                         │
 │      FastAPI + SQLite + PyMuPDF                  │
 └─────────────────────┬───────────────────────────┘
-                      │ LLM API
+                      │ LLM API / S2 API
 ┌─────────────────────▼───────────────────────────┐
-│                 LLM Layer                        │
-│      Claude / Gemini / Qwen / DeepSeek           │
+│              External Services                   │
+│   LLM: Claude/Gemini/Qwen   S2: Metadata API    │
 └─────────────────────────────────────────────────┘
 ```
 
-**Data Flow:** `PDF → LLM Extract (Two-Stage) → Knowledge Graph → Export`
+**Data Flow:** `PDF → S2 Enhancement → LLM Extract (Two-Stage) → Knowledge Graph → Export`
 
 ---
 
@@ -163,7 +178,7 @@ python -m uvicorn backend.main:app --port 8088 --reload &
 cd frontend && npm run dev
 ```
 
-Open http://localhost:8088 and configure your API Key in **Settings** page.
+Open http://localhost:5173 and configure your API Key in **Settings** page.
 
 </details>
 
@@ -196,14 +211,14 @@ Stage 2: Concept Extraction
 
 ### Concept Hierarchy
 
-| Category | Description | Example |
-|----------|-------------|---------|
-| field | Major domain | Artificial Intelligence |
-| direction | Research direction | Multi-Agent RL |
-| subdirection | Sub-direction | Value Decomposition |
-| task | Research task | Credit Assignment |
-| method | Algorithm | QMIX |
-| technique | Technical detail | Attention-weighted mixing |
+| Category | Description | Example | Node Size |
+|----------|-------------|---------|-----------|
+| field | Major domain | Artificial Intelligence | Largest |
+| direction | Research direction | Multi-Agent RL | Large |
+| subdirection | Sub-direction | Value Decomposition | Medium |
+| task | Research task | Credit Assignment | Small |
+| method | Algorithm | QMIX | Smaller |
+| technique | Technical detail | Attention-weighted mixing | Smallest |
 
 ---
 
@@ -212,7 +227,7 @@ Stage 2: Concept Extraction
 ### Upload Papers
 1. Go to **Papers** page
 2. Click upload button, select PDF files (batch supported)
-3. Papers appear in **Pending** list
+3. Papers appear in **Pending** list with auto-enhanced metadata from Semantic Scholar
 
 ### Process Papers
 1. Click **Process** or **Batch Process**
@@ -222,7 +237,8 @@ Stage 2: Concept Extraction
 ### Explore Graph
 1. Go to **Concepts** page
 2. Drag nodes, scroll to zoom
-3. Click concept for details
+3. Use search box to find concepts, filter by category
+4. Click concept for details
 
 ### Discover Research Points
 1. Click a concept node
@@ -263,6 +279,8 @@ Stage 2: Concept Extraction
 
 **LLM:** Claude / Gemini / Qwen / DeepSeek / OpenRouter
 
+**External APIs:** Semantic Scholar (paper metadata enhancement)
+
 ---
 
 ## Project Structure
@@ -276,13 +294,16 @@ meta-knowledge-graph/
 ├── frontend/          # React frontend
 │   └── src/
 │       ├── pages/     # Page components
-│       └── components/
+│       ├── components/
+│       └── i18n/      # Internationalization (zh/en)
 ├── mkg/               # Core library
 │   ├── database.py    # Database operations
 │   ├── graph.py       # Graph operations
 │   ├── pdf_parser.py  # PDF parsing & LLM extraction
+│   ├── semantic_scholar.py  # S2 API client
 │   └── dedup/         # Deduplication module
 ├── papers/            # Paper storage
+├── scripts/           # Utility scripts (demo data, etc.)
 ├── icon/              # Project icons
 └── PROMPT_GUIDE.md    # Prompt engineering guide
 ```
@@ -298,6 +319,7 @@ Access http://localhost:8088/docs after starting
 | `/api/papers/upload` | POST | Upload PDF |
 | `/api/papers/batch-upload` | POST | Batch upload |
 | `/api/papers/batch-process` | POST | Batch process |
+| `/api/s2/papers/{doi}/enhance` | POST | Enhance metadata from S2 |
 | `/api/concepts/` | GET | Get all concepts |
 | `/api/concepts/{id}/research-points` | GET | Discover research points |
 | `/api/concepts/dedup/scan` | POST | Scan duplicates |
@@ -313,6 +335,10 @@ Access http://localhost:8088/docs after starting
 - [x] Batch processing
 - [x] Two-stage concept extraction
 - [x] Research point discovery methodologies
+- [x] Academic light theme UI
+- [x] Bilingual support (Chinese/English)
+- [x] Semantic Scholar metadata enhancement
+- [x] Graph search and filter
 - [ ] Collaboration features
 - [ ] Neo4j support
 

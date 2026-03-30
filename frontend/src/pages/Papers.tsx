@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
 import { papersApi, foldersApi } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
+import { useTranslation } from '../i18n'
 
 interface Paper {
   doi: string
@@ -10,6 +11,12 @@ interface Paper {
   authors: string[]
   status: string
   created_at: string
+  s2_doi?: string
+  venue?: string
+  year?: number
+  citation_count?: number
+  tldr?: string
+  s2_fields_of_study?: string[]
 }
 
 interface FolderItem {
@@ -44,6 +51,7 @@ interface QueueState {
 }
 
 export default function Papers() {
+  const { t } = useTranslation()
   const [papers, setPapers] = useState<Paper[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -111,12 +119,10 @@ export default function Papers() {
   useEffect(() => {
     if (uploadResults.length === 0) return
 
-    // Clear old timer
     if (uploadTimerRef.current) {
       clearTimeout(uploadTimerRef.current)
     }
 
-    // Set new timer
     uploadTimerRef.current = setTimeout(() => {
       setUploadResults([])
       uploadTimerRef.current = null
@@ -149,7 +155,7 @@ export default function Papers() {
           message: res.data.message
         })
       } catch (err: any) {
-        const errorMsg = err.response?.data?.detail || err.message || '上传失败'
+        const errorMsg = err.response?.data?.detail || err.message || 'Upload failed'
         results.push({
           filename: file.name,
           success: false,
@@ -171,21 +177,19 @@ export default function Papers() {
   const handleBatchProcess = async () => {
     const pendingPapers = papers.filter(p => p.status === 'pending')
     if (pendingPapers.length === 0) {
-      alert('没有待处理的论文')
+      alert(t.papers.noPapers)
       return
     }
 
-    // Check if already processing
     if (queueState.current !== null) {
-      alert('已有批量处理任务进行中，请等待完成')
+      alert(t.papers.batchProcessing)
       return
     }
 
-    if (!confirm(`确定要处理 ${pendingPapers.length} 篇论文？\n这将按顺序逐个处理，显示实时进度。`)) {
+    if (!confirm(`${t.papers.batchProcess} ${pendingPapers.length} papers?`)) {
       return
     }
 
-    // Initialize queue
     const dois = pendingPapers.map(p => p.doi)
     setQueueState({
       pending: dois,
@@ -198,7 +202,6 @@ export default function Papers() {
       durations: []
     })
 
-    // Process sequentially
     const newDurations: number[] = []
     let successful = 0
     let failed = 0
@@ -220,7 +223,6 @@ export default function Papers() {
         const res = await papersApi.processSingle(doi)
         const duration = res.data.duration
 
-        // Limit durations array
         if (newDurations.length >= MAX_DURATIONS) {
           newDurations.shift()
         }
@@ -236,7 +238,6 @@ export default function Papers() {
         console.error(`Failed to process ${doi}:`, err)
       }
 
-      // Update progress
       const avgTime = newDurations.length > 0
         ? newDurations.reduce((a, b) => a + b, 0) / newDurations.length
         : 0
@@ -253,7 +254,6 @@ export default function Papers() {
       }))
     }
 
-    // Finish
     setQueueState(prev => ({
       ...prev,
       current: null
@@ -273,20 +273,20 @@ export default function Papers() {
         alert(res.data.message)
       }
     } catch (err: any) {
-      alert(err.response?.data?.detail || '处理失败')
+      alert(err.response?.data?.detail || 'Processing failed')
     } finally {
       setProcessing(null)
     }
   }
 
   const handleDelete = async (doi: string) => {
-    if (!confirm('确定删除这篇论文？相关概念也会被删除。')) return
+    if (!confirm(`${t.common.delete}?`)) return
     try {
       await papersApi.delete(doi)
       loadPapers()
       loadFolders()
     } catch {
-      alert('删除失败')
+      alert('Delete failed')
     }
   }
 
@@ -296,196 +296,213 @@ export default function Papers() {
       loadFolders()
       setShowCreateFolder(false)
     } catch {
-      alert('创建失败')
+      alert('Create failed')
     }
   }
 
   const handleDeleteFolder = async (folderId: string) => {
-    if (!confirm('确定删除此文件夹？文件夹中的论文和图谱将被永久删除！')) return
+    if (!confirm(`${t.common.delete}?`)) return
     try {
       await foldersApi.delete(folderId)
       if (activeFolder === folderId) setActiveFolder('')
       loadFolders()
       loadPapers()
     } catch {
-      alert('删除失败')
+      alert('Delete failed')
     }
   }
 
-  const getStatusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      pending: 'bg-amber-100 text-amber-700',
-      downloaded: 'bg-blue-100 text-blue-700',
-      processed: 'bg-emerald-100 text-emerald-700',
-      failed: 'bg-red-100 text-red-700',
+  const getStatusBadgeClass = (status: string) => {
+    const classes: Record<string, string> = {
+      pending: 'badge-pending',
+      downloaded: 'badge-processing',
+      processed: 'badge-success',
+      failed: 'badge-error',
     }
-    return colors[status] || 'bg-gray-100 text-gray-700'
+    return classes[status] || 'badge-processing'
   }
 
   const formatTime = (seconds: number): string => {
-    if (seconds < 60) return `${seconds}秒`
+    if (seconds < 60) return `${seconds}s`
     const minutes = Math.floor(seconds / 60)
     const secs = seconds % 60
-    if (minutes < 60) return `${minutes}分${secs > 0 ? secs + '秒' : ''}`
+    if (minutes < 60) return `${minutes}m${secs > 0 ? secs + 's' : ''}`
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    return `${hours}小时${mins > 0 ? mins + '分' : ''}`
+    return `${hours}h${mins > 0 ? mins + 'm' : ''}`
   }
 
   if (loading) {
-    return <div className="text-center py-12">加载中...</div>
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="loading-academic">
+          {t.common.loading}
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="flex h-[calc(100vh-80px)]">
-      {/* Folder Sidebar */}
-      <div className={`bg-brand-gradient flex flex-col transition-all duration-300 border-r border-brand ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
-        {/* Collapse Toggle Button */}
-        <div className="p-2 border-b border-brand flex justify-end">
+    <div className="flex h-[calc(100vh-64px)]">
+      {/* Sidebar - Academic Style */}
+      <div className={`sidebar-academic flex flex-col transition-all duration-300 ${sidebarCollapsed ? 'w-12' : 'w-64'}`}>
+        {/* Collapse Toggle */}
+        <div className="p-2 border-b border-academic flex justify-end">
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className="p-1.5 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg"
-            title={sidebarCollapsed ? '展开侧边栏' : '收起侧边栏'}
+            className="w-7 h-7 rounded-soft text-muted hover:text-sepia hover:bg-vellum transition-all flex items-center justify-center"
+            title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {sidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="w-4 h-4" />
             ) : (
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="w-4 h-4" />
             )}
           </button>
         </div>
+
         {!sidebarCollapsed && (
           <>
-            <div className="px-4 py-3 border-b border-brand">
-              <h2 className="font-semibold text-brand-600 text-sm flex items-center gap-2">
-                <Folder className="h-4 w-4" />
-                文件夹
+            <div className="px-4 py-3 border-b border-academic">
+              <h2 className="font-mono text-xs text-muted uppercase tracking-wider flex items-center gap-2">
+                <Folder className="w-4 h-4" />
+                {t.papers.collections}
               </h2>
             </div>
+
             <div className="flex-1 overflow-y-auto py-2">
-              {/* 全部选项 */}
+              {/* All papers option */}
               <div
-                className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-all ${
-                  activeFolder === ''
-                    ? 'bg-brand-fill text-brand-700 border-r-2 border-brand-600 mx-2 rounded-xl'
-                    : 'text-gray-700 hover:bg-gray-50 mx-2 rounded-xl'
+                className={`sidebar-item flex items-center justify-between ${
+                  activeFolder === '' ? 'active' : ''
                 }`}
                 onClick={() => setActiveFolder('')}
               >
                 <div className="flex items-center gap-2">
-                  <Folder className="h-4 w-4" />
-                  <span className="text-sm">全部</span>
+                  <Folder className="w-4 h-4" />
+                  <span className="font-body text-sm">{t.papers.allPapers}</span>
                 </div>
-                <span className="text-xs text-gray-400">
+                <span className="font-mono text-xs text-faint">
                   {folders.reduce((sum, f) => sum + f.paper_count, 0)}
                 </span>
               </div>
+
               {folders.map(folder => (
                 <div
                   key={folder.id}
-                  className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-all ${
-                    activeFolder === folder.id
-                      ? 'bg-brand-fill text-brand-700 border-r-2 border-brand-600 mx-2 rounded-xl'
-                      : 'text-gray-700 hover:bg-gray-50 mx-2 rounded-xl'
+                  className={`sidebar-item flex items-center justify-between ${
+                    activeFolder === folder.id ? 'active' : ''
                   }`}
                   onClick={() => setActiveFolder(folder.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <Folder className="h-4 w-4" />
-                    <span className="text-sm">{folder.name}</span>
+                    <Folder className="w-4 h-4" />
+                    <span className="font-body text-sm">{folder.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">{folder.paper_count}</span>
+                    <span className="font-mono text-xs text-faint">{folder.paper_count}</span>
                     {folder.id !== 'default' && (
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id) }}
-                        className="text-gray-400 hover:text-red-500"
+                        className="w-5 h-5 rounded-soft text-faint hover:text-status-error hover:bg-red-50 flex items-center justify-center"
                       >
-                        <Trash2 className="h-3 w-3" />
+                        <Trash2 className="w-3 h-3" />
                       </button>
                     )}
                   </div>
                 </div>
               ))}
             </div>
-            <div className="p-4 border-t border-brand">
+
+            <div className="p-4 border-t border-academic">
               <button
                 onClick={() => setShowCreateFolder(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-brand-300 rounded-xl text-sm text-brand-600 hover:bg-brand-50 transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-academic rounded-medium font-body text-sm text-muted hover:text-sepia hover:border-sepia hover:bg-vellum transition-all"
               >
-                <FolderPlus className="h-4 w-4" />
-                新建文件夹
+                <FolderPlus className="w-4 h-4" />
+                {t.papers.newCollection}
               </button>
             </div>
           </>
         )}
+
         {sidebarCollapsed && (
           <div className="flex-1 flex flex-col items-center py-2 gap-1">
-            {/* 全部图标 */}
             <button
               onClick={() => { setActiveFolder(''); setSidebarCollapsed(false) }}
-              className={`p-2 rounded-lg transition-all ${activeFolder === '' ? 'bg-brand-fill text-brand-600' : 'text-gray-500 hover:bg-gray-100'}`}
-              title="全部"
+              className={`w-8 h-8 rounded-soft flex items-center justify-center transition-all ${
+                activeFolder === '' ? 'bg-vellum text-sepia' : 'text-muted hover:bg-vellum'
+              }`}
+              title={t.papers.allPapers}
             >
-              <Folder className="h-4 w-4" />
+              <Folder className="w-4 h-4" />
             </button>
+
             {folders.map(folder => (
               <button
                 key={folder.id}
                 onClick={() => { setActiveFolder(folder.id); setSidebarCollapsed(false) }}
-                className={`p-2 rounded-lg transition-all ${activeFolder === folder.id ? 'bg-brand-fill text-brand-600' : 'text-gray-500 hover:bg-gray-100'}`}
+                className={`w-8 h-8 rounded-soft flex items-center justify-center transition-all ${
+                  activeFolder === folder.id ? 'bg-vellum text-sepia' : 'text-muted hover:bg-vellum'
+                }`}
                 title={folder.name}
               >
-                <Folder className="h-4 w-4" />
+                <Folder className="w-4 h-4" />
               </button>
             ))}
+
             <button
               onClick={() => setShowCreateFolder(true)}
-              className="p-2 text-brand-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg mt-2"
-              title="新建文件夹"
+              className="w-8 h-8 rounded-soft text-muted hover:text-sepia hover:bg-vellum flex items-center justify-center mt-2"
+              title={t.papers.newCollection}
             >
-              <FolderPlus className="h-4 w-4" />
+              <FolderPlus className="w-4 h-4" />
             </button>
           </div>
         )}
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="space-y-6">
+      <div className="flex-1 overflow-y-auto p-8 animate-fade-in">
+        <div className="max-w-5xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex justify-between items-center">
-            <h1 className="text-2xl font-bold text-gray-900">论文管理</h1>
+            <div>
+              <h1 className="font-display text-2xl text-sepia mb-1">{t.papers.title}</h1>
+              <p className="font-body text-sm text-muted">{t.papers.subtitle}</p>
+            </div>
             <div className="flex gap-3">
               <button
                 onClick={() => { loadPapers(); loadFolders(); }}
-                className="flex items-center px-4 py-2.5 bg-brand-gradient border border-brand rounded-xl hover:shadow-brand text-gray-700 transition-all"
+                className="btn-secondary flex items-center gap-2"
               >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                刷新
+                <RefreshCw className="w-4 h-4" />
+                {t.papers.refresh}
               </button>
+
               {papers.filter(p => p.status === 'pending').length > 0 && (
                 <button
                   onClick={handleBatchProcess}
                   disabled={queueState.current !== null}
-                  className="flex items-center px-4 py-2.5 bg-brand-button text-white rounded-xl hover:shadow-brand-lg disabled:opacity-50 transition-all"
+                  className="btn-primary flex items-center gap-2"
                 >
                   {queueState.current !== null ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      处理中...
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t.papers.batchProcessing}
                     </>
                   ) : (
                     <>
-                      <Play className="h-4 w-4 mr-2" />
-                      批量处理 ({papers.filter(p => p.status === 'pending').length})
+                      <Play className="w-4 h-4" />
+                      {t.papers.batchProcess} ({papers.filter(p => p.status === 'pending').length})
                     </>
                   )}
                 </button>
               )}
-              <label className="flex items-center px-4 py-2.5 bg-brand-button text-white rounded-xl cursor-pointer hover:shadow-brand-lg transition-all">
-                <Upload className="h-4 w-4 mr-2" />
-                {uploading ? '上传中...' : '上传 PDF'}
+
+              <label className="btn-primary flex items-center gap-2 cursor-pointer">
+                <Upload className="w-4 h-4" />
+                {uploading ? t.papers.uploading : t.papers.uploadPdf}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -501,28 +518,36 @@ export default function Papers() {
 
           {/* Upload Results */}
           {uploadResults.length > 0 && (
-            <div className="bg-brand-gradient rounded-2xl shadow-brand p-4 border border-brand">
-              <h3 className="font-medium mb-3 text-brand-600">上传结果</h3>
+            <div className="card-academic p-4 animate-slide-down">
+              <h3 className="font-mono text-xs text-muted uppercase tracking-wider mb-3">{t.papers.uploadResults}</h3>
               <div className="space-y-2">
                 {uploadResults.map((result, idx) => (
-                  <div key={idx} className={`flex items-start p-3 rounded-xl ${result.success ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <div
+                    key={idx}
+                    className={`flex items-start gap-3 p-3 rounded-soft ${
+                      result.success ? 'bg-gradient-to-r from-transparent to-status-success/5' : 'bg-gradient-to-r from-transparent to-status-error/5'
+                    }`}
+                  >
                     {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-500 mr-2 mt-0.5" />
+                      <CheckCircle className="w-4 h-4 text-status-success mt-0.5" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-500 mr-2 mt-0.5" />
+                      <XCircle className="w-4 h-4 text-status-error mt-0.5" />
                     )}
                     <div className="flex-1">
-                      <div className="font-medium">{result.filename}</div>
+                      <div className="font-body font-medium text-sepia">{result.filename}</div>
                       {result.success && result.title && (
-                        <div className="text-sm text-gray-500">{result.title}</div>
+                        <div className="font-body text-sm text-muted">{result.title}</div>
                       )}
                       {result.message && (
-                        <div className={`text-sm ${result.status === 'processed' ? 'text-emerald-600' : result.status === 'pending' ? 'text-amber-600' : 'text-gray-500'}`}>
+                        <div className={`font-mono text-xs ${
+                          result.status === 'processed' ? 'text-status-success' :
+                          result.status === 'pending' ? 'text-amber' : 'text-muted'
+                        }`}>
                           {result.message}
                         </div>
                       )}
                       {!result.success && result.error && (
-                        <div className="text-sm text-red-500">{result.error}</div>
+                        <div className="font-mono text-xs text-status-error">{result.error}</div>
                       )}
                     </div>
                   </div>
@@ -533,28 +558,32 @@ export default function Papers() {
 
           {/* Queue Progress */}
           {(queueState.current !== null || queueState.completed > 0) && (
-            <div className="bg-brand-gradient rounded-2xl shadow-brand p-4 border border-brand">
-              <h3 className="font-medium mb-3 text-brand-600">
-                {queueState.current !== null ? '批量处理中...' : '批量处理完成'}
+            <div className="card-academic p-4 animate-slide-down">
+              <h3 className="font-mono text-xs text-muted uppercase tracking-wider mb-3">
+                {queueState.current !== null ? t.papers.batchProcessing : t.papers.batchComplete}
               </h3>
-              <div className="flex items-center gap-4">
-                <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+
+              <div className="flex items-center gap-4 mb-3">
+                <div className="flex-1 h-2 bg-paper rounded-full overflow-hidden">
                   <div
-                    className="bg-brand-button h-2.5 rounded-full transition-all"
-                    style={{ width: `${(queueState.completed + queueState.pending.length) > 0 ? (queueState.completed / (queueState.completed + queueState.pending.length)) * 100 : 0}%` }}
+                    className="h-full bg-gradient-amber rounded-full transition-all duration-300"
+                    style={{
+                      width: `${(queueState.completed + queueState.pending.length) > 0
+                        ? (queueState.completed / (queueState.completed + queueState.pending.length)) * 100
+                        : 0}%`
+                    }}
                   />
                 </div>
-                <span className="text-sm text-gray-600 font-medium">
+                <span className="font-mono text-sm text-muted">
                   {queueState.completed}/{queueState.completed + queueState.pending.length}
                 </span>
               </div>
-              <div className="flex gap-4 mt-2 text-sm">
-                <span className="text-emerald-600">成功: {queueState.successful}</span>
-                <span className="text-red-600">失败: {queueState.failed}</span>
+
+              <div className="flex gap-4 font-mono text-xs">
+                <span className="text-status-success">{t.papers.progress.success}: {queueState.successful}</span>
+                <span className="text-status-error">{t.papers.progress.failed}: {queueState.failed}</span>
                 {queueState.estimatedTime > 0 && queueState.current !== null && (
-                  <span className="text-gray-500">
-                    预估剩余: {formatTime(queueState.estimatedTime)}
-                  </span>
+                  <span className="text-muted">{t.papers.progress.remaining}: {formatTime(queueState.estimatedTime)}</span>
                 )}
               </div>
             </div>
@@ -562,69 +591,94 @@ export default function Papers() {
 
           {/* Paper Table */}
           {papers.length === 0 ? (
-            <div className="text-center py-12 bg-brand-gradient rounded-2xl shadow-brand border border-brand">
-              <FileText className="h-12 w-12 mx-auto text-brand-300" />
-              <p className="mt-4 text-brand-500">暂无论文，上传 PDF 开始</p>
+            <div className="card-academic p-12 text-center">
+              <FileText className="w-12 h-12 mx-auto text-faint mb-4" />
+              <p className="font-quote text-lg text-muted italic">{t.papers.noPapers}</p>
+              <p className="font-body text-sm text-faint mt-2">{t.papers.noPapersDesc}</p>
             </div>
           ) : (
-            <div className="bg-brand-gradient rounded-2xl shadow-brand border border-brand overflow-hidden">
-              <table className="min-w-full divide-y divide-brand-100">
-                <thead className="bg-gray-50">
+            <div className="card-academic overflow-hidden">
+              <table className="table-academic min-w-full">
+                <thead>
                   <tr>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">标题</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">状态</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">节点数</th>
-                    <th className="px-6 py-4 text-left text-xs font-semibold text-brand-600 uppercase tracking-wider">根概念</th>
-                    <th className="px-6 py-4 text-right text-xs font-semibold text-brand-600 uppercase tracking-wider">操作</th>
+                    <th>{t.papers.table.title}</th>
+                    <th className="w-24 min-w-[80px]">{t.papers.table.status}</th>
+                    <th>{t.papers.table.nodes}</th>
+                    <th>{t.papers.table.root}</th>
+                    <th className="text-right">{t.papers.table.actions}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-brand-50">
+                <tbody>
                   {papers.map(paper => (
-                    <tr key={paper.doi} className="hover:bg-brand-50/50 transition-colors">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{paper.title}</div>
+                    <tr key={paper.doi}>
+                      <td>
+                        <div className="font-body font-medium text-sepia">{paper.title}</div>
                         {paper.authors && paper.authors.length > 0 && (
-                          <div className="text-sm text-gray-500">
+                          <div className="font-body text-sm text-muted">
                             {Array.isArray(paper.authors) ? paper.authors.slice(0, 3).join(', ') : paper.authors}
                           </div>
                         )}
+                        {paper.s2_doi && (
+                          <a
+                            href={`https://doi.org/${paper.s2_doi}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-mono text-xs text-status-info hover:text-sepia hover:underline"
+                          >
+                            DOI: {paper.s2_doi}
+                          </a>
+                        )}
+                        {paper.venue && paper.year && (
+                          <div className="font-mono text-xs text-faint mt-1">
+                            {paper.venue}, {paper.year}
+                          </div>
+                        )}
+                        {paper.tldr && (
+                          <div className="font-quote text-xs text-status-success mt-1 italic">
+                            TLDR: {paper.tldr}
+                          </div>
+                        )}
                       </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 text-xs rounded-full font-medium ${getStatusBadge(paper.status)}`}>
-                          {paper.status}
+                      <td className="w-24 min-w-[80px]">
+                        <span className={`badge-academic ${getStatusBadgeClass(paper.status)}`}>
+                          {t.papers.status[paper.status as keyof typeof t.papers.status] || paper.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        <div className="flex items-center gap-1">
-                          <GitBranch className="h-3 w-3" />
-                          {paper.status === 'processed' ? (contributions[paper.doi]?.node_count || '-') : '-'}
+                      <td>
+                        <div className="flex items-center gap-1 text-muted">
+                          <GitBranch className="w-3 h-3" />
+                          <span className="font-mono text-sm">
+                            {paper.status === 'processed' ? (contributions[paper.doi]?.node_count || '-') : '-'}
+                          </span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
-                        {paper.status === 'processed' ? (contributions[paper.doi]?.root_concept || '-') : '-'}
+                      <td>
+                        <span className="font-body text-sm text-muted">
+                          {paper.status === 'processed' ? (contributions[paper.doi]?.root_concept || '-') : '-'}
+                        </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                      <td className="text-right">
+                        <div className="flex justify-end gap-1">
                           {paper.status === 'pending' && (
                             <button
                               onClick={() => handleProcess(paper.doi)}
                               disabled={processing === paper.doi}
-                              className="p-2 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors"
-                              title="处理论文"
+                              className="w-8 h-8 rounded-soft text-muted hover:text-amber hover:bg-amber/5 disabled:opacity-50 flex items-center justify-center transition-all"
+                              title={t.papers.process}
                             >
                               {processing === paper.doi ? (
-                                <RefreshCw className="h-4 w-4 animate-spin" />
+                                <RefreshCw className="w-4 h-4 animate-spin" />
                               ) : (
-                                <Play className="h-4 w-4" />
+                                <Play className="w-4 h-4" />
                               )}
                             </button>
                           )}
                           <button
                             onClick={() => handleDelete(paper.doi)}
-                            className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                            title="删除"
+                            className="w-8 h-8 rounded-soft text-muted hover:text-status-error hover:bg-red-50 flex items-center justify-center transition-all"
+                            title={t.common.delete}
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

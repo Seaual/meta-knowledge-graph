@@ -24,6 +24,27 @@ def clean_title(title: str) -> str:
 
     original_title = title
 
+    # 检测并过滤无效的页眉标题
+    invalid_patterns = [
+        r'^Contents lists available at ScienceDirect',
+        r'^Contents lists available at',
+        r'^Available online at',
+        r'^ScienceDirect',
+        r'^Elsevier',
+        r'^IEEE Transactions on',
+        r'^IEEE ',
+        r'^Springer',
+        r'^ACM ',
+        r'^Nature$',
+        r'^Science$',
+        r'^\d{4}\s*$',  # 只有年份
+        r'^Vol\.\s*\d+',
+        r'^pp\.\s*\d+',
+    ]
+    for pattern in invalid_patterns:
+        if re.match(pattern, title, re.IGNORECASE):
+            return ""  # 返回空字符串，跳过 S2 搜索
+
     # Unicode 连字符映射
     unicode_replacements = {
         '\ufb00': 'ff',  # ﬀ
@@ -42,10 +63,7 @@ def clean_title(title: str) -> str:
     for uni_char, replacement in unicode_replacements.items():
         title = title.replace(uni_char, replacement)
 
-    # 尝试提取标题核心部分（通常是大写字母开头的部分或冒号后的部分）
-    # 策略：如果标题包含 "Published as a conference paper at XXX YEAR TITLE"，
-    # 尝试提取 TITLE 部分
-
+    # 尝试提取标题核心部分
     # 模式1: "Published as a conference paper at VENUE YEAR TITLE"
     match = re.search(r'Published as a conference paper at \w+ \d{4}\s+(.+)', title, re.IGNORECASE)
     if match:
@@ -56,13 +74,14 @@ def clean_title(title: str) -> str:
         if match:
             title = match.group(1).strip()
         else:
-            # 模式3: 移除开头的会议信息
+            # 模式3: 移除开头的会议/期刊信息
             patterns_to_remove_at_start = [
                 r'^Published as a conference paper at[^,]+,?\s*',
                 r'^Published in[^,]+,?\s*',
                 r'^Appears in[^,]+,?\s*',
-                r'^\d{4}\s+(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV)[^,]*,?\s*',
-                r'^(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV)\s+\d{4}[^,]*,?\s*',
+                r'^\d{4}\s+(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV|IJCAI|KDD|WWW|SIGIR)[^,]*,?\s*',
+                r'^(IEEE|ACM|AAAI|ICML|NeurIPS|ICLR|ACL|EMNLP|CVPR|ICCV|IJCAI|KDD|WWW|SIGIR)\s+\d{4}[^,]*,?\s*',
+                r'^(Springer|Elsevier|Wiley|Taylor\s*&\s*Francis)[^,]*,?\s*',
             ]
 
             for pattern in patterns_to_remove_at_start:
@@ -74,10 +93,15 @@ def clean_title(title: str) -> str:
 
     # 移除 DOI
     title = re.sub(r'DOI:\s*[\d./]+\s*', '', title)
+    title = re.sub(r'https?://doi\.org/[\d./]+\s*', '', title)
 
     # 移除版权信息
     title = re.sub(r'©\s*\d{4}[^,]*,?\s*', '', title)
     title = re.sub(r'Copyright\s*[^,]+,?\s*', '', title)
+
+    # 移除 "Received ... Accepted ..." 等日期信息
+    title = re.sub(r'Received\s+\d+[^;]*;?\s*', '', title, flags=re.IGNORECASE)
+    title = re.sub(r'Accepted\s+\d+[^;]*;?\s*', '', title, flags=re.IGNORECASE)
 
     # 清理多余空格
     title = re.sub(r'\s+', ' ', title)
@@ -137,7 +161,7 @@ class SemanticScholarClient:
 
         params = {
             "query": cleaned_title,
-            "fields": "paperId,title,abstract,authors,year,venue,citationCount,referenceCount,influentialCitationCount,openAccessPdf",
+            "fields": "paperId,title,abstract,authors,year,venue,citationCount,referenceCount,influentialCitationCount,openAccessPdf,externalIds,fieldsOfStudy",
             "limit": 5  # 获取多个结果，选择最佳匹配
         }
 
@@ -206,6 +230,18 @@ class SemanticScholarClient:
             # 只在 S2 有数据时覆盖
             result['s2_paper_id'] = s2_result.get('paperId')
 
+            # 提取真正的 DOI（从 externalIds）
+            external_ids = s2_result.get('externalIds', {})
+            if external_ids:
+                # DOI 格式: 10.xxxx/xxxxx
+                if external_ids.get('DOI'):
+                    result['s2_doi'] = external_ids['DOI']
+                # ArXiv ID
+                if external_ids.get('ArXiv'):
+                    result['s2_arxiv_id'] = external_ids['ArXiv']
+                # 存储完整的 externalIds 作为 JSON
+                result['s2_external_ids'] = json.dumps(external_ids)
+
             if s2_result.get('abstract'):
                 result['abstract'] = s2_result['abstract']
 
@@ -230,7 +266,123 @@ class SemanticScholarClient:
             if s2_result.get('openAccessPdf'):
                 result['open_access_pdf'] = json.dumps(s2_result['openAccessPdf'])
 
+            # TLDR - S2 AI 生成的摘要
+            if s2_result.get('tldr'):
+                tldr_data = s2_result['tldr']
+                if isinstance(tldr_data, dict) and tldr_data.get('text'):
+                    result['tldr'] = tldr_data['text']
+                elif isinstance(tldr_data, str):
+                    result['tldr'] = tldr_data
+
+            # 研究领域
+            if s2_result.get('fieldsOfStudy'):
+                result['s2_fields_of_study'] = json.dumps(s2_result['fieldsOfStudy'])
+
         return result
+
+    def get_paper_citations(self, paper_id: str, limit: int = 100) -> Optional[List[Dict]]:
+        """
+        获取论文的引用列表
+
+        Args:
+            paper_id: S2 论文 ID 或 DOI
+            limit: 返回数量限制
+
+        Returns:
+            引用该论文的论文列表
+        """
+        self._wait_for_rate_limit()
+
+        params = {
+            "fields": "paperId,title,year,venue,authors",
+            "limit": limit
+        }
+
+        try:
+            response = requests.get(
+                f"{self.BASE_URL}/paper/{paper_id}/citations",
+                params=params,
+                headers=self.headers,
+                timeout=15
+            )
+
+            if response.status_code != 200:
+                return None
+
+            data = response.json()
+            if not data.get("data"):
+                return []
+
+            # 提取引用论文信息
+            citations = []
+            for item in data["data"]:
+                citing_paper = item.get("citingPaper", {})
+                if citing_paper:
+                    citations.append({
+                        "paper_id": citing_paper.get("paperId"),
+                        "title": citing_paper.get("title"),
+                        "year": citing_paper.get("year"),
+                        "venue": citing_paper.get("venue"),
+                        "authors": [a.get("name") for a in citing_paper.get("authors", []) if a.get("name")]
+                    })
+
+            return citations
+
+        except Exception as e:
+            print(f"Semantic Scholar citations API error: {e}")
+            return None
+
+    def get_paper_references(self, paper_id: str, limit: int = 100) -> Optional[List[Dict]]:
+        """
+        获取论文的参考文献列表
+
+        Args:
+            paper_id: S2 论文 ID 或 DOI
+            limit: 返回数量限制
+
+        Returns:
+            该论文引用的论文列表
+        """
+        self._wait_for_rate_limit()
+
+        params = {
+            "fields": "paperId,title,year,venue,authors",
+            "limit": limit
+        }
+
+        try:
+            response = requests.get(
+                f"{self.BASE_URL}/paper/{paper_id}/references",
+                params=params,
+                headers=self.headers,
+                timeout=15
+            )
+
+            if response.status_code != 200:
+                return None
+
+            data = response.json()
+            if not data.get("data"):
+                return []
+
+            # 提取参考文献信息
+            references = []
+            for item in data["data"]:
+                referenced_paper = item.get("citedPaper", {})
+                if referenced_paper:
+                    references.append({
+                        "paper_id": referenced_paper.get("paperId"),
+                        "title": referenced_paper.get("title"),
+                        "year": referenced_paper.get("year"),
+                        "venue": referenced_paper.get("venue"),
+                        "authors": [a.get("name") for a in referenced_paper.get("authors", []) if a.get("name")]
+                    })
+
+            return references
+
+        except Exception as e:
+            print(f"Semantic Scholar references API error: {e}")
+            return None
 
     @staticmethod
     def test_connection(api_key: str) -> Dict:

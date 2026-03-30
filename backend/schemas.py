@@ -18,6 +18,13 @@ class PaperBase(BaseModel):
     published_date: Optional[str] = None
     pdf_path: Optional[str] = None
     status: str = "pending"
+    s2_paper_id: Optional[str] = None
+    s2_doi: Optional[str] = None
+    venue: Optional[str] = None
+    year: Optional[int] = None
+    citation_count: Optional[int] = None
+    tldr: Optional[str] = None
+    s2_fields_of_study: Optional[List[str]] = []
 
 
 class PaperCreate(BaseModel):
@@ -250,3 +257,33 @@ class S2TestResponse(BaseModel):
     """S2 连接测试响应"""
     success: bool
     message: str
+
+
+class S2Citation(BaseModel):
+    """S2 引用论文"""
+    paper_id: Optional[str] = None
+    title: Optional[str] = None
+    year: Optional[int] = None
+    venue: Optional[str] = None
+    authors: List[str] = []
+
+
+class S2CitationsResponse(BaseModel):
+    """S2 引用列表响应"""
+    citations: List[S2Citation]
+    total: int
+
+
+class S2Reference(BaseModel):
+    """S2 参考文献"""
+    paper_id: Optional[str] = None
+    title: Optional[str] = None
+    year: Optional[int] = None
+    venue: Optional[str] = None
+    authors: List[str] = []
+
+
+class S2ReferencesResponse(BaseModel):
+    """S2 参考文献 列表响应"""
+    references: List[S2Reference]
+    total: int

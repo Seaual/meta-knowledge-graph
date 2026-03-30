@@ -22,7 +22,7 @@ if not exist "frontend\node_modules" (
 )
 
 echo [1/2] Starting backend server...
-start "Backend" cmd /k "venv\Scripts\activate.bat && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8088"
+start "Backend" cmd /k "venv\Scripts\activate.bat && python -m uvicorn backend.main:app --host 0.0.0.0 --port 8089"
 
 echo [2/2] Starting frontend server...
 cd frontend
@@ -31,9 +31,9 @@ cd ..
 
 echo.
 echo ========================================
-echo   Backend:  http://localhost:8088
+echo   Backend:  http://localhost:8089
 echo   Frontend: http://localhost:5173
-echo   API Docs: http://localhost:8088/docs
+echo   API Docs: http://localhost:8089/docs
 echo ========================================
 echo.
 echo Press any key to exit this window...

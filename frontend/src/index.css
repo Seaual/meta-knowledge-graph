@@ -1,60 +1,546 @@
+/* Google Fonts Import - must be first */
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Crimson+Pro:ital,wght@0,400;0,500;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   Academic Light Theme - 浅色学术风设计系统
+   ======================================== */
+
+/* CSS Custom Properties */
 :root {
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  /* Typography */
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body: 'Source Sans 3', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --font-quote: 'Crimson Pro', Georgia, serif;
+
+  /* Colors - Academic Warm Palette */
+  --color-cream: #faf8f5;
+  --color-paper: #f5f0e8;
+  --color-canvas: #ebe5d8;
+  --color-vellum: #fffef9;
+
+  --color-ink: #2c1810;
+  --color-sepia: #6b4423;
+  --color-muted: #8a7a6a;
+  --color-faint: #a89a8a;
+
+  --color-amber: #b8860b;
+  --color-gold: #d4a012;
+  --color-terracotta: #c2410c;
+  --color-copper: #9a6b3c;
+
+  --color-border: #e8dfd0;
+  --color-border-medium: #d4c4b0;
+
+  /* Shadows */
+  --shadow-paper: 0 1px 3px rgba(44, 24, 16, 0.04), 0 1px 2px rgba(44, 24, 16, 0.06);
+  --shadow-card: 0 2px 8px rgba(44, 24, 16, 0.06), 0 1px 3px rgba(44, 24, 16, 0.08);
+  --shadow-elevated: 0 8px 24px rgba(44, 24, 16, 0.08), 0 4px 12px rgba(44, 24, 16, 0.10);
+
+  /* Spacing */
+  --spacing-content: 1.5rem;
+  --spacing-section: 2.5rem;
+
+  /* Transitions */
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 250ms ease-out;
+  --transition-slow: 400ms ease-out;
 }
 
+/* Base Styles */
 body {
   margin: 0;
   min-height: 100vh;
-  /* 渐变背景 */
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  font-family: var(--font-body);
+  color: var(--color-ink);
+  background: linear-gradient(180deg, var(--color-cream) 0%, var(--color-paper) 100%);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* React Flow styles */
+/* Typography Utilities */
+@layer base {
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--color-sepia);
+    line-height: 1.3;
+  }
+
+  h1 {
+    font-size: 2rem;
+    letter-spacing: -0.02em;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  p {
+    color: var(--color-ink);
+  }
+
+  .text-muted {
+    color: var(--color-muted);
+  }
+
+  .text-faint {
+    color: var(--color-faint);
+  }
+
+  a {
+    color: var(--color-sepia);
+    transition: color var(--transition-fast);
+  }
+
+  a:hover {
+    color: var(--color-amber);
+  }
+}
+
+/* Card Component */
+@layer components {
+  /* Academic Paper Card */
+  .card-academic {
+    background: var(--color-vellum);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    box-shadow: var(--shadow-card);
+    position: relative;
+    overflow: hidden;
+
+    /* Subtle paper texture */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.02'/%3E%3C/svg%3E");
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  /* Stat Card - elegant number display */
+  .card-stat {
+    background: linear-gradient(135deg, var(--color-vellum) 0%, var(--color-paper) 100%);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem;
+    position: relative;
+
+    /* Decorative corner accent */
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, transparent 50%, var(--color-amber) 50%);
+      opacity: 0.08;
+      border-radius: 0 14px 0 0;
+    }
+  }
+
+  /* Action Card - clickable */
+  .card-action {
+    background: var(--color-paper);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    position: relative;
+
+    &:hover {
+      background: var(--color-vellum);
+      border-color: var(--color-amber);
+      box-shadow: var(--shadow-elevated);
+      transform: translateY(-2px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+  }
+
+  /* Section Container */
+  .section-academic {
+    background: var(--color-vellum);
+    border: 1px solid var(--color-border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-card);
+    padding: 1.5rem 2rem;
+  }
+
+  /* Button Styles */
+  .btn-primary {
+    background: linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%);
+    color: var(--color-vellum);
+    font-family: var(--font-body);
+    font-weight: 500;
+    border-radius: 8px;
+    padding: 0.625rem 1.25rem;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    box-shadow: var(--shadow-paper);
+
+    &:hover {
+      box-shadow: var(--shadow-card), 0 0 12px rgba(184, 134, 11, 0.24);
+      transform: translateY(-1px);
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+
+  .btn-secondary {
+    background: var(--color-paper);
+    color: var(--color-sepia);
+    font-family: var(--font-body);
+    font-weight: 500;
+    border: 1px solid var(--color-border-medium);
+    border-radius: 8px;
+    padding: 0.625rem 1.25rem;
+    cursor: pointer;
+    transition: all var(--transition-normal);
+
+    &:hover {
+      background: var(--color-vellum);
+      border-color: var(--color-amber);
+    }
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-muted);
+    font-family: var(--font-body);
+    font-weight: 500;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--color-paper);
+      color: var(--color-sepia);
+    }
+  }
+
+  /* Badge Styles */
+  .badge-academic {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-pending {
+    background: rgba(184, 134, 11, 0.12);
+    color: var(--color-amber);
+    border: 1px solid rgba(184, 134, 11, 0.24);
+  }
+
+  .badge-processing {
+    background: rgba(107, 68, 35, 0.12);
+    color: var(--color-sepia);
+    border: 1px solid rgba(107, 68, 35, 0.24);
+  }
+
+  .badge-success {
+    background: rgba(45, 90, 39, 0.12);
+    color: #2d5a27;
+    border: 1px solid rgba(45, 90, 39, 0.24);
+  }
+
+  .badge-error {
+    background: rgba(163, 59, 59, 0.12);
+    color: #a33b3b;
+    border: 1px solid rgba(163, 59, 59, 0.24);
+  }
+
+  /* Input Styles */
+  .input-academic {
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    padding: 0.625rem 1rem;
+    background: var(--color-vellum);
+    border: 1px solid var(--color-border-medium);
+    border-radius: 6px;
+    color: var(--color-ink);
+    transition: all var(--transition-fast);
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-amber);
+      box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.12);
+    }
+
+    &::placeholder {
+      color: var(--color-faint);
+    }
+  }
+
+  /* Modal Overlay */
+  .modal-overlay {
+    background: rgba(44, 24, 16, 0.32);
+    backdrop-filter: blur(4px);
+  }
+
+  /* Modal Content */
+  .modal-academic {
+    background: var(--color-vellum);
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+    box-shadow: var(--shadow-modal);
+    position: relative;
+    overflow: hidden;
+
+    /* Paper texture overlay */
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.015'/%3E%3C/svg%3E");
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  }
+
+  /* Table Styles */
+  .table-academic {
+    font-family: var(--font-body);
+
+    th {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: var(--color-muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: var(--color-paper);
+      border-bottom: 1px solid var(--color-border-medium);
+      padding: 1rem 1.5rem;
+    }
+
+    td {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--color-border);
+      color: var(--color-ink);
+    }
+
+    tr:hover td {
+      background: rgba(184, 134, 11, 0.04);
+    }
+  }
+
+  /* Sidebar Styles */
+  .sidebar-academic {
+    background: linear-gradient(180deg, var(--color-paper) 0%, var(--color-canvas) 100%);
+    border-right: 1px solid var(--color-border);
+
+    .sidebar-item {
+      padding: 0.75rem 1rem;
+      margin: 0.25rem 0.5rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      color: var(--color-muted);
+
+      &:hover {
+        background: var(--color-vellum);
+        color: var(--color-sepia);
+      }
+
+      &.active {
+        background: var(--color-vellum);
+        color: var(--color-sepia);
+        border-left: 2px solid var(--color-amber);
+      }
+    }
+  }
+
+  /* Header Styles */
+  .header-academic {
+    background: var(--color-vellum);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: var(--shadow-paper);
+
+    .nav-link {
+      font-family: var(--font-body);
+      font-weight: 500;
+      color: var(--color-muted);
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      transition: all var(--transition-fast);
+
+      &:hover {
+        color: var(--color-sepia);
+        background: var(--color-paper);
+      }
+
+      &.active {
+        color: var(--color-amber);
+        background: rgba(184, 134, 11, 0.08);
+      }
+    }
+  }
+}
+
+/* React Flow Customization */
 .react-flow__node {
   cursor: pointer;
+  font-family: var(--font-body);
 }
 
 .react-flow__edge-path {
-  stroke-width: 2;
+  stroke-width: 1.5;
+  stroke: var(--color-border-medium);
 }
 
 .react-flow__controls {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  box-shadow: var(--shadow-card);
+  border-radius: 8px;
+  background: var(--color-vellum);
+  border: 1px solid var(--color-border);
 }
 
 .react-flow__controls-button {
   border: none;
-  background: white;
-}
+  background: var(--color-vellum);
+  color: var(--color-muted);
+  transition: all var(--transition-fast);
 
-.react-flow__controls-button:hover {
-  background: #f3f4f6;
+  &:hover {
+    background: var(--color-paper);
+    color: var(--color-sepia);
+  }
 }
 
 .react-flow__background {
-  background-color: #f8fafc;
+  background-color: var(--color-paper);
 }
 
-/* 品牌色渐变背景卡片 */
-.bg-brand-gradient {
-  background: linear-gradient(135deg, #ffffff 0%, #fafbfc 100%);
+/* Loading State */
+.loading-academic {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--color-muted);
+  font-family: var(--font-quote);
+  font-style: italic;
+
+  &::before {
+    content: '';
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--color-border-medium);
+    border-top-color: var(--color-amber);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 1rem;
+  }
 }
 
-/* 品牌色填充渐变 */
-.bg-brand-fill {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-/* 品牌色按钮渐变 */
-.bg-brand-button {
-  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
 }
 
-/* 品牌色边框 */
-.border-brand {
-  border-color: rgba(99, 102, 241, 0.1);
+::-webkit-scrollbar-track {
+  background: var(--color-paper);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-medium);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--color-muted);
+  }
+}
+
+/* Utility Classes */
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-body {
+    font-family: var(--font-body);
+  }
+
+  .font-mono {
+    font-family: var(--font-mono);
+  }
+
+  .font-quote {
+    font-family: var(--font-quote);
+  }
+
+  .text-sepia {
+    color: var(--color-sepia);
+  }
+
+  .text-amber {
+    color: var(--color-amber);
+  }
+
+  .bg-cream {
+    background: var(--color-cream);
+  }
+
+  .bg-paper {
+    background: var(--color-paper);
+  }
+
+  .bg-vellum {
+    background: var(--color-vellum);
+  }
+
+  .border-academic {
+    border-color: var(--color-border);
+  }
+
+  .shadow-paper {
+    box-shadow: var(--shadow-paper);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-elevated {
+    box-shadow: var(--shadow-elevated);
+  }
 }

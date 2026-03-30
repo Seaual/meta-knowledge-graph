@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { X } from 'lucide-react'
+import { X, FolderPlus } from 'lucide-react'
+import { useTranslation } from '../i18n'
 
 interface Props {
   onClose: () => void
@@ -7,6 +8,7 @@ interface Props {
 }
 
 export default function CreateFolderModal({ onClose, onCreate }: Props) {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
 
@@ -17,58 +19,69 @@ export default function CreateFolderModal({ onClose, onCreate }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">新建文件夹</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
+      <div className="modal-academic w-full max-w-md animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b border-academic">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-medium bg-gradient-amber flex items-center justify-center">
+              <FolderPlus className="w-5 h-5 text-vellum" />
+            </div>
+            <h2 className="font-display text-lg text-sepia font-medium">{t.modal.createFolder.title}</h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              文件夹名称 <span className="text-red-500">*</span>
+            <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+              {t.modal.createFolder.name} <span className="text-status-error">*</span>
             </label>
             <input
               type="text"
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="例如：强化学习论文"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={t.modal.createFolder.namePlaceholder}
+              className="input-academic w-full"
               autoFocus
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              描述（可选）
+            <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+              {t.modal.createFolder.description}
             </label>
             <input
               type="text"
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="文件夹描述"
-              className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder={t.modal.createFolder.descPlaceholder}
+              className="input-academic w-full"
             />
           </div>
         </form>
 
-        <div className="flex gap-2 p-4 border-t bg-gray-50">
+        {/* Footer */}
+        <div className="flex gap-3 p-5 border-t border-academic bg-paper/50">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-2 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-100"
+            className="btn-secondary flex-1"
           >
-            取消
+            {t.modal.cancel}
           </button>
           <button
             onClick={handleSubmit}
             disabled={!name.trim()}
-            className="flex-1 py-2 px-4 rounded-lg bg-blue-500 text-white text-sm font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary flex-1"
           >
-            创建
+            {t.modal.createFolder.create}
           </button>
         </div>
       </div>

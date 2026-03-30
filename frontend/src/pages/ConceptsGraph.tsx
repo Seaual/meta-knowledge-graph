@@ -1,11 +1,12 @@
-// Knowledge Graph - Obsidian-style Canvas Force Graph with Papers
+// Knowledge Graph - Academic Style Force Graph with Papers
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
 import { conceptsApi, graphApi, papersApi, exportApi, foldersApi } from '../lib/api'
-import { Download, ChevronDown, Folder, Search } from 'lucide-react'
+import { Download, ChevronDown, Folder, Search, X, ArrowLeft } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
 import FilterPanel from '../components/FilterPanel'
+import { useTranslation } from '../i18n'
 
 // Types
 interface Concept {
@@ -49,12 +50,10 @@ interface GraphNode {
   category?: string
   paperCount?: number
   depth?: number
-  // Paper specific
   authors?: string[]
   keywords?: string[]
   abstract?: string | null
   doi?: string
-  // Runtime properties added by force-graph
   x?: number
   y?: number
   vx?: number
@@ -63,18 +62,18 @@ interface GraphNode {
   fy?: number
 }
 
-// Category colors
+// Category colors - Academic Warm Palette
 const CATEGORY_COLORS: Record<string, string> = {
-  field: '#FF6B6B',
-  direction: '#4ECDC4',
-  subdirection: '#45B7D1',
-  task: '#96CEB4',
-  method: '#FFA726',
-  technique: '#FFD93D',
+  field: '#6b4423',        // sepia
+  direction: '#b8860b',    // amber
+  subdirection: '#9a6b3c', // copper
+  task: '#4a6b8a',         // slate blue
+  method: '#c2410c',       // terracotta
+  technique: '#2d5a27',    // forest green
 }
 
-const PAPER_COLOR = '#3B82F6'
-const CENTER_COLOR = '#8B5CF6'
+const PAPER_COLOR = '#4a6b8a'
+const CENTER_COLOR = '#d4a012'
 
 interface ResearchPoint {
   title: string
@@ -103,6 +102,7 @@ interface ResearchPointsResponse {
 }
 
 export default function ConceptsGraph() {
+  const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
 
@@ -178,9 +178,7 @@ export default function ConceptsGraph() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Only load graph data - it already contains filtered nodes and edges
         const graphRes = await graphApi.data(activeFolder)
-        // Use nodes from graph data (already filtered by folder)
         const nodesFromGraph = graphRes.data.nodes.map((n: { id: string; label: string; category?: string; paper_count?: number }) => ({
           id: n.id,
           text: n.label,
@@ -238,7 +236,7 @@ export default function ConceptsGraph() {
     setViewMode('all')
   }, [loading, concepts, edges, getNodeDepth])
 
-  // Handle concept click - show action panel
+  // Handle concept click
   const handleConceptClick = useCallback(async (node: GraphNode) => {
     if (node.type !== 'concept') return
 
@@ -261,7 +259,6 @@ export default function ConceptsGraph() {
 
     setShowConceptActions(false)
 
-    // Build new graph with concept at center and papers around
     const centerNode: GraphNode = {
       id: `center-${selectedConcept.id}`,
       name: selectedConcept.text,
@@ -287,7 +284,7 @@ export default function ConceptsGraph() {
     setViewMode('concept')
   }, [selectedConcept])
 
-  // Handle paper click - show details
+  // Handle paper click
   const handlePaperClick = useCallback(async (node: GraphNode) => {
     if (node.type !== 'paper' || !node.doi) return
 
@@ -317,14 +314,14 @@ export default function ConceptsGraph() {
         concept_id: selectedConcept.id,
         concept_name: selectedConcept.text,
         research_points: [{
-          title: '分析失败',
+          title: 'Analysis Failed',
           hypothesis: '',
-          description: '无法获取研究点，请检查LLM配置或稍后重试',
+          description: 'Could not retrieve research points. Check LLM configuration.',
           discovery_method: 'gap_filling',
           rationale: String(err),
           related_concepts: [],
           difficulty: 'medium',
-          difficulty_reason: '分析失败',
+          difficulty_reason: 'Analysis failed',
           novelty: 'moderate',
           potential_impact: 'niche',
         }],
@@ -354,7 +351,7 @@ export default function ConceptsGraph() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Export failed:', err)
-      alert('导出失败')
+      alert('Export failed')
     }
   }, [])
 
@@ -371,7 +368,7 @@ export default function ConceptsGraph() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('Canvas export failed:', err)
-      alert('导出失败')
+      alert('Export failed')
     }
   }, [])
 
@@ -388,7 +385,7 @@ export default function ConceptsGraph() {
       window.URL.revokeObjectURL(url)
     } catch (err) {
       console.error('HTML export failed:', err)
-      alert('导出失败')
+      alert('Export failed')
     }
   }, [])
 
@@ -425,7 +422,6 @@ export default function ConceptsGraph() {
   useEffect(() => {
     if (!containerRef.current || graphNodes.length === 0) return
 
-    // Cleanup previous graph
     if (graphRef.current) {
       graphRef.current._destructor()
     }
@@ -453,8 +449,19 @@ export default function ConceptsGraph() {
           size = 8
           color = PAPER_COLOR
         } else {
-          size = 6 + (6 - Math.min(node.depth || 3, 5)) + Math.sqrt(node.paperCount || 0) * 0.5
-          color = CATEGORY_COLORS[node.category || 'method'] || '#94A3B8'
+          // Category-based base sizes (decreasing by hierarchy level)
+          const CATEGORY_SIZES: Record<string, number> = {
+            field: 16,        // largest
+            direction: 14,
+            subdirection: 12,
+            task: 10,
+            method: 8,
+            technique: 6,     // smallest
+          }
+          const baseSize = CATEGORY_SIZES[node.category || 'method'] || 7
+          // Add small boost based on paper count
+          size = baseSize + Math.sqrt(node.paperCount || 0) * 0.3
+          color = CATEGORY_COLORS[node.category || 'method'] || '#8a7a6a'
         }
 
         // Calculate opacity based on search and category filter
@@ -466,7 +473,6 @@ export default function ConceptsGraph() {
           opacity = 0.15
         }
 
-        // Highlighted node always visible
         if (highlightedNodeId === node.id) {
           opacity = 1
         }
@@ -474,36 +480,31 @@ export default function ConceptsGraph() {
         const x = node.x || 0
         const y = node.y || 0
 
-        // Highlighted node glow effect
+        // Highlighted node glow effect - warm amber
         if (highlightedNodeId === node.id) {
           ctx.beginPath()
           ctx.arc(x, y, size + 8, 0, 2 * Math.PI)
-          ctx.fillStyle = 'rgba(255, 200, 0, 0.4)'
+          ctx.fillStyle = 'rgba(184, 134, 11, 0.4)'
           ctx.fill()
         }
 
-        // Apply opacity for filter effect
         ctx.globalAlpha = opacity
 
-        // Draw outer circle
+        // Draw node
         ctx.beginPath()
         ctx.arc(x, y, size, 0, 2 * Math.PI)
 
         if (isPaper) {
-          // Paper: solid blue circle with document icon effect
           ctx.fillStyle = color + '40'
           ctx.fill()
           ctx.strokeStyle = color
           ctx.lineWidth = 2.5
           ctx.stroke()
-
-          // Inner dot
           ctx.beginPath()
           ctx.arc(x, y, size * 0.35, 0, 2 * Math.PI)
           ctx.fillStyle = color
           ctx.fill()
         } else if (isCenter) {
-          // Center concept: larger with gradient
           const gradient = ctx.createRadialGradient(x, y, 0, x, y, size)
           gradient.addColorStop(0, color + '60')
           gradient.addColorStop(1, color + '20')
@@ -512,21 +513,16 @@ export default function ConceptsGraph() {
           ctx.strokeStyle = color
           ctx.lineWidth = 3
           ctx.stroke()
-
-          // Inner circle
           ctx.beginPath()
           ctx.arc(x, y, size * 0.5, 0, 2 * Math.PI)
           ctx.fillStyle = color
           ctx.fill()
         } else {
-          // Regular concept
           ctx.fillStyle = color + '30'
           ctx.fill()
           ctx.strokeStyle = color
           ctx.lineWidth = 2 / globalScale
           ctx.stroke()
-
-          // Inner dot
           ctx.beginPath()
           ctx.arc(x, y, size * 0.3, 0, 2 * Math.PI)
           ctx.fillStyle = color
@@ -536,21 +532,20 @@ export default function ConceptsGraph() {
         // Draw label when zoomed in
         if (globalScale > 0.5) {
           const fontSize = isCenter ? 14 : 11
-          ctx.font = `${fontSize / globalScale}px Inter, sans-serif`
+          ctx.font = `${fontSize / globalScale}px 'Source Sans 3', sans-serif`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
-          ctx.fillStyle = '#374151'
+          ctx.fillStyle = '#2c1810'
           const label = node.name && node.name.length > 30 ? node.name.substring(0, 30) + '...' : (node.name || '')
           ctx.fillText(label, x, y + size + 4 / globalScale)
         }
 
-        // Reset opacity
         ctx.globalAlpha = 1
       })
       .linkColor((link: any) => {
         const source = link.source
         if (source.type === 'center') return PAPER_COLOR + '60'
-        return '#CBD5E1'
+        return '#d4c4b0'
       })
       .linkWidth((link: any) => {
         const source = link.source
@@ -561,11 +556,10 @@ export default function ConceptsGraph() {
         return source.type === 'center' ? 3 : 2
       })
       .linkDirectionalParticleWidth(2)
-      .linkDirectionalParticleColor(() => '#3B82F6')
+      .linkDirectionalParticleColor(() => '#b8860b')
       .d3AlphaDecay(0.005)
       .d3VelocityDecay(0.4)
       .d3Force('charge', forceManyBody().strength((node: any) => {
-        // 斥力按层级递增：层级越深（depth越大），斥力越大
         if (node.type === 'paper') return -forceStrength * 0.5
         if (node.type === 'center') return -forceStrength * 2
         const depthBonus = -(node.depth || 0) * 30
@@ -573,9 +567,18 @@ export default function ConceptsGraph() {
       }))
       .d3Force('link', forceLink().id((d: any) => d.id).distance(60).strength(0.5))
       .d3Force('collision', forceCollide().radius((node: any) => {
-        if (node.type === 'paper') return 15
-        if (node.type === 'center') return 30
-        return 20 + (node.depth || 0) * 3
+        if (node.type === 'paper') return 12
+        if (node.type === 'center') return 25
+        // Category-based collision radius
+        const CATEGORY_RADII: Record<string, number> = {
+          field: 20,
+          direction: 18,
+          subdirection: 16,
+          task: 14,
+          method: 12,
+          technique: 10,
+        }
+        return CATEGORY_RADII[node.category || 'method'] || 11
       }))
       .onNodeClick((node: any) => {
         if (!node) return
@@ -604,21 +607,20 @@ export default function ConceptsGraph() {
         graphRef.current._destructor()
       }
     }
-  }, [graphNodes, graphLinks, viewMode, handleConceptClick, handlePaperClick, forceStrength])
+  }, [graphNodes, graphLinks, viewMode, handleConceptClick, handlePaperClick, forceStrength, searchQuery, selectedCategories, highlightedNodeId])
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent mx-auto" />
-          <p className="mt-4 text-gray-500">加载知识图谱...</p>
+      <div className="h-full flex items-center justify-center bg-gradient-warm">
+        <div className="loading-academic">
+          Mapping your knowledge landscape...
         </div>
       </div>
     )
   }
 
   return (
-    <div className="h-full relative">
+    <div className="h-full relative bg-gradient-warm">
       {/* Graph Canvas */}
       <div ref={containerRef} className="w-full h-full" />
 
@@ -627,149 +629,133 @@ export default function ConceptsGraph() {
         {viewMode === 'concept' && (
           <button
             onClick={handleBack}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
+            className="btn-secondary flex items-center gap-2"
           >
-            ← 返回全部概念
+            <ArrowLeft className="w-4 h-4" />
+            {t.concepts.backToAll}
           </button>
         )}
       </div>
 
-      {/* Action Buttons */}
+      {/* Action Buttons - Academic Style */}
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         {/* Filter Button */}
         <button
           onClick={() => setFilterPanelOpen(!filterPanelOpen)}
-          className={`flex items-center gap-2 px-4 py-2.5 backdrop-blur rounded-xl shadow-brand text-sm font-medium transition-all border ${
-            filterPanelOpen
-              ? 'bg-brand-fill text-brand-700 border-brand'
-              : 'bg-brand-gradient text-brand-600 hover:shadow-brand-lg border-brand'
-          }`}
+          className={`btn-secondary flex items-center gap-2 ${filterPanelOpen ? 'border-sepia text-sepia' : ''}`}
         >
-          <Search className="h-4 w-4" />
-          筛选
+          <Search className="w-4 h-4" />
+          {t.concepts.filter}
         </button>
 
         {/* Folder Selector */}
         <div className="relative">
           <button
             onClick={() => setShowFolderMenu(!showFolderMenu)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
+            className="btn-secondary flex items-center gap-2"
           >
-            <Folder className="h-4 w-4" />
-            {activeFolder ? (folders.find(f => f.id === activeFolder)?.name || '全部') : '全部'}
-            <ChevronDown className="h-4 w-4" />
+            <Folder className="w-4 h-4" />
+            {activeFolder ? (folders.find(f => f.id === activeFolder)?.name || t.common.all) : t.common.all}
+            <ChevronDown className="w-4 h-4" />
           </button>
           {showFolderMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-brand-gradient rounded-xl shadow-brand-lg border border-brand overflow-hidden z-20">
-              {/* 全部选项 */}
+            <div className="absolute right-0 mt-2 w-48 card-academic overflow-hidden z-20 animate-slide-down">
               <button
-                onClick={() => {
-                  setActiveFolder('')
-                  setShowFolderMenu(false)
-                }}
-                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-brand-fill flex items-center gap-2 transition-colors ${
-                  activeFolder === '' ? 'bg-brand-fill text-brand-700' : 'text-gray-700'
-                }`}
+                onClick={() => { setActiveFolder(''); setShowFolderMenu(false) }}
+                className={`w-full text-left px-4 py-3 font-body text-sm hover:bg-paper flex items-center gap-2 transition-colors ${activeFolder === '' ? 'bg-vellum text-sepia' : 'text-muted'}`}
               >
-                <Folder className="h-4 w-4" />
-                全部
+                <Folder className="w-4 w-4" />
+                {t.common.all}
               </button>
               {folders.map(folder => (
                 <button
                   key={folder.id}
-                  onClick={() => {
-                    setActiveFolder(folder.id)
-                    setShowFolderMenu(false)
-                  }}
-                  className={`w-full text-left px-4 py-2.5 text-sm hover:bg-brand-fill flex items-center gap-2 transition-colors ${
-                    activeFolder === folder.id ? 'bg-brand-fill text-brand-700' : 'text-gray-700'
-                  }`}
+                  onClick={() => { setActiveFolder(folder.id); setShowFolderMenu(false) }}
+                  className={`w-full text-left px-4 py-3 font-body text-sm hover:bg-paper flex items-center gap-2 transition-colors ${activeFolder === folder.id ? 'bg-vellum text-sepia' : 'text-muted'}`}
                 >
-                  <Folder className="h-4 w-4" />
+                  <Folder className="w-4 h-4" />
                   {folder.name}
                 </button>
               ))}
             </div>
           )}
         </div>
-        {/* Export Dropdown - only show in 'all' view */}
+
+        {/* Export Dropdown */}
         {viewMode === 'all' && (
           <div className="relative">
             <button
               onClick={() => setShowExportMenu(!showExportMenu)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-brand-gradient backdrop-blur rounded-xl shadow-brand text-sm font-medium text-brand-600 hover:shadow-brand-lg border border-brand transition-all"
+              className="btn-secondary flex items-center gap-2"
             >
-              <Download className="h-4 w-4" />
-              导出
-              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <Download className="w-4 h-4" />
+              {t.concepts.export}
+              <ChevronDown className="w-4 h-4" />
             </button>
             {showExportMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-brand-gradient rounded-xl shadow-brand-lg border border-brand overflow-hidden z-20">
+              <div className="absolute right-0 mt-2 w-56 card-academic overflow-hidden z-20 animate-slide-down">
                 <button
-                  onClick={() => { handleExportHtml(); setShowExportMenu(false); }}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-brand-fill flex items-center gap-3 transition-colors"
+                  onClick={() => { handleExportHtml(); setShowExportMenu(false) }}
+                  className="w-full px-4 py-3 text-left hover:bg-paper flex items-center gap-3 transition-colors"
                 >
                   <span className="text-lg">🌐</span>
                   <div>
-                    <div className="font-medium">HTML 页面</div>
-                    <div className="text-xs text-gray-400">交互式物理渲染</div>
+                    <div className="font-body font-medium text-sepia">{t.export.html}</div>
+                    <div className="font-mono text-xs text-faint">{t.export.htmlDesc}</div>
                   </div>
                 </button>
                 <button
-                  onClick={() => { handleExportCanvas(); setShowExportMenu(false); }}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-brand-fill flex items-center gap-3 transition-colors"
+                  onClick={() => { handleExportCanvas(); setShowExportMenu(false) }}
+                  className="w-full px-4 py-3 text-left hover:bg-paper flex items-center gap-3 transition-colors"
                 >
                   <span className="text-lg">🎨</span>
                   <div>
-                    <div className="font-medium">Canvas 格式</div>
-                    <div className="text-xs text-gray-400">带颜色和布局</div>
+                    <div className="font-body font-medium text-sepia">{t.export.canvas}</div>
+                    <div className="font-mono text-xs text-faint">{t.export.canvasDesc}</div>
                   </div>
                 </button>
                 <button
-                  onClick={() => { handleExportMarkdown(); setShowExportMenu(false); }}
-                  className="w-full px-4 py-3 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  onClick={() => { handleExportMarkdown(); setShowExportMenu(false) }}
+                  className="w-full px-4 py-3 text-left hover:bg-paper flex items-center gap-3 transition-colors"
                 >
                   <span className="text-lg">📝</span>
                   <div>
-                    <div className="font-medium">Markdown 格式</div>
-                    <div className="text-xs text-gray-400">纯文本双链</div>
+                    <div className="font-body font-medium text-sepia">{t.export.markdown}</div>
+                    <div className="font-mono text-xs text-faint">{t.export.markdownDesc}</div>
                   </div>
                 </button>
               </div>
             )}
           </div>
         )}
+
         {viewMode === 'all' && (
           <button
             onClick={() => setDedupOpen(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-brand-button backdrop-blur rounded-xl shadow-brand text-sm font-medium text-white hover:shadow-brand-lg transition-all"
+            className="btn-primary flex items-center gap-2"
           >
-            🔄 去重扫描
+            🔄 {t.concepts.dedupScan}
           </button>
         )}
       </div>
 
-      {/* Info Panel */}
-      <div className="absolute bottom-16 left-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-4 z-10 border border-brand">
-        <div className="text-xs text-brand-500 font-medium">
-          {viewMode === 'all' ? '知识图谱' : '概念详情'}
+      {/* Info Panel - Academic Style */}
+      <div className="absolute bottom-16 left-4 card-academic p-4 z-10">
+        <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">
+          {viewMode === 'all' ? t.concepts.knowledgeGraph : t.concepts.conceptDetails}
         </div>
-        <div className="font-bold text-gray-900 text-lg">
-          {viewMode === 'all' ? `${concepts.length} 个概念` : selectedConcept?.text}
+        <div className="font-display text-lg text-sepia font-medium">
+          {viewMode === 'all' ? `${concepts.length} ${t.concepts.concepts}` : selectedConcept?.text}
         </div>
-        <div className="text-xs text-gray-500 mt-1">
-          {viewMode === 'all'
-            ? '点击概念查看操作'
-            : '点击论文查看详情'
-          }
+        <div className="font-body text-xs text-muted mt-1">
+          {viewMode === 'all' ? t.concepts.clickToView : t.concepts.clickPaperToView}
         </div>
+
         {/* Force Strength Slider */}
-        <div className="mt-3 pt-3 border-t border-brand-200">
+        <div className="mt-3 pt-3 border-t border-academic">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-500">节点斥力</span>
-            <span className="text-xs font-medium text-brand-600">{forceStrength}</span>
+            <span className="font-mono text-xs text-muted">{t.concepts.nodeRepulsion}</span>
+            <span className="font-mono text-xs text-sepia font-medium">{forceStrength}</span>
           </div>
           <input
             type="range"
@@ -777,146 +763,146 @@ export default function ConceptsGraph() {
             max="400"
             value={forceStrength}
             onChange={(e) => setForceStrength(Number(e.target.value))}
-            className="w-full h-1.5 bg-brand-100 rounded-lg appearance-none cursor-pointer accent-brand-600"
+            className="w-full h-1.5 bg-paper rounded-lg appearance-none cursor-pointer accent-sepia"
           />
-          <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-            <span>紧凑</span>
-            <span>分散</span>
+          <div className="flex justify-between font-mono text-[10px] text-faint mt-1">
+            <span>{t.concepts.compact}</span>
+            <span>{t.concepts.spread}</span>
           </div>
         </div>
       </div>
 
-      {/* Concept Action Panel - 点击概念后显示 */}
+      {/* Concept Action Panel */}
       {showConceptActions && selectedConcept && (
-        <div className="absolute top-4 right-4 bg-brand-gradient rounded-2xl shadow-brand-lg p-4 z-20 w-72 border border-brand">
+        <div className="absolute top-4 right-4 card-academic p-4 z-20 w-72 animate-slide-down">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <h3 className="font-bold text-gray-900 text-sm">{selectedConcept.text}</h3>
+              <h3 className="font-display font-medium text-sepia text-sm">{selectedConcept.text}</h3>
               <div className="flex items-center gap-2 mt-1">
                 {selectedConcept.category && (
                   <span
-                    className="px-2 py-0.5 rounded-full text-xs font-medium"
+                    className="badge-academic"
                     style={{
-                      backgroundColor: CATEGORY_COLORS[selectedConcept.category] + '20',
+                      backgroundColor: CATEGORY_COLORS[selectedConcept.category] + '15',
                       color: CATEGORY_COLORS[selectedConcept.category],
+                      borderColor: CATEGORY_COLORS[selectedConcept.category] + '30',
                     }}
                   >
                     {selectedConcept.category}
                   </span>
                 )}
-                <span className="text-xs text-gray-500">{selectedConcept.paper_count || 0} 篇论文</span>
+                <span className="font-mono text-xs text-muted">{selectedConcept.paper_count || 0} {t.concepts.paper}</span>
               </div>
             </div>
             <button
-              onClick={() => {
-                setShowConceptActions(false)
-                setSelectedConcept(null)
-              }}
-              className="text-gray-400 hover:text-brand-600 transition-colors"
+              onClick={() => { setShowConceptActions(false); setSelectedConcept(null) }}
+              className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
           </div>
+
           <div className="space-y-2">
             <button
               onClick={handleDiscoverResearchPoints}
-              className="w-full px-4 py-2.5 bg-brand-button text-white text-sm font-medium rounded-xl hover:shadow-brand transition-all flex items-center justify-center gap-2"
+              className="btn-primary w-full flex items-center justify-center gap-2"
             >
-              🔍 发现研究点
+              🔍 {t.concepts.discoverResearch}
             </button>
             {selectedConcept.papers && selectedConcept.papers.length > 0 && (
               <button
                 onClick={handleViewPapers}
-                className="w-full px-4 py-2.5 bg-brand-fill text-brand-700 text-sm font-medium rounded-xl hover:shadow-brand transition-all flex items-center justify-center gap-2"
+                className="btn-secondary w-full flex items-center justify-center gap-2"
               >
-                📄 查看相关论文 ({selectedConcept.papers.length})
+                📄 {t.concepts.viewPapers} ({selectedConcept.papers.length})
               </button>
             )}
           </div>
         </div>
       )}
 
-      {/* Hover Tooltip - 简单显示 */}
+      {/* Hover Tooltip */}
       {hoverNode && !showConceptActions && (
-        <div className="absolute top-4 right-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-3 z-10 max-w-xs pointer-events-none border border-brand">
-          <div className="font-semibold text-gray-900 text-sm">
+        <div className="absolute top-4 right-4 card-academic p-3 z-10 max-w-xs pointer-events-none animate-slide-down">
+          <div className="font-display text-sepia text-sm">
             {hoverNode.name}
           </div>
           <div className="flex items-center gap-2 mt-1">
             {hoverNode.type === 'paper' ? (
-              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-600">
-                论文
+              <span className="badge-academic" style={{ backgroundColor: '#4a6b8a15', color: '#4a6b8a', borderColor: '#4a6b8a30' }}>
+                {t.concepts.paperNode}
               </span>
             ) : hoverNode.type === 'center' ? (
-              <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-600">
-                中心概念
+              <span className="badge-academic" style={{ backgroundColor: '#d4a01215', color: '#d4a012', borderColor: '#d4a01230' }}>
+                {t.concepts.centerConcept}
               </span>
             ) : (
               <>
                 <span
-                  className="px-2 py-0.5 rounded-full text-xs font-medium"
+                  className="badge-academic"
                   style={{
-                    backgroundColor: CATEGORY_COLORS[hoverNode.category || 'method'] + '20',
+                    backgroundColor: CATEGORY_COLORS[hoverNode.category || 'method'] + '15',
                     color: CATEGORY_COLORS[hoverNode.category || 'method'],
+                    borderColor: CATEGORY_COLORS[hoverNode.category || 'method'] + '30',
                   }}
                 >
                   {hoverNode.category}
                 </span>
-                <span className="text-xs text-gray-500">L{hoverNode.depth}</span>
+                <span className="font-mono text-xs text-muted">L{hoverNode.depth}</span>
               </>
             )}
           </div>
           {hoverNode.type === 'concept' && (
-            <div className="text-xs text-gray-400 mt-1">点击查看操作</div>
+            <div className="font-body text-xs text-faint mt-1">{t.concepts.clickToView}</div>
           )}
           {hoverNode.type === 'paper' && (
-            <div className="text-xs text-gray-400 mt-1">点击查看详情</div>
+            <div className="font-body text-xs text-faint mt-1">{t.concepts.clickPaperToView}</div>
           )}
         </div>
       )}
 
       {/* Paper Detail Panel */}
       {selectedPaper && (
-        <div className="absolute bottom-20 right-4 w-96 bg-brand-gradient rounded-2xl shadow-brand-lg z-20 max-h-[70vh] overflow-y-auto border border-brand">
-          <div className="p-4 border-b border-brand sticky top-0 bg-brand-gradient">
+        <div className="absolute bottom-20 right-4 w-96 card-academic z-20 max-h-[70vh] overflow-y-auto animate-slide-up">
+          <div className="p-4 border-b border-academic sticky top-0 bg-vellum">
             <div className="flex items-start justify-between">
-              <h3 className="font-bold text-gray-900 text-sm leading-tight pr-2">
+              <h3 className="font-display font-medium text-sepia text-sm leading-tight pr-2">
                 {selectedPaper.title}
               </h3>
               <button
                 onClick={() => setSelectedPaper(null)}
-                className="text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all flex-shrink-0"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
           <div className="p-4 space-y-4">
-            {/* DOI - 优先显示 s2_doi 作为超链接 */}
+            {/* DOI */}
             <div>
-              <div className="text-xs font-semibold text-brand-500 mb-1">DOI</div>
+              <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.doi}</div>
               {selectedPaper.s2_doi ? (
                 <a
                   href={`https://doi.org/${selectedPaper.s2_doi}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 hover:underline break-all"
+                  className="font-mono text-xs text-status-info hover:text-sepia hover:underline break-all"
                 >
                   {selectedPaper.s2_doi}
                 </a>
               ) : (
-                <div className="text-xs text-gray-500 break-all">{selectedPaper.doi}</div>
+                <div className="font-mono text-xs text-muted break-all">{selectedPaper.doi}</div>
               )}
             </div>
 
             {/* Venue & Year */}
             {(selectedPaper.venue || selectedPaper.year) && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-1">期刊/会议</div>
-                <div className="text-sm text-gray-700">
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.venue}</div>
+                <div className="font-body text-sm text-sepia">
                   {selectedPaper.venue}
-                  {selectedPaper.year && <span className="text-gray-400">, {selectedPaper.year}</span>}
+                  {selectedPaper.year && <span className="text-muted">, {selectedPaper.year}</span>}
                 </div>
               </div>
             )}
@@ -924,16 +910,16 @@ export default function ConceptsGraph() {
             {/* Citation Count */}
             {selectedPaper.citation_count !== undefined && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-1">引用数</div>
-                <div className="text-sm text-gray-700">{selectedPaper.citation_count}</div>
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.citations}</div>
+                <div className="font-display text-lg text-sepia">{selectedPaper.citation_count}</div>
               </div>
             )}
 
-            {/* TLDR - S2 AI Summary */}
+            {/* TLDR */}
             {selectedPaper.tldr && (
               <div>
-                <div className="text-xs font-semibold text-emerald-600 mb-1">TLDR (AI 概要)</div>
-                <div className="text-sm text-emerald-700 italic bg-emerald-50 p-2 rounded">
+                <div className="font-mono text-xs text-status-success uppercase tracking-wider mb-1">{t.concepts.paperDetail.tldr}</div>
+                <div className="font-quote text-sm text-status-success italic bg-status-success/5 p-3 rounded-medium">
                   {selectedPaper.tldr}
                 </div>
               </div>
@@ -942,11 +928,11 @@ export default function ConceptsGraph() {
             {/* Authors */}
             {selectedPaper.authors && selectedPaper.authors.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-1">作者</div>
-                <div className="text-sm text-gray-700">
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.authors}</div>
+                <div className="font-body text-sm text-sepia">
                   {selectedPaper.authors.slice(0, 5).join(', ')}
                   {selectedPaper.authors.length > 5 && (
-                    <span className="text-gray-400"> +{selectedPaper.authors.length - 5} 人</span>
+                    <span className="text-muted"> +{selectedPaper.authors.length - 5} {t.concepts.paperDetail.more}</span>
                   )}
                 </div>
               </div>
@@ -955,12 +941,13 @@ export default function ConceptsGraph() {
             {/* Keywords */}
             {selectedPaper.keywords && selectedPaper.keywords.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-2">关键词</div>
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-2">{t.concepts.paperDetail.keywords}</div>
                 <div className="flex flex-wrap gap-1">
                   {selectedPaper.keywords.map((kw, i) => (
                     <span
                       key={i}
-                      className="px-2 py-0.5 bg-brand-fill text-brand-700 rounded-full text-xs"
+                      className="badge-academic"
+                      style={{ backgroundColor: '#f5f0e8', color: '#6b4423', borderColor: '#e8dfd0' }}
                     >
                       {kw}
                     </span>
@@ -972,8 +959,8 @@ export default function ConceptsGraph() {
             {/* Abstract */}
             {selectedPaper.abstract && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-1">摘要</div>
-                <div className="text-sm text-gray-600 leading-relaxed">
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.abstract}</div>
+                <div className="font-body text-sm text-sepia leading-relaxed">
                   {selectedPaper.abstract}
                 </div>
               </div>
@@ -982,11 +969,11 @@ export default function ConceptsGraph() {
             {/* Contributions */}
             {selectedPaper.contributions && selectedPaper.contributions.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-brand-500 mb-2">主要贡献</div>
-                <ul className="text-sm text-gray-600 space-y-1">
+                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-2">{t.concepts.paperDetail.keyContributions}</div>
+                <ul className="font-body text-sm text-sepia space-y-1">
                   {selectedPaper.contributions.slice(0, 3).map((c, i) => (
                     <li key={i} className="flex items-start gap-2">
-                      <span className="text-brand-500 mt-1">•</span>
+                      <span className="text-amber mt-1">•</span>
                       <span>{c}</span>
                     </li>
                   ))}
@@ -999,20 +986,20 @@ export default function ConceptsGraph() {
 
       {/* Research Points Panel */}
       {showResearchPanel && (
-        <div className="absolute top-20 left-4 w-[480px] bg-brand-gradient rounded-2xl shadow-brand-lg z-20 max-h-[75vh] overflow-y-auto border border-brand">
-          <div className="p-4 border-b border-brand sticky top-0 bg-brand-gradient">
+        <div className="absolute top-20 left-4 w-[480px] card-academic z-20 max-h-[75vh] overflow-y-auto animate-slide-up">
+          <div className="p-4 border-b border-academic sticky top-0 bg-vellum">
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-bold text-gray-900 text-base">🔍 研究点发现</h3>
-                <p className="text-xs text-gray-500 mt-1">
-                  基于「{researchPoints?.concept_name || selectedConcept?.text}」的分析
+                <h3 className="font-display font-medium text-sepia text-base">🔍 {t.concepts.researchPoints.title}</h3>
+                <p className="font-body text-xs text-muted mt-1">
+                  {t.concepts.researchPoints.basedOn} "{researchPoints?.concept_name || selectedConcept?.text}"
                 </p>
               </div>
               <button
                 onClick={() => setShowResearchPanel(false)}
-                className="text-gray-400 hover:text-brand-600 transition-colors flex-shrink-0"
+                className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -1021,28 +1008,29 @@ export default function ConceptsGraph() {
             {loadingResearchPoints ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-4 border-brand-500 border-t-transparent mx-auto" />
-                  <p className="mt-3 text-sm text-gray-500">正在分析知识图谱...</p>
-                  <p className="text-xs text-gray-400 mt-1">追溯上游节点，遍历边缘节点</p>
+                  <div className="loading-academic" style={{ minHeight: '100px' }}>
+                    {t.concepts.researchPoints.analyzing}
+                  </div>
+                  <p className="font-body text-xs text-muted mt-1">{t.concepts.researchPoints.traversing}</p>
                 </div>
               </div>
             ) : researchPoints ? (
               <>
                 {/* Analysis Context Summary */}
-                <div className="bg-brand-fill rounded-xl p-3">
-                  <div className="text-xs font-semibold text-brand-600 mb-2">分析上下文</div>
+                <div className="bg-paper rounded-large p-3">
+                  <div className="font-mono text-xs text-sepia uppercase tracking-wider mb-2">{t.concepts.researchPoints.analysisContext}</div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
-                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.ancestors.length}</div>
-                      <div className="text-xs text-gray-500">上游节点</div>
+                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.ancestors.length}</div>
+                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.ancestors}</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.descendants.length}</div>
-                      <div className="text-xs text-gray-500">下游节点</div>
+                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.descendants.length}</div>
+                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.descendants}</div>
                     </div>
                     <div>
-                      <div className="text-lg font-bold text-brand-600">{researchPoints.analysis_context.edge_nodes.length}</div>
-                      <div className="text-xs text-gray-500">边缘节点</div>
+                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.edge_nodes.length}</div>
+                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.edgeNodes}</div>
                     </div>
                   </div>
                 </div>
@@ -1050,68 +1038,80 @@ export default function ConceptsGraph() {
                 {/* Research Points */}
                 <div className="space-y-3">
                   {researchPoints.research_points.map((point, i) => (
-                    <div key={i} className="border border-brand-100 rounded-xl p-3 hover:border-brand-300 hover:bg-brand-50/50 transition-colors">
+                    <div
+                      key={i}
+                      className="border border-academic rounded-large p-3 hover:border-sepia hover:bg-vellum/50 transition-colors"
+                    >
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-semibold text-gray-900 text-sm">{point.title}</h4>
+                        <h4 className="font-display font-medium text-sepia text-sm">{point.title}</h4>
                         <div className="flex gap-1 flex-shrink-0">
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.difficulty === 'low' ? 'bg-emerald-100 text-emerald-600' :
-                            point.difficulty === 'medium' ? 'bg-amber-100 text-amber-600' :
-                            point.difficulty === 'high' ? 'bg-red-100 text-red-600' :
-                            'bg-gray-100 text-gray-500'
-                          }`}>
-                            {point.difficulty === 'low' ? '易' :
-                             point.difficulty === 'medium' ? '中' :
-                             point.difficulty === 'high' ? '难' : '?'}
+                          <span
+                            className="badge-academic"
+                            style={{
+                              backgroundColor: point.difficulty === 'low' ? '#2d5a2715' : point.difficulty === 'medium' ? '#b8860b15' : '#a33b3b15',
+                              color: point.difficulty === 'low' ? '#2d5a27' : point.difficulty === 'medium' ? '#b8860b' : '#a33b3b',
+                              borderColor: point.difficulty === 'low' ? '#2d5a2730' : point.difficulty === 'medium' ? '#b8860b30' : '#a33b3b30',
+                            }}
+                          >
+                            {t.concepts.researchPoints.difficultyLabel[point.difficulty as 'low' | 'medium' | 'high']}
                           </span>
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.novelty === 'high' ? 'bg-orange-100 text-orange-600' :
-                            point.novelty === 'moderate' ? 'bg-blue-100 text-blue-600' :
-                            point.novelty === 'incremental' ? 'bg-gray-100 text-gray-500' :
-                            'bg-gray-100 text-gray-500'
-                          }`} title="创新性">
-                            {point.novelty === 'high' ? '高创新' :
-                             point.novelty === 'moderate' ? '中创新' :
-                             point.novelty === 'incremental' ? '渐进' : '?'}
+                          <span
+                            className="badge-academic"
+                            style={{
+                              backgroundColor: point.novelty === 'high' ? '#c2410c15' : point.novelty === 'moderate' ? '#4a6b8a15' : '#a89a8a15',
+                              color: point.novelty === 'high' ? '#c2410c' : point.novelty === 'moderate' ? '#4a6b8a' : '#a89a8a',
+                              borderColor: point.novelty === 'high' ? '#c2410c30' : point.novelty === 'moderate' ? '#4a6b8a30' : '#a89a8a30',
+                            }}
+                          >
+                            {t.concepts.researchPoints.noveltyLabel[point.novelty as 'high' | 'moderate' | 'incremental']}
                           </span>
-                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                            point.potential_impact === 'transformative' ? 'bg-purple-100 text-purple-600' :
-                            point.potential_impact === 'broad' ? 'bg-blue-100 text-blue-600' :
-                            point.potential_impact === 'niche' ? 'bg-gray-100 text-gray-500' :
-                            'bg-gray-100 text-gray-500'
-                          }`} title="潜在影响">
-                            {point.potential_impact === 'transformative' ? '变革性' :
-                             point.potential_impact === 'broad' ? '广泛' :
-                             point.potential_impact === 'niche' ? '特定' : '?'}
+                          <span
+                            className="badge-academic"
+                            style={{
+                              backgroundColor: point.potential_impact === 'transformative' ? '#d4a01215' : point.potential_impact === 'broad' ? '#4a6b8a15' : '#a89a8a15',
+                              color: point.potential_impact === 'transformative' ? '#d4a012' : point.potential_impact === 'broad' ? '#4a6b8a' : '#a89a8a',
+                              borderColor: point.potential_impact === 'transformative' ? '#d4a01230' : point.potential_impact === 'broad' ? '#4a6b8a30' : '#a89a8a30',
+                            }}
+                          >
+                            {t.concepts.researchPoints.impactLabel[point.potential_impact as 'transformative' | 'broad' | 'niche']}
                           </span>
                         </div>
                       </div>
+
                       {point.hypothesis && (
-                        <div className="mt-2 p-2 bg-blue-50 rounded-lg text-xs text-blue-700 italic">
+                        <div className="mt-2 p-2 bg-status-info/5 rounded-soft font-quote text-xs text-status-info italic">
                           💡 {point.hypothesis}
                         </div>
                       )}
-                      <p className="text-sm text-gray-600 mt-2 leading-relaxed">{point.description}</p>
+
+                      <p className="font-body text-sm text-sepia mt-2 leading-relaxed">{point.description}</p>
+
                       <div className="mt-2">
-                        <div className="text-xs text-gray-400 mb-1">发现方法 · 研究价值</div>
-                        <p className="text-xs text-gray-500">
-                          {point.discovery_method === 'gap_filling' ? '🔍 空白地带法' :
-                           point.discovery_method === 'leaf_extension' ? '🌱 末端延伸法' :
-                           point.discovery_method === 'bottleneck' ? '🔥 瓶颈识别法' :
-                           point.discovery_method === 'transfer' ? '🔄 迁移应用法' : ''} · {point.rationale}
+                        <div className="font-mono text-xs text-faint mb-1">{t.concepts.researchPoints.discoveryMethod} · {t.concepts.researchPoints.researchValue}</div>
+                        <p className="font-body text-xs text-muted">
+                          {point.discovery_method === 'gap_filling' ? '🔍 ' + t.concepts.researchPoints.method.gap_filling :
+                           point.discovery_method === 'leaf_extension' ? '🌱 ' + t.concepts.researchPoints.method.leaf_extension :
+                           point.discovery_method === 'bottleneck' ? '🔥 ' + t.concepts.researchPoints.method.bottleneck :
+                           point.discovery_method === 'transfer' ? '🔄 ' + t.concepts.researchPoints.method.transfer : ''} · {point.rationale}
                         </p>
                       </div>
+
                       {point.difficulty_reason && (
-                        <div className="mt-1 text-xs text-gray-400">
-                          难度依据: {point.difficulty_reason}
+                        <div className="mt-1 font-mono text-xs text-faint">
+                          {t.concepts.researchPoints.difficulty}: {point.difficulty_reason}
                         </div>
                       )}
+
                       {point.related_concepts && point.related_concepts.length > 0 && (
                         <div className="mt-2">
-                          <div className="text-xs text-gray-400 mb-1">相关概念</div>
+                          <div className="font-mono text-xs text-faint mb-1">{t.concepts.researchPoints.relatedConcepts}</div>
                           <div className="flex flex-wrap gap-1">
                             {point.related_concepts.slice(0, 5).map((c, j) => (
-                              <span key={j} className="px-2 py-0.5 bg-brand-fill text-brand-700 rounded-full text-xs">
+                              <span
+                                key={j}
+                                className="badge-academic"
+                                style={{ backgroundColor: '#f5f0e8', color: '#6b4423', borderColor: '#e8dfd0' }}
+                              >
                                 {c}
                               </span>
                             ))}
@@ -1127,36 +1127,64 @@ export default function ConceptsGraph() {
         </div>
       )}
 
-      {/* Legend */}
-      <div className="absolute bottom-16 right-4 bg-brand-gradient backdrop-blur rounded-2xl shadow-brand p-4 z-10 border border-brand">
-        <div className="text-xs font-semibold text-brand-600 mb-2">图例</div>
-        <div className="space-y-2">
+      {/* Legend - Academic Style */}
+      <div className="absolute bottom-16 right-4 card-academic p-4 z-10">
+        <div className="font-mono text-xs text-sepia uppercase tracking-wider mb-2">{t.concepts.legend}</div>
+        <div className="space-y-1.5">
+          {/* Concept Categories */}
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-red-400 to-red-500" />
-            <span className="text-xs text-gray-600">概念节点</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.field }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.field}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-blue-400 to-blue-500" />
-            <span className="text-xs text-gray-600">论文节点</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.direction }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.direction}</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-500" />
-            <span className="text-xs text-gray-600">中心概念</span>
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.subdirection }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.subdirection}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.task }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.task}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.method }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.method}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.technique }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.technique}</span>
+          </div>
+          {/* Divider */}
+          <div className="border-t border-academic my-1" />
+          {/* Special Nodes */}
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: PAPER_COLOR }} />
+            <span className="font-body text-xs text-muted">{t.concepts.paperNode}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CENTER_COLOR }} />
+            <span className="font-body text-xs text-muted">{t.concepts.centerConcept}</span>
           </div>
         </div>
       </div>
 
       {/* Dedup Panel */}
-      <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} folderId={activeFolder} />
+      {dedupOpen && (
+        <DedupPanel isOpen={dedupOpen} onClose={() => setDedupOpen(false)} />
+      )}
 
       {/* Filter Panel */}
       {filterPanelOpen && (
         <FilterPanel
-          concepts={concepts}
-          onClose={() => setFilterPanelOpen(false)}
+          searchQuery={searchQuery}
+          selectedCategories={selectedCategories}
+          graphNodes={graphNodes}
           onSearch={handleSearch}
           onCategoryChange={handleCategoryChange}
           onFocusNode={handleFocusNode}
+          onClose={() => setFilterPanelOpen(false)}
         />
       )}
     </div>

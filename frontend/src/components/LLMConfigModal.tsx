@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Loader2 } from 'lucide-react'
 import { llmApi } from '../lib/api'
+import { useTranslation } from '../i18n'
 
 interface Props {
   onClose: () => void
@@ -18,6 +19,7 @@ interface ProviderConfig {
 }
 
 export default function LLMConfigModal({ onClose, onSave }: Props) {
+  const { t } = useTranslation()
   const [configType, setConfigType] = useState<'claude_cli' | 'custom'>('custom')
   const [configs, setConfigs] = useState<ProviderConfig[]>([{ provider: 'custom', is_active: true }])
   const [testing, setTesting] = useState(false)
@@ -29,7 +31,6 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
       if (res.data.providers?.length > 0) {
         const savedConfig = res.data.providers[0]
         setConfigs(res.data.providers)
-        // Set configType based on saved provider
         if (savedConfig.provider === 'claude_cli') {
           setConfigType('claude_cli')
         } else {
@@ -61,7 +62,7 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
       })
       setTestResult({ success: true, message: res.data.message })
     } catch (err: any) {
-      const errorMsg = err.response?.data?.detail || '测试失败'
+      const errorMsg = err.response?.data?.detail || 'Test failed'
       setTestResult({ success: false, message: errorMsg })
     } finally {
       setTesting(false)
@@ -75,28 +76,31 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
       await llmApi.saveConfig({ mode: 'single', providers: [config] })
       onSave()
     } catch (err) {
-      alert('保存失败')
+      alert('Save failed')
     } finally {
       setSaving(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
+      <div className="modal-academic w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">LLM 服务配置</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-            <X className="h-5 w-5" />
+        <div className="flex items-center justify-between p-5 border-b border-academic">
+          <h2 className="font-display text-lg text-sepia font-medium">{t.modal.llmConfig.title}</h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
+          >
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-4">
+        <div className="p-5 space-y-5">
           {/* Config Type Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">配置类型</label>
+            <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">{t.modal.llmConfig.configType}</label>
             <div className="flex gap-2">
               <button
                 onClick={() => {
@@ -104,8 +108,10 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
                   setConfigs([{ provider: 'claude_cli', is_active: true }])
                   setTestResult(null)
                 }}
-                className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium ${
-                  configType === 'claude_cli' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
+                className={`flex-1 py-2.5 px-4 rounded-medium font-body text-sm transition-all ${
+                  configType === 'claude_cli'
+                    ? 'bg-vellum border-2 border-sepia text-sepia'
+                    : 'bg-paper border border-academic text-muted hover:text-sepia'
                 }`}
               >
                 Claude Code CLI
@@ -116,20 +122,22 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
                   setConfigs([{ provider: 'custom', is_active: true }])
                   setTestResult(null)
                 }}
-                className={`flex-1 py-2 px-4 rounded-lg border text-sm font-medium ${
-                  configType === 'custom' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-600'
+                className={`flex-1 py-2.5 px-4 rounded-medium font-body text-sm transition-all ${
+                  configType === 'custom'
+                    ? 'bg-vellum border-2 border-sepia text-sepia'
+                    : 'bg-paper border border-academic text-muted hover:text-sepia'
                 }`}
               >
-                自定义配置
+                {t.modal.llmConfig.customConfig}
               </button>
             </div>
           </div>
 
           {/* Claude CLI notice */}
           {configType === 'claude_cli' && (
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-700">
+            <div className="bg-status-success/5 border border-status-success/20 rounded-medium p-3 font-body text-sm text-status-success">
               <Check className="inline h-4 w-4 mr-1" />
-              Claude Code CLI 仅限本地开发使用，Docker 环境不可用
+              {t.modal.llmConfig.cliNotice}
             </div>
           )}
 
@@ -138,44 +146,44 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
             <>
               {/* Base URL */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Base URL <span className="text-red-500">*</span>
+                <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+                  {t.modal.llmConfig.baseUrl} <span className="text-status-error">*</span>
                 </label>
                 <input
                   type="text"
                   value={configs[0]?.base_url || ''}
                   onChange={e => updateConfig(0, 'base_url', e.target.value)}
-                  placeholder="https://api.openai.com/v1"
-                  className={`w-full border rounded-lg px-3 py-2 text-sm ${!configs[0]?.base_url ? 'border-red-300' : ''}`}
+                  placeholder={t.modal.llmConfig.baseUrlPlaceholder}
+                  className={`input-academic w-full ${!configs[0]?.base_url ? 'border-status-error' : ''}`}
                 />
-                <p className="text-xs text-gray-500 mt-1">支持 OpenAI/Anthropic 官方 API 及兼容服务</p>
+                <p className="font-body text-xs text-faint mt-1">{t.modal.llmConfig.baseUrlHint}</p>
               </div>
 
               {/* API Key */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  API Key <span className="text-red-500">*</span>
+                <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+                  {t.modal.llmConfig.apiKey} <span className="text-status-error">*</span>
                 </label>
                 <input
                   type="password"
                   value={configs[0]?.api_key || ''}
                   onChange={e => updateConfig(0, 'api_key', e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  placeholder={t.modal.llmConfig.apiKeyPlaceholder}
+                  className="input-academic w-full"
                 />
               </div>
 
               {/* Model Name */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  模型名称 <span className="text-red-500">*</span>
+                <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
+                  {t.modal.llmConfig.modelName} <span className="text-status-error">*</span>
                 </label>
                 <input
                   type="text"
                   value={configs[0]?.model || ''}
                   onChange={e => updateConfig(0, 'model', e.target.value)}
-                  placeholder="gpt-4o-mini, claude-3-5-sonnet-20241022..."
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                  placeholder={t.modal.llmConfig.modelNamePlaceholder}
+                  className="input-academic w-full"
                 />
               </div>
             </>
@@ -183,28 +191,34 @@ export default function LLMConfigModal({ onClose, onSave }: Props) {
 
           {/* Test Result */}
           {testResult && (
-            <div className={`rounded-lg p-3 text-sm ${testResult.success ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'}`}>
+            <div
+              className={`rounded-medium p-3 font-body text-sm ${
+                testResult.success
+                  ? 'bg-status-success/5 border border-status-success/20 text-status-success'
+                  : 'bg-status-error/5 border border-status-error/20 text-status-error'
+              }`}
+            >
               {testResult.message}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex gap-2 p-4 border-t bg-gray-50">
+        <div className="flex gap-3 p-5 border-t border-academic bg-paper/50">
           <button
             onClick={handleTest}
             disabled={testing}
-            className="flex-1 py-2 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+            className="btn-secondary flex-1 flex items-center justify-center gap-2"
           >
-            {testing ? <Loader2 className="inline h-4 w-4 animate-spin mr-1" /> : null}
-            测试连接
+            {testing && <Loader2 className="w-4 h-4 animate-spin" />}
+            {t.modal.llmConfig.testConnection}
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="flex-1 py-2 px-4 rounded-lg bg-purple-600 text-white text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+            className="btn-primary flex-1"
           >
-            {saving ? '保存中...' : '保存配置'}
+            {saving ? t.modal.llmConfig.saving : t.modal.llmConfig.saveConfig}
           </button>
         </div>
       </div>

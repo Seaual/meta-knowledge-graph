@@ -125,13 +125,13 @@ def _create_client_from_env():
     return None
 
 
+# Semantic Scholar API Key（硬编码）
+S2_API_KEY = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
+
+
 def get_s2_client():
-    """获取 Semantic Scholar 客户端（如果已配置）"""
-    db = get_db()
-    config = db.get_s2_config()
-    if config and config.get('api_key') and config.get('enabled', True):
-        return SemanticScholarClient(config['api_key'])
-    return None
+    """获取 Semantic Scholar 客户端"""
+    return SemanticScholarClient(S2_API_KEY)
 
 
 @router.get("/", response_model=List[PaperResponse])

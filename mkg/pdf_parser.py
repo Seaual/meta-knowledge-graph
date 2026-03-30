@@ -11,6 +11,7 @@ PDF 解析模块 - 使用 LLM 解析学术论文
 """
 
 import fitz  # PyMuPDF
+import re
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
@@ -371,35 +372,233 @@ class PDFParser:
             return None
 
     def _extract_title(self, doc: fitz.Document) -> str:
-        """提取标题"""
-        first_page = doc[0]
-        text = first_page.get_text()
+        """
+        提取标题 - 参考paper2md最佳实践
+        优先级：
+        1. PDF 元数据 (/Title, XMP dc:title)
+        2. 字体大小启发式（第一页、第二页）
+        3. 文本行分析
+        4. 文件名回退
+        """
+        # 方法1：PDF 元数据
+        title = self._extract_title_from_metadata(doc)
+        if title and len(title) > 10 and not self._is_suspicious_title(title):
+            return title
 
+        # 方法2：字体大小启发式
+        for page_idx in range(min(2, len(doc))):  # 尝试前两页
+            title = self._extract_title_by_font_size(doc[page_idx])
+            if title and len(title) > 10:
+                return title
+
+        # 方法3：文本行分析
+        if len(doc) > 0:
+            title = self._extract_title_from_text(doc[0])
+            if title:
+                return title
+
+        # 方法4：文件名回退（由调用者处理）
+        return doc.metadata.get('title', '') or 'Unknown'
+
+    def _extract_title_from_metadata(self, doc: fitz.Document) -> str:
+        """从 PDF 元数据提取标题"""
+        # PDF Info dict
+        title = doc.metadata.get('title', '')
+        if title and len(title) > 5:
+            return title.strip()
+
+        # XMP 元数据（如果有的话）
+        try:
+            if hasattr(doc, 'xref_xml_metadata'):
+                xmp = doc.xref_xml_metadata()
+                if xmp:
+                    import re
+                    match = re.search(r'<dc:title>.*?<rdf:li[^>]*>(.*?)</rdf:li>', xmp, re.DOTALL | re.IGNORECASE)
+                    if match:
+                        return match.group(1).strip()
+        except:
+            pass
+
+        return ""
+
+    def _is_suspicious_title(self, title: str) -> bool:
+        """检测可疑的标题（可能是元数据错误）"""
+        low = title.lower().strip()
+        suspicious = [
+            'untitled', 'title', 'document', 'paper', 'article',
+            'microsoft word', 'latex', 'tex', 'pdf',
+        ]
+        if low in suspicious:
+            return True
+        # 检查是否主要是数字
+        digit_ratio = sum(c.isdigit() for c in title) / max(len(title), 1)
+        if digit_ratio > 0.5:
+            return True
+        return False
+
+    def _extract_title_from_text(self, page) -> str:
+        """从页面文本分析提取标题"""
+        text = page.get_text()
         lines = [line.strip() for line in text.split('\n') if line.strip()]
 
-        # 收集标题行
         title_lines = []
-
-        for line in lines[:5]:
-            # 跳过期刊标识行
-            if any(x in line.lower() for x in ['downloaded', 'redistribution', 'siam', 'ieee', 'acm', 'vol.', 'pp.', 'copyright', 'editorial']):
-                continue
-            # 跳过过短的行（但保留可能是标题一部分的）
-            if len(line) < 3:
+        for line in lines[:15]:
+            if self._looks_like_non_title(line):
                 continue
             title_lines.append(line)
-            # 如果遇到明显的标题结束标志
-            if any(x in line.lower() for x in ['abstract', 'introduction', 'keywords']):
-                break
-            # 收集前几行作为标题
-            if len(title_lines) >= 2:
+            if len(title_lines) >= 3:
                 break
 
         if title_lines:
-            # 合并标题行
             return ' '.join(title_lines)
+        return ""
 
-        return doc.metadata.get('title', lines[0] if lines else 'Unknown')
+    def _looks_like_non_title(self, text: str) -> bool:
+        """判断是否看起来不像标题"""
+        low = text.lower()
+
+        # 太短
+        if len(text) < 5:
+            return True
+
+        # 页眉关键词
+        header_keywords = [
+            'downloaded', 'redistribution', 'copyright', 'editorial',
+            'sciencedirect', 'elsevier', 'springer', 'ieee', 'acm', 'siam',
+            'procedia', 'available online', 'www.', 'http://', 'https://',
+            'peer-review', 'journal of', 'vol.', 'pp.',
+            'abstract', 'keywords', 'introduction', 'contents',
+            'received', 'accepted', 'published',
+            'arxiv:', 'arxiv.org',  # arXiv 标识
+        ]
+        for kw in header_keywords:
+            if kw in low:
+                return True
+
+        # arXiv 格式：[cs.LG], [math.NA] 等
+        if re.match(r'^\[([a-z]+\.)*[a-z]+\]', low):
+            return True
+
+        # 邮箱
+        if '@' in text:
+            return True
+
+        # 纯数字
+        if text.isdigit():
+            return True
+
+        # 章节标题
+        section_patterns = [
+            r'^\d+\.\s+[A-Z]',  # "1. Introduction"
+            r'^abstract$',
+            r'^introduction$',
+            r'^keywords$',
+        ]
+        for pattern in section_patterns:
+            if re.match(pattern, low, re.IGNORECASE):
+                return True
+
+        return False
+
+    def _extract_title_by_font_size(self, page) -> str:
+        """
+        使用字体大小提取标题
+        参考 paper2md: 计算正文字体中位数，标题要明显大于正文
+        """
+        try:
+            blocks = page.get_text("dict")["blocks"]
+
+            # 收集所有文本行
+            text_lines = []
+            all_font_sizes = []
+
+            for block in blocks:
+                if block.get("type") != 0:
+                    continue
+                for line in block.get("lines", []):
+                    text = ""
+                    max_font = 0
+                    y_pos = line.get("bbox", (0, 0, 0, 0))[1]
+
+                    for span in line.get("spans", []):
+                        text += span.get("text", "")
+                        font_size = span.get("size", 0)
+                        if font_size > max_font:
+                            max_font = font_size
+
+                    text = text.strip()
+                    if text and max_font > 0:
+                        text_lines.append({
+                            "text": text,
+                            "font_size": max_font,
+                            "y_pos": y_pos
+                        })
+                        all_font_sizes.append(max_font)
+
+            if not text_lines:
+                return ""
+
+            # 计算正文字体大小（中位数）
+            import statistics
+            body_font_size = statistics.median(all_font_sizes)
+
+            # 标题阈值：比正文大至少2个点
+            title_threshold = body_font_size + 2
+
+            # 页眉关键词（即使字体大也要跳过）
+            header_keywords = [
+                'sciencedirect', 'elsevier', 'springer', 'ieee', 'acm', 'siam',
+                'procedia', 'available online', 'www.', 'downloaded', 'copyright',
+                'vol.', 'pp.', 'editorial', 'journal of',
+                'arxiv:', 'arxiv.org', '[cs.', '[math.', '[stat.',  # arXiv 标识
+            ]
+
+            # 页面上半部分阈值
+            page_height = page.rect.height
+            top_threshold = page_height * 0.4
+
+            # 收集标题候选（字体大于阈值且在页面上半部分）
+            title_candidates = []
+            for line in text_lines:
+                # 字体要足够大
+                if line["font_size"] < title_threshold:
+                    continue
+                # 要在页面上半部分
+                if line["y_pos"] > top_threshold:
+                    continue
+
+                text = line["text"]
+                low = text.lower()
+
+                # 检查是否是页眉
+                is_header = any(kw in low for kw in header_keywords)
+                if is_header:
+                    continue
+
+                # 其他过滤
+                if self._looks_like_non_title(text):
+                    continue
+
+                title_candidates.append(line)
+
+            if title_candidates:
+                # 按字体大小排序，优先取最大的字体
+                title_candidates.sort(key=lambda x: (-x["font_size"], x["y_pos"]))
+                # 取字体最大的前1-3行作为标题
+                max_font = title_candidates[0]["font_size"]
+                title_parts = []
+                for c in title_candidates:
+                    # 只取字体接近最大值的行
+                    if c["font_size"] >= max_font * 0.95:
+                        title_parts.append(c["text"])
+                    if len(title_parts) >= 3:
+                        break
+                return ' '.join(title_parts)
+
+        except Exception as e:
+            print(f"字体大小提取失败: {e}")
+
+        return ""
 
     def _extract_authors(self, doc: fitz.Document) -> List[str]:
         """提取作者 - 改进版"""

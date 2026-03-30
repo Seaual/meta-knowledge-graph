@@ -1,0 +1,278 @@
+// Chinese translations
+export const zh = {
+  // Navigation
+  nav: {
+    home: '首页',
+    papers: '论文',
+    concepts: '概念',
+  },
+
+  // Home page
+  home: {
+    title: '知识图谱',
+    subtitle: '"思想的宇宙，映射与连接"',
+    stats: {
+      papers: '论文',
+      concepts: '概念',
+      relations: '关系',
+      roots: '根概念',
+    },
+    actions: {
+      uploadPapers: '上传论文',
+      uploadDesc: '上传 PDF 并提取知识概念',
+      exploreConcepts: '浏览概念',
+      exploreDesc: '查看概念层级树',
+    },
+    config: '配置',
+    llmProvider: 'LLM 服务商',
+    semanticScholar: 'Semantic Scholar',
+    processingStatus: '处理状态',
+    notConfigured: '未配置',
+    enabled: '已启用',
+    disabled: '已禁用',
+  },
+
+  // Papers page
+  papers: {
+    title: '论文库',
+    subtitle: '管理和处理您的学术论文',
+    refresh: '刷新',
+    process: '处理',
+    uploading: '上传中...',
+    uploadPdf: '上传 PDF',
+    collections: '文集',
+    allPapers: '全部论文',
+    newCollection: '新建文集',
+    uploadResults: '上传结果',
+    batchProcessing: '批量处理中...',
+    batchComplete: '批量处理完成',
+    batchProcess: '批量处理',
+    noPapers: '暂无论文',
+    noPapersDesc: '上传 PDF 开始构建知识图谱',
+    table: {
+      title: '标题',
+      status: '状态',
+      nodes: '节点数',
+      root: '根概念',
+      actions: '操作',
+    },
+    status: {
+      pending: '待处理',
+      downloaded: '已下载',
+      processed: '已处理',
+      failed: '失败',
+    },
+    progress: {
+      success: '成功',
+      failed: '失败',
+      remaining: '预估剩余',
+    },
+  },
+
+  // Concepts page
+  concepts: {
+    knowledgeGraph: '知识图谱',
+    conceptDetails: '概念详情',
+    concepts: '个概念',
+    clickToView: '点击概念查看操作',
+    clickPaperToView: '点击论文查看详情',
+    nodeRepulsion: '节点斥力',
+    compact: '紧凑',
+    spread: '分散',
+    backToAll: '返回全部概念',
+    filter: '筛选',
+    export: '导出',
+    dedupScan: '去重扫描',
+    legend: '图例',
+    conceptNode: '概念节点',
+    paperNode: '论文节点',
+    centerConcept: '中心概念',
+    discoverResearch: '发现研究点',
+    viewPapers: '查看论文',
+    paper: '篇论文',
+    // Category labels
+    category: {
+      field: '领域',
+      direction: '方向',
+      subdirection: '子方向',
+      task: '任务',
+      method: '方法',
+      technique: '技术',
+    },
+    // Filter panel
+    filterPanel: {
+      title: '筛选',
+      searchPlaceholder: '搜索概念...',
+      categoryFilter: 'Category 过滤',
+      resetAll: '重置全部',
+    },
+    // Research points
+    researchPoints: {
+      title: '研究点发现',
+      basedOn: '基于',
+      analysis: '的分析',
+      analysisContext: '分析上下文',
+      ancestors: '上游节点',
+      descendants: '下游节点',
+      edgeNodes: '边缘节点',
+      analyzing: '正在分析知识图谱...',
+      traversing: '追溯上游节点，遍历边缘节点',
+      discoveryMethod: '发现方法',
+      researchValue: '研究价值',
+      difficulty: '难度依据',
+      relatedConcepts: '相关概念',
+      // Discovery methods
+      method: {
+        gap_filling: '空白地带法',
+        leaf_extension: '末端延伸法',
+        bottleneck: '瓶颈识别法',
+        transfer: '迁移应用法',
+      },
+      // Difficulty labels
+      difficultyLabel: {
+        low: '易',
+        medium: '中',
+        high: '难',
+      },
+      // Novelty labels
+      noveltyLabel: {
+        high: '高创新',
+        moderate: '中创新',
+        incremental: '渐进',
+      },
+      // Impact labels
+      impactLabel: {
+        transformative: '变革性',
+        broad: '广泛',
+        niche: '特定',
+      },
+    },
+    // Paper detail panel
+    paperDetail: {
+      doi: 'DOI',
+      venue: '期刊/会议',
+      citations: '引用数',
+      tldr: 'TLDR (AI 概要)',
+      authors: '作者',
+      keywords: '关键词',
+      abstract: '摘要',
+      keyContributions: '主要贡献',
+      more: '人',
+    },
+  },
+
+  // Modals
+  modal: {
+    close: '关闭',
+    cancel: '取消',
+    save: '保存',
+    create: '创建',
+    test: '测试',
+    goSettings: '前往设置',
+    // LLM Config
+    llmConfig: {
+      title: 'LLM 服务配置',
+      configType: '配置类型',
+      customConfig: '自定义配置',
+      baseUrl: 'Base URL',
+      baseUrlPlaceholder: 'https://api.openai.com/v1',
+      baseUrlHint: '支持 OpenAI/Anthropic 官方 API 及兼容服务',
+      apiKey: 'API Key',
+      apiKeyPlaceholder: 'sk-...',
+      modelName: '模型名称',
+      modelNamePlaceholder: 'gpt-4o-mini, claude-3-5-sonnet-20241022...',
+      testConnection: '测试连接',
+      saveConfig: '保存配置',
+      saving: '保存中...',
+      cliNotice: 'Claude Code CLI 仅限本地开发使用，Docker 环境不可用',
+    },
+    // S2 Config
+    s2Config: {
+      title: 'Semantic Scholar 配置',
+      apiKey: 'API Key',
+      apiKeyPlaceholder: '输入 Semantic Scholar API Key',
+      apiKeyHint: '申请地址',
+      enableAuto: '启用自动增强',
+      configured: '已配置 API Key',
+      enterNew: '输入新 Key 更换',
+    },
+    // Create Folder
+    createFolder: {
+      title: '新建文集',
+      name: '文集名称',
+      namePlaceholder: '例如：强化学习论文',
+      description: '描述（可选）',
+      descPlaceholder: '文集描述',
+      create: '创建文集',
+    },
+    // Onboarding
+    onboarding: {
+      welcome: '欢迎使用 Meta Knowledge Graph',
+      demo: '这是一个演示图谱，包含 10 篇 LLM 经典论文',
+      features: {
+        pdfUpload: 'PDF 上传',
+        pdfUploadDesc: '上传论文 PDF，自动提取元数据',
+        conceptExtract: '概念提取',
+        conceptExtractDesc: 'LLM 自动构建概念层级',
+        graphInteract: '图谱交互',
+        graphInteractDesc: '拖拽、缩放、点击探索关系',
+        researchDiscover: '研究点发现',
+        researchDiscoverDesc: '基于图谱结构发现潜在研究方向',
+      },
+      tip: '提示：要处理你自己的论文，请先在设置页面配置 LLM API Key',
+    },
+  },
+
+  // Dedup panel
+  dedup: {
+    title: '概念去重',
+    scan: '开始扫描',
+    scanning: '正在扫描...',
+    prefiltering: '正在预筛选候选对...',
+    analyzing: '正在分析候选对...',
+    batch: '批次',
+    progress: '进度',
+    estimatedTime: '预估剩余',
+    highConfidence: '个高置信度自动合并',
+    foundSuggestions: '发现',
+    mergeSuggestions: '条合并建议',
+    noDuplicates: '未发现重复概念',
+    papers: '论文数',
+    rationale: '理由',
+    executing: '正在执行合并...',
+    completed: '已完成',
+    merges: '项合并',
+    fixedFloating: '修复',
+    floatingConcepts: '个漂浮概念',
+    scanAgain: '重新扫描',
+    executeSelected: '执行选中的合并',
+  },
+
+  // Export menu
+  export: {
+    html: 'HTML 页面',
+    htmlDesc: '交互式物理渲染',
+    canvas: 'Canvas 格式',
+    canvasDesc: '带颜色和布局',
+    markdown: 'Markdown 格式',
+    markdownDesc: '纯文本双链',
+  },
+
+  // Common
+  common: {
+    loading: '加载中...',
+    all: '全部',
+    search: '搜索',
+    download: '下载',
+    delete: '删除',
+    edit: '编辑',
+    confirm: '确认',
+    success: '成功',
+    error: '错误',
+    language: '语言',
+    chinese: '中文',
+    english: 'English',
+  },
+}
+
+export type Translation = typeof zh

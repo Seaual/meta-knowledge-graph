@@ -320,6 +320,29 @@ class Database:
             cursor.execute("ALTER TABLE papers ADD COLUMN open_access_pdf TEXT")
         except sqlite3.OperationalError:
             pass
+        # 新增：DOI 和外部 ID 字段
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_doi TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_arxiv_id TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_external_ids TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # 新增：TLDR 和研究领域字段
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN tldr TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_fields_of_study TEXT")
+        except sqlite3.OperationalError:
+            pass
 
         self.conn.commit()
 
@@ -341,7 +364,9 @@ class Database:
                     pdf_path = ?, published_date = ?,
                     s2_paper_id = ?, venue = ?, year = ?,
                     citation_count = ?, reference_count = ?, influential_citation_count = ?,
-                    open_access_pdf = ?, updated_at = CURRENT_TIMESTAMP
+                    open_access_pdf = ?, s2_doi = ?, s2_arxiv_id = ?, s2_external_ids = ?,
+                    tldr = ?, s2_fields_of_study = ?,
+                    updated_at = CURRENT_TIMESTAMP
                 WHERE doi = ?
             """, (
                 paper_data.get('title'),
@@ -358,6 +383,11 @@ class Database:
                 paper_data.get('reference_count'),
                 paper_data.get('influential_citation_count'),
                 paper_data.get('open_access_pdf'),
+                paper_data.get('s2_doi'),
+                paper_data.get('s2_arxiv_id'),
+                paper_data.get('s2_external_ids'),
+                paper_data.get('tldr'),
+                paper_data.get('s2_fields_of_study'),
                 paper_data.get('doi')
             ))
             doi = existing['doi']
@@ -366,8 +396,9 @@ class Database:
             doi = paper_data.get('doi', paper_data.get('arxiv_id'))
             cursor.execute("""
                 INSERT INTO papers (doi, arxiv_id, title, abstract, authors, keywords, contributions, pdf_path, published_date, status,
-                    s2_paper_id, venue, year, citation_count, reference_count, influential_citation_count, open_access_pdf)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)
+                    s2_paper_id, venue, year, citation_count, reference_count, influential_citation_count, open_access_pdf,
+                    s2_doi, s2_arxiv_id, s2_external_ids, tldr, s2_fields_of_study)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 doi,
                 paper_data.get('arxiv_id'),
@@ -384,7 +415,12 @@ class Database:
                 paper_data.get('citation_count'),
                 paper_data.get('reference_count'),
                 paper_data.get('influential_citation_count'),
-                paper_data.get('open_access_pdf')
+                paper_data.get('open_access_pdf'),
+                paper_data.get('s2_doi'),
+                paper_data.get('s2_arxiv_id'),
+                paper_data.get('s2_external_ids'),
+                paper_data.get('tldr'),
+                paper_data.get('s2_fields_of_study'),
             ))
 
         self.conn.commit()
@@ -458,6 +494,11 @@ class Database:
                     paper['contributions'] = json.loads(paper['contributions'])
                 except:
                     paper['contributions'] = []
+            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                try:
+                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                except:
+                    paper['s2_fields_of_study'] = []
         return papers
 
     def get_all_papers(self) -> list:
@@ -482,6 +523,11 @@ class Database:
                     paper['contributions'] = json.loads(paper['contributions'])
                 except:
                     paper['contributions'] = []
+            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                try:
+                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                except:
+                    paper['s2_fields_of_study'] = []
         return papers
 
     def update_paper_metadata(self, doi: str, metadata: dict):
@@ -1251,6 +1297,11 @@ class Database:
                     paper['contributions'] = json.loads(paper['contributions'])
                 except:
                     paper['contributions'] = []
+            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                try:
+                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                except:
+                    paper['s2_fields_of_study'] = []
         return papers
 
     def move_paper_to_folder(self, doi: str, folder_id: str):

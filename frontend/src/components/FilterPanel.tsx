@@ -1,129 +1,141 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Search, RotateCcw } from 'lucide-react'
+import { useTranslation } from '../i18n'
 
-interface Concept {
+interface GraphNode {
   id: string
-  text: string
-  category: string | null | undefined
-  paper_count: number
+  name: string
+  type: string
+  category?: string
 }
 
 interface Props {
-  concepts: Concept[]
+  searchQuery: string
+  selectedCategories: string[]
+  graphNodes: GraphNode[]
   onClose: () => void
   onSearch: (query: string) => void
   onCategoryChange: (categories: string[]) => void
   onFocusNode: (nodeId: string) => void
 }
 
-const CATEGORIES = [
-  { id: 'field', label: '领域', color: '#FF6B6B' },
-  { id: 'direction', label: '方向', color: '#4ECDC4' },
-  { id: 'subdirection', label: '子方向', color: '#45B7D1' },
-  { id: 'task', label: '任务', color: '#96CEB4' },
-  { id: 'method', label: '方法', color: '#FFA726' },
-  { id: 'technique', label: '技术', color: '#FFD93D' },
-]
-
 export default function FilterPanel({
-  concepts,
+  searchQuery,
+  selectedCategories,
+  graphNodes,
   onClose,
   onSearch,
   onCategoryChange,
   onFocusNode
 }: Props) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Concept[]>([])
+  const { t } = useTranslation()
+
+  // Category colors - Academic Warm Palette
+  const CATEGORIES = [
+    { id: 'field', label: t.concepts.category.field, color: '#6b4423' },
+    { id: 'direction', label: t.concepts.category.direction, color: '#b8860b' },
+    { id: 'subdirection', label: t.concepts.category.subdirection, color: '#9a6b3c' },
+    { id: 'task', label: t.concepts.category.task, color: '#4a6b8a' },
+    { id: 'method', label: t.concepts.category.method, color: '#c2410c' },
+    { id: 'technique', label: t.concepts.category.technique, color: '#2d5a27' },
+  ]
+
+  const [localQuery, setLocalQuery] = useState(searchQuery)
+  const [searchResults, setSearchResults] = useState<GraphNode[]>([])
   const [showResults, setShowResults] = useState(false)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    CATEGORIES.map(c => c.id)
-  )
-  const [conceptCounts, setConceptCounts] = useState<Record<string, number>>({})
+  const [localCategories, setLocalCategories] = useState<string[]>(selectedCategories)
+  const [nodeCounts, setNodeCounts] = useState<Record<string, number>>({})
   const searchInputRef = useRef<HTMLInputElement>(null)
   const resultsRef = useRef<HTMLDivElement>(null)
 
-  // 计算每个 category 的概念数量
+  // Compute category counts
   useEffect(() => {
     const counts: Record<string, number> = {}
-    concepts.forEach(c => {
-      if (c.category) {
-        counts[c.category] = (counts[c.category] || 0) + 1
+    graphNodes.forEach(node => {
+      if (node.category) {
+        counts[node.category] = (counts[node.category] || 0) + 1
       }
     })
-    setConceptCounts(counts)
-  }, [concepts])
+    setNodeCounts(counts)
+  }, [graphNodes])
 
-  // 搜索逻辑
+  // Search logic
   useEffect(() => {
-    if (!searchQuery.trim()) {
+    if (!localQuery.trim()) {
       setSearchResults([])
-      onSearch('')
       return
     }
 
-    const query = searchQuery.toLowerCase()
-    const results = concepts
-      .filter(c => c.text.toLowerCase().includes(query))
+    const query = localQuery.toLowerCase()
+    const results = graphNodes
+      .filter(node => node.name?.toLowerCase().includes(query))
       .slice(0, 10)
 
     setSearchResults(results)
-    onSearch(searchQuery)
-  }, [searchQuery, concepts, onSearch])
+  }, [localQuery, graphNodes])
 
-  // Category 变化通知
+  // Sync local categories with prop
   useEffect(() => {
-    onCategoryChange(selectedCategories)
-  }, [selectedCategories, onCategoryChange])
+    setLocalCategories(selectedCategories)
+  }, [selectedCategories])
 
-  // 聚焦搜索框
+  // Focus search input on mount
   useEffect(() => {
     searchInputRef.current?.focus()
   }, [])
 
+  const handleQueryChange = (query: string) => {
+    setLocalQuery(query)
+    onSearch(query)
+  }
+
   const toggleCategory = (categoryId: string) => {
-    setSelectedCategories(prev =>
-      prev.includes(categoryId)
-        ? prev.filter(c => c !== categoryId)
-        : [...prev, categoryId]
-    )
+    const newCategories = localCategories.includes(categoryId)
+      ? localCategories.filter(c => c !== categoryId)
+      : [...localCategories, categoryId]
+    setLocalCategories(newCategories)
+    onCategoryChange(newCategories)
   }
 
   const handleReset = () => {
-    setSearchQuery('')
+    setLocalQuery('')
     setSearchResults([])
-    setSelectedCategories(CATEGORIES.map(c => c.id))
+    onSearch('')
+    const allCategories = CATEGORIES.map(c => c.id)
+    setLocalCategories(allCategories)
+    onCategoryChange(allCategories)
   }
 
-  const handleResultClick = (concept: Concept) => {
+  const handleResultClick = (node: GraphNode) => {
     setShowResults(false)
-    onFocusNode(concept.id)
+    onFocusNode(node.id)
   }
 
   return (
-    <div className="absolute top-4 right-4 z-20 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+    <div className="absolute top-4 right-4 z-20 w-72 card-academic overflow-hidden animate-slide-down">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 bg-brand-gradient border-b border-brand">
-        <h3 className="font-semibold text-brand-700">筛选</h3>
+      <div className="flex items-center justify-between px-4 py-3 border-b border-academic bg-vellum">
+        <h3 className="font-display font-medium text-sepia">{t.concepts.filterPanel.title}</h3>
         <button
           onClick={onClose}
-          className="text-gray-500 hover:text-gray-700 transition-colors"
+          className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
         >
-          <X className="h-5 w-5" />
+          <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Search */}
-      <div className="p-4 border-b border-gray-100">
+      <div className="p-4 border-b border-academic relative">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
           <input
             ref={searchInputRef}
             type="text"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            value={localQuery}
+            onChange={e => handleQueryChange(e.target.value)}
             onFocus={() => setShowResults(true)}
-            placeholder="搜索概念..."
-            className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent"
+            placeholder={t.concepts.filterPanel.searchPlaceholder}
+            className="input-academic w-full pl-10 pr-4"
           />
         </div>
 
@@ -131,21 +143,25 @@ export default function FilterPanel({
         {showResults && searchResults.length > 0 && (
           <div
             ref={resultsRef}
-            className="absolute left-4 right-4 mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-64 overflow-y-auto z-30"
+            className="absolute left-4 right-4 mt-2 bg-vellum border border-academic rounded-large shadow-elevated max-h-64 overflow-y-auto z-30"
           >
-            {searchResults.map(concept => {
-              const category = CATEGORIES.find(c => c.id === concept.category)
+            {searchResults.map(node => {
+              const category = CATEGORIES.find(c => c.id === node.category)
               return (
                 <button
-                  key={concept.id}
-                  onClick={() => handleResultClick(concept)}
-                  className="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center justify-between border-b border-gray-100 last:border-b-0"
+                  key={node.id}
+                  onClick={() => handleResultClick(node)}
+                  className="w-full px-4 py-3 text-left hover:bg-paper flex items-center justify-between border-b border-academic last:border-b-0 transition-colors"
                 >
-                  <span className="text-sm text-gray-700">{concept.text}</span>
+                  <span className="font-body text-sm text-sepia">{node.name}</span>
                   {category && (
                     <span
-                      className="text-xs px-2 py-0.5 rounded-full text-white"
-                      style={{ backgroundColor: category.color }}
+                      className="badge-academic text-xs"
+                      style={{
+                        backgroundColor: category.color + '15',
+                        color: category.color,
+                        borderColor: category.color + '30',
+                      }}
                     >
                       {category.label}
                     </span>
@@ -159,26 +175,26 @@ export default function FilterPanel({
 
       {/* Category Filters */}
       <div className="p-4">
-        <div className="text-xs font-medium text-gray-500 mb-3">Category 过滤</div>
-        <div className="space-y-2">
+        <div className="font-mono text-xs text-muted uppercase tracking-wider mb-3">{t.concepts.filterPanel.categoryFilter}</div>
+        <div className="space-y-1">
           {CATEGORIES.map(category => (
             <label
               key={category.id}
-              className="flex items-center gap-3 cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors"
+              className="flex items-center gap-3 cursor-pointer hover:bg-paper p-2 rounded-medium transition-colors"
             >
               <input
                 type="checkbox"
-                checked={selectedCategories.includes(category.id)}
+                checked={localCategories.includes(category.id)}
                 onChange={() => toggleCategory(category.id)}
-                className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                className="w-4 h-4 rounded border-academic accent-sepia"
               />
               <span
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: category.color }}
               />
-              <span className="text-sm text-gray-700 flex-1">{category.label}</span>
-              <span className="text-xs text-gray-400">
-                {conceptCounts[category.id] || 0}
+              <span className="font-body text-sm text-sepia flex-1">{category.label}</span>
+              <span className="font-mono text-xs text-faint">
+                {nodeCounts[category.id] || 0}
               </span>
             </label>
           ))}
@@ -189,10 +205,10 @@ export default function FilterPanel({
       <div className="px-4 pb-4">
         <button
           onClick={handleReset}
-          className="w-full py-2.5 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-50 rounded-xl transition-colors flex items-center justify-center gap-2"
+          className="btn-ghost w-full flex items-center justify-center gap-2"
         >
-          <RotateCcw className="h-4 w-4" />
-          重置全部
+          <RotateCcw className="w-4 h-4" />
+          {t.concepts.filterPanel.resetAll}
         </button>
       </div>
     </div>
