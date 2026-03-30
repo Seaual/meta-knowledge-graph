@@ -34,6 +34,7 @@ papers/
 
 # Database
 *.db
+!mkg-demo.db
 
 # Logs
 *.log
