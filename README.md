@@ -52,17 +52,29 @@
 
 ## Demo
 
-### Knowledge Graph Interaction
+### Knowledge Graph Browsing
 
-![Knowledge Graph Demo](docs/demo.gif)
+![Knowledge Graph Browsing](docs/概念浏览.gif)
 
-*Features: Interactive graph → Click concept → Discover research points → Deduplication → Multi-format export*
+*Drag nodes, zoom, search concepts, filter by category*
 
-### Paper Upload & Processing
+### Research Points Discovery
 
-![Upload Demo](docs/upload.gif)
+![Research Points Discovery](docs/研究点发现.gif)
 
-*Features: Upload PDFs → Batch processing → View extraction results*
+*Click concept → Discover research points → View analysis context*
+
+### Feature Overview
+
+![Feature Overview](docs/功能展示.gif)
+
+*Upload PDFs → Process → Explore graph → Export*
+
+### LLM Configuration
+
+![LLM Configuration](docs/配置LLM.gif)
+
+*Configure API Key → Test connection → Start processing*
 
 ---
 
