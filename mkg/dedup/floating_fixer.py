@@ -12,7 +12,7 @@ logger = logging.getLogger("mkg.dedup")
 
 
 # 层级结构定义
-CATEGORY_HIERARCHY = ['field', 'direction', 'subdirection', 'method', 'task', 'technique', 'dataset', 'finding']
+CATEGORY_HIERARCHY = ['field', 'direction', 'subdirection', 'task', 'method', 'technique', 'dataset', 'finding']
 
 
 def find_floating_concepts(db) -> List[Dict]:
@@ -22,7 +22,7 @@ def find_floating_concepts(db) -> List[Dict]:
         db: Database 实例
 
     Returns:
-        [{'id', 'text', 'category', 'paper_count', 'children': [...]}]
+        [{'id', 'text', 'category', 'paper_count', 'children': [...], 'paper_titles': [...]}]
     """
     conn = db.conn
     conn.row_factory = sqlite3.Row
@@ -50,12 +50,23 @@ def find_floating_concepts(db) -> List[Dict]:
             ''', (row['id'],))
             children = cur.fetchall()
 
+            # 获取关联论文标题
+            cur.execute('''
+                SELECT DISTINCT p.title
+                FROM papers p
+                JOIN paper_concepts pc ON p.doi = pc.paper_doi
+                WHERE pc.concept_id = ?
+                LIMIT 5
+            ''', (row['id'],))
+            papers = cur.fetchall()
+
             floating.append({
                 'id': row['id'],
                 'text': row['text'],
                 'category': row['category'],
                 'paper_count': row['paper_count'],
-                'children': [{'text': c['text'], 'category': c['category']} for c in children]
+                'children': [{'text': c['text'], 'category': c['category']} for c in children],
+                'paper_titles': [p['title'] for p in papers if p['title']]
             })
 
     logger.info(f"发现 {len(floating)} 个漂浮概念")
@@ -108,30 +119,92 @@ def infer_parent(db, llm_client, floating_concept: Dict, candidates: List[Dict])
         indent=2
     )
 
-    children_names = [c['text'] for c in floating_concept['children']]
+    children_names = [c['text'] for c in floating_concept.get('children', [])]
+    paper_titles = floating_concept.get('paper_titles', [])[:5]  # 最多取5篇论文
 
-    prompt = f"""为以下概念从候选列表中选择最合适的父节点。
+    prompt = f"""<s>
+You are an academic knowledge graph structure expert. Your task is to find the correct parent node for a floating concept (a concept that currently has no parent in the graph).
 
-## 待匹配概念
-- 名称：{floating_concept['text']}
-- 层级：{floating_concept['category']}
-- 子节点：{json.dumps(children_names, ensure_ascii=False)}
+Key principles:
+- The parent must be the MOST DIRECT upper-level concept — not a grandparent.
+- If no candidate is a good direct parent, output null. Do NOT force a bad connection.
+- A wrong parent is worse than no parent.
+</s>
 
-## 候选父概念
+<floating_concept>
+- Name: {floating_concept['text']}
+- Category: {floating_concept['category']}
+- Current children: {json.dumps(children_names, ensure_ascii=False)}
+- Associated papers: {json.dumps(paper_titles, ensure_ascii=False)}
+</floating_concept>
+
+<candidates>
 {candidates_json}
+</candidates>
 
-## 选择规则
-1. 父节点的 category 必须严格高于子节点（field > direction > subdirection > task > method > technique）
-2. 优先选择语义距离最近的父节点（即最直接的上位概念，不要跳级）
-3. 如果有多个候选都合理，选层级更低（更具体）的那个作为直接父节点
-4. 如果没有合适的候选 → 输出 {{"parent_id": null}}
+<rules>
+## Category hierarchy (strict order)
 
-示例：
-- "QMIX 算法"(method) 的候选有 "多智能体强化学习"(direction) 和 "值分解方法"(subdirection)
-  → 选 "值分解方法" ✅（更直接的上位概念）
-  → 不选 "多智能体强化学习" ❌（隔了一级，应该是祖父而非父亲）
+field > direction > subdirection > task > method > technique > dataset > finding
 
-只输出 JSON：{{"parent_id": "xxx"}} 或 {{"parent_id": null}}"""
+## Selection rules
+
+1. **Category constraint**: Parent category MUST be strictly higher than the floating concept's category.
+   - If floating concept is "method", parent must be task, subdirection, direction, or field.
+   - If floating concept is "direction", parent must be field.
+   - NEVER assign a parent at the same level or lower level.
+
+2. **Prefer the most specific valid parent** (closest in hierarchy):
+   - If candidates include both a "direction" and a "subdirection" for a "method" concept → pick the "subdirection" (it's closer).
+   - Rule: among valid candidates, choose the one whose category is LOWEST (most specific) while still being above the floating concept.
+
+3. **Semantic relevance**: The parent must be semantically related to the floating concept.
+   - "QMIX" → parent "值分解方法" ✅ (QMIX is a value decomposition method)
+   - "QMIX" → parent "计算机视觉" ❌ (wrong field entirely)
+
+4. **Check consistency with children**: If the floating concept has children, the chosen parent should make sense as a grandparent of those children.
+
+5. **When to output null**:
+   - No candidate has a strictly higher category → null
+   - No candidate is semantically related → null
+   - The closest valid candidate is 2+ levels above AND there's no intermediate concept → null
+</rules>
+
+<examples>
+Example 1: Clear match
+- Floating: "QMIX算法" (method)
+- Candidates: ["多智能体强化学习" (direction), "值分解方法" (subdirection)]
+- Answer: {{"parent_id": "值分解方法的ID"}}
+- Reason: "值分解方法" is subdirection, one level above method. "多智能体强化学习" is direction, two levels above — too far.
+
+Example 2: Only distant candidate
+- Floating: "注意力加权混合" (technique)
+- Candidates: ["强化学习" (direction)]
+- Answer: {{"parent_id": null}}
+- Reason: direction is 4 levels above technique. No valid direct parent exists.
+
+Example 3: Semantic mismatch
+- Floating: "YOLO" (method)
+- Candidates: ["自然语言处理" (direction), "目标检测" (subdirection)]
+- Answer: {{"parent_id": "目标检测的ID"}}
+- Reason: YOLO is an object detection method. "自然语言处理" is wrong field.
+
+Example 4: Same level — reject
+- Floating: "PPO算法" (method)
+- Candidates: ["QMIX算法" (method), "强化学习" (direction)]
+- Answer: {{"parent_id": "强化学习的ID"}}
+- Reason: QMIX is same level (method), cannot be parent.
+</examples>
+
+<output_format>
+Output JSON only:
+
+{{"parent_id": "xxx"}}
+
+or if no suitable parent:
+
+{{"parent_id": null, "reason": "brief explanation"}}
+</output_format>"""
 
     try:
         response = llm_client.extract_concepts(prompt)

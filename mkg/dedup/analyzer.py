@@ -31,13 +31,13 @@ class MergeSuggestionItem(BaseModel):
     """单个合并建议的验证模型"""
     pair_id: int
     should_merge: bool
-    merge_type: Optional[Literal["synonym", "absorption", "translation"]] = None
+    merge_type: Optional[Literal["synonym", "absorption", "bilingual"]] = None
     target_id: Optional[str] = None
     target_text: Optional[str] = None
     target_category: Optional[str] = None
     confidence: Optional[float] = None
     rationale: str = ""
-    reason_type: Optional[Literal["hierarchical", "parallel", "granularity", "semantic"]] = None
+    reason_type: Optional[Literal["hierarchical", "parallel", "partial_overlap", "category_gap"]] = None
 
     @validator('confidence')
     def validate_confidence(cls, v):
@@ -101,92 +101,114 @@ class MergeAnalyzer:
                 "similarity": round(pair.similarity, 2)
             })
 
-        return f"""你是一位学术术语标准化专家。你的任务是判断概念对是否应该合并，并维护知识图谱的结构完整性。
+        return f"""<s>
+You are an academic terminology standardization expert. Your task is to judge whether concept pairs should be merged, maintaining the structural integrity of the knowledge graph.
 
-核心原则：宁可不合并（保留两个独立节点），也不可错误合并（把不同概念混为一谈）。
+Core principle: It is BETTER to keep two separate nodes (false negative) than to wrongly merge two different concepts (false positive). When in doubt, do NOT merge.
+</s>
 
-## 候选概念对
-
+<candidates>
 {json.dumps(candidate_info, ensure_ascii=False, indent=2)}
+</candidates>
 
-## 合并判断规则
+<rules>
+## Category hierarchy (memorize this order)
 
-### 应该合并的三种情况
+field > direction > subdirection > task > method > technique > dataset > finding
 
-**A 类：同义表述** — 完全相同的概念，仅表述不同
-- "强化学习" ↔ "强化学习方法" ✅
-- "卷积神经网络" ↔ "CNN" ✅
-- "注意力机制" ↔ "Attention 机制" ✅
+Example mapping:
+- field: 人工智能, 运筹学
+- direction: 强化学习, 计算机视觉
+- subdirection: 多智能体强化学习, 小样本学习
+- task: 信用分配问题, 域适应
+- method: QMIX, YOLOv5
+- technique: 注意力机制, 梯度裁剪
+- dataset: ImageNet, SMAC
+- finding: Scaling Laws
 
-**B 类：粒度吸收** — 一方是另一方加上无实质区分意义的修饰词
-- "深度学习方法" ↔ "深度学习" ✅（保留更简洁的）
-- "基于 Transformer 的方法" ↔ "Transformer" ✅
+## MERGE: Three situations where merging is correct
 
-**C 类：翻译对应** — 同一概念的中英文版本
-- "知识蒸馏" ↔ "Knowledge Distillation" ✅（保留中文）
+**Type A: Synonym** — Same concept, different wording
+Tests: Would a researcher use these interchangeably in the same sentence?
+- "强化学习" ↔ "强化学习方法" ✅ (redundant suffix)
+- "卷积神经网络" ↔ "CNN" ✅ (abbreviation)
+- "注意力机制" ↔ "Attention Mechanism" ✅ (translation)
+- "Graph Neural Network" ↔ "图神经网络" ✅ (translation)
 
-### 不应该合并的情况（严格执行）
+**Type B: Absorption** — One is the other plus a meaningless modifier
+Tests: Does removing the modifier change which specific concept is referred to? If NO → merge.
+- "深度学习方法" ↔ "深度学习" ✅ ("方法" adds no specificity)
+- "基于Transformer的方法" ↔ "Transformer" ✅ ("基于...的方法" is a filler phrase)
+- BUT: "多智能体强化学习" ↔ "强化学习" ❌ ("多智能体" is NOT a meaningless modifier — it specifies a subfield)
 
-**1. 上下位关系（父子关系）** — 绝对禁止合并
-- "人工智能" ↔ "具身人工智能" ❌（人工智能是父概念，具身人工智能是子方向）
-- "人工智能" ↔ "生成式人工智能" ❌（人工智能是父概念，生成式人工智能是子方向）
-- "机器学习" ↔ "深度学习" ❌（机器学习是父概念）
-- "深度学习" ↔ "CNN" ❌（深度学习是父概念）
+**Type C: Bilingual match** — Same concept in Chinese and English
+Tests: Do the English and Chinese names refer to the exact same concept in academic literature?
+- "知识蒸馏" ↔ "Knowledge Distillation" ✅
+- Retain the one that already has both en/zh fields populated. If both do, retain the one with higher paper_count.
 
-**判断方法**：如果 A 是 B 的一个"类型"或"分支"，则不能合并。
+## DO NOT MERGE: Four situations (strictly enforced)
 
-**2. 并列关系** — 同级不同方向
+**1. Hierarchical (parent-child) relationship** — ABSOLUTE BAN
+One concept is a TYPE or SUBFIELD of the other.
+
+Quick test: Can you say "B is a kind of A" or "B is a subfield of A"? If yes → DO NOT merge.
+- "人工智能" ↔ "具身人工智能" ❌ (具身AI is a subfield of AI)
+- "人工智能" ↔ "生成式人工智能" ❌ (生成式AI is a subfield of AI)
+- "机器学习" ↔ "深度学习" ❌ (深度学习 is a subfield of 机器学习)
+- "强化学习" ↔ "多智能体强化学习" ❌ (MARL is a subfield of RL)
+- "Transformer" ↔ "Vision Transformer" ❌ (ViT is a variant of Transformer)
+
+WARNING: This is the most common error. "X" and "X的一个方向" look similar but MUST NOT be merged.
+
+**2. Parallel relationship** — Same level, different directions
 - "强化学习" ↔ "监督学习" ❌
 - "计算机视觉" ↔ "自然语言处理" ❌
+- "QMIX" ↔ "MAPPO" ❌
 
-**3. 粒度差异过大** — 跨多个层级
-- "人工智能" ↔ "梯度下降" ❌
+**3. Partial overlap** — Shared words but different concepts
+- "多智能体强化学习" ↔ "多智能体系统" ❌ (different fields despite sharing "多智能体")
+- "知识图谱" ↔ "知识蒸馏" ❌ (different concepts despite sharing "知识")
+- "图神经网络" ↔ "图数据库" ❌ (different despite sharing "图")
 
-**4. 名似义不同** — 不同领域
-- "图网络" ↔ "图数据库" ❌
+**4. Category gap ≥ 2 levels** — Never merge across two or more hierarchy levels
+- field ↔ subdirection ❌
+- direction ↔ method ❌
+- field ↔ method ❌
+- Category gap of 1 (e.g., direction ↔ subdirection): merge ONLY if it's clearly a synonym (Type A), not a parent-child relationship.
 
-### 保留策略（选择 target_id）
+## Target selection (which concept to keep)
 
-1. 保留 paper_count 更高的
-2. paper_count 相同则保留子节点更多的
-3. 以上都相同则保留更简洁的中文名称
+Priority order:
+1. Keep the one with higher paper_count
+2. If equal, keep the one with more child nodes
+3. If still equal, keep the one with shorter, cleaner Chinese name
+4. If one has bilingual names and the other doesn't, keep the bilingual one
+</rules>
 
-### category 层级检查（关键）
-
-层级顺序：field > direction > subdirection > method > task > technique
-
-**差两级及以上，坚决不合并**：
-- field vs direction ❌（如"人工智能"与"具身人工智能"）
-- field vs subdirection ❌
-- direction vs method ❌
-
-**差一级需谨慎**：
-- direction vs subdirection：检查是否真的是同义词，而非上下位
-
-## 输出格式
-
-只输出 JSON，不要其他内容：
+<output_format>
+Output JSON only:
 
 {{
   "merge_suggestions": [
     {{
       "pair_id": 0,
       "should_merge": true,
-      "merge_type": "synonym | absorption | translation",
-      "target_id": "保留的概念 ID",
-      "target_text": "合并后的概念名称",
-      "target_category": "合并后的 category",
+      "merge_type": "synonym | absorption | bilingual",
+      "target_id": "ID of concept to keep",
+      "target_text": "Name after merge (use the cleaner name)",
+      "target_category": "Category after merge (keep the higher level if different)",
       "confidence": 0.60-1.00,
-      "rationale": "一句话合并理由"
+      "rationale": "One sentence explaining why"
     }},
     {{
       "pair_id": 1,
       "should_merge": false,
-      "reason_type": "hierarchical | parallel | granularity | semantic",
-      "rationale": "一句话不合并理由"
+      "reason_type": "hierarchical | parallel | partial_overlap | category_gap",
+      "rationale": "One sentence explaining why not"
     }}
   ]
-}}"""
+}}
+</output_format>"""
 
     def _parse_response(self, response: str, candidates: List) -> List[MergeSuggestion]:
         """解析 LLM 响应，带验证"""
