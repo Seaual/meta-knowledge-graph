@@ -640,9 +640,9 @@ def process_paper(request: ProcessRequest):
                             'influential_citation_count': s2_data.get('influentialCitationCount', 0),
                             'venue': s2_data.get('venue'),
                             'year': s2_data.get('year'),
-                            'tldr': s2_data.get('tldr'),
+                            'tldr': (s2_data.get('tldr') or {}).get('text'),
                             's2_fields_of_study': json.dumps(s2_data.get('s2FieldsOfStudy', [])),
-                            'open_access_pdf_url': s2_data.get('openAccessPdf'),
+                            'open_access_pdf_url': (s2_data.get('openAccessPdf') or {}).get('url'),
                             's2_matched_at': datetime.now().isoformat(),
                         }
                         db.update_paper_metadata(request.doi, metadata_update)
