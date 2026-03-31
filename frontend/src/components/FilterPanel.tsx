@@ -38,6 +38,8 @@ export default function FilterPanel({
     { id: 'task', label: t.concepts.category.task, color: '#4a6b8a' },
     { id: 'method', label: t.concepts.category.method, color: '#c2410c' },
     { id: 'technique', label: t.concepts.category.technique, color: '#2d5a27' },
+    { id: 'dataset', label: t.concepts.category.dataset, color: '#5c4d7d' },
+    { id: 'finding', label: t.concepts.category.finding, color: '#d4a012' },
   ]
 
   const [localQuery, setLocalQuery] = useState(searchQuery)

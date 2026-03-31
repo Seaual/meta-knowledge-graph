@@ -99,6 +99,8 @@ export const en = {
       task: 'Task',
       method: 'Method',
       technique: 'Technique',
+      dataset: 'Dataset',
+      finding: 'Finding',
     },
     // Filter panel
     filterPanel: {

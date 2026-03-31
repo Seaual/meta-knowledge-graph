@@ -99,6 +99,8 @@ export const zh = {
       task: '任务',
       method: '方法',
       technique: '技术',
+      dataset: '数据集',
+      finding: '发现',
     },
     // Filter panel
     filterPanel: {

@@ -73,6 +73,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   task: '#4a6b8a',         // slate blue
   method: '#c2410c',       // terracotta
   technique: '#2d5a27',    // forest green
+  dataset: '#5c4d7d',      // purple
+  finding: '#d4a012',      // gold
 }
 
 const PAPER_COLOR = '#4a6b8a'
@@ -513,11 +515,13 @@ export default function ConceptsGraph() {
             field: 16,        // largest
             direction: 14,
             subdirection: 12,
+            dataset: 12,      // medium (same as subdirection)
+            finding: 12,      // medium (same as subdirection)
             task: 10,
             method: 8,
             technique: 6,     // smallest
           }
-          const baseSize = CATEGORY_SIZES[node.category || 'method'] || 7
+          const baseSize = CATEGORY_SIZES[node.category || 'method'] || 10
           // Add small boost based on paper count
           size = baseSize + Math.sqrt(node.paperCount || 0) * 0.3
           color = CATEGORY_COLORS[node.category || 'method'] || '#8a7a6a'
@@ -654,11 +658,13 @@ export default function ConceptsGraph() {
           field: 20,
           direction: 18,
           subdirection: 16,
+          dataset: 16,
+          finding: 16,
           task: 14,
           method: 12,
           technique: 10,
         }
-        return CATEGORY_RADII[node.category || 'method'] || 11
+        return CATEGORY_RADII[node.category || 'method'] || 14
       }))
       .onNodeClick((node: any) => {
         if (!node) return
@@ -1222,7 +1228,7 @@ export default function ConceptsGraph() {
       <div className="absolute bottom-16 right-4 card-academic p-4 z-10">
         <div className="font-mono text-xs text-sepia uppercase tracking-wider mb-2">{t.concepts.legend}</div>
         <div className="space-y-1.5">
-          {/* Concept Categories */}
+          {/* Concept Categories - Hierarchy */}
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.field }} />
             <span className="font-body text-xs text-muted">{t.concepts.category.field}</span>
@@ -1246,6 +1252,17 @@ export default function ConceptsGraph() {
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.technique }} />
             <span className="font-body text-xs text-muted">{t.concepts.category.technique}</span>
+          </div>
+          {/* Divider */}
+          <div className="border-t border-academic my-1" />
+          {/* Contribution Types */}
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.dataset }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.dataset}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS.finding }} />
+            <span className="font-body text-xs text-muted">{t.concepts.category.finding}</span>
           </div>
           {/* Divider */}
           <div className="border-t border-academic my-1" />
