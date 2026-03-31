@@ -136,6 +136,40 @@ def get_s2_client():
     return S2Client(api_key=S2_API_KEY)
 
 
+def enhance_paper_with_s2(
+    s2_client,
+    title: str,
+    paper_context: dict = None,
+    use_llm_fallback: bool = True
+) -> Optional[dict]:
+    """
+    使用 S2 增强论文元数据（支持 LLM 回退）
+
+    Args:
+        s2_client: S2Client 实例
+        title: 论文标题
+        paper_context: 论文上下文 {'abstract': ..., 'authors': ...}
+        use_llm_fallback: 是否使用 LLM 回退
+
+    Returns:
+        S2 元数据字典，或 None
+    """
+    llm_client = None
+    if use_llm_fallback:
+        try:
+            extractor = get_extractor()
+            if extractor and hasattr(extractor, 'api_client'):
+                llm_client = extractor.api_client
+        except Exception:
+            pass
+
+    return s2_client.match_paper_by_title(
+        title,
+        llm_client=llm_client,
+        paper_context=paper_context
+    )
+
+
 @router.get("/", response_model=List[PaperResponse])
 def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
     """Get all papers or filter by status/folder"""
@@ -314,7 +348,11 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
             s2_client = get_s2_client()
             if s2_client and paper_data.get('title'):
                 try:
-                    s2_data = s2_client.match_paper_by_title(paper_data['title'])
+                    paper_context = {
+                        'abstract': paper_data.get('abstract'),
+                        'authors': paper_data.get('authors')
+                    }
+                    s2_data = enhance_paper_with_s2(s2_client, paper_data['title'], paper_context)
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
@@ -413,7 +451,11 @@ async def batch_process_papers(request: BatchProcessRequest):
                 s2_client = get_s2_client()
                 if s2_client and paper.get('title'):
                     try:
-                        s2_data = s2_client.match_paper_by_title(paper['title'])
+                        paper_context = {
+                            'abstract': paper.get('abstract'),
+                            'authors': paper.get('authors')
+                        }
+                        s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
                         if s2_data:
                             external_ids = s2_data.get('externalIds', {})
                             s2_doi = external_ids.get('DOI') if external_ids else None
@@ -547,7 +589,11 @@ def process_paper(request: ProcessRequest):
             s2_client = get_s2_client()
             if s2_client and paper.get('title'):
                 try:
-                    s2_data = s2_client.match_paper_by_title(paper['title'])
+                    paper_context = {
+                        'abstract': paper.get('abstract'),
+                        'authors': paper.get('authors')
+                    }
+                    s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
@@ -688,7 +734,11 @@ async def process_single_paper(request: ProcessRequest):
 
             if s2_client and paper.get('title'):
                 try:
-                    s2_data = s2_client.match_paper_by_title(paper['title'])
+                    paper_context = {
+                        'abstract': paper.get('abstract'),
+                        'authors': paper.get('authors')
+                    }
+                    s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
