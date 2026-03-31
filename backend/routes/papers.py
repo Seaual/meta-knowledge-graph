@@ -1181,15 +1181,15 @@ async def download_and_process_paper(request: DownloadAndProcessRequest):
     # 自动触发处理流程
     try:
         # 提取概念
-        concept_tree = None
         if content and content.full_text:
-            concepts_json = await asyncio.to_thread(extractor.extract_concepts, content.full_text)
-            if concepts_json:
-                concept_tree = json.loads(concepts_json)
+            extracted = await asyncio.to_thread(extractor.extract, content)
+            if extracted and extracted.concept_tree:
+                concept_tree = extracted.concept_tree.to_dict()
 
                 # 添加概念到图谱
                 graph = get_graph()
-                root_id = graph.add_concept_tree(doi, concept_tree)
+                graph.build_from_paper(doi, concept_tree)
+                db.save_concept_extraction(doi, concept_tree, extracted.raw_response)
                 db.update_paper_status(doi, 'processed')
 
                 # 更新贡献信息
