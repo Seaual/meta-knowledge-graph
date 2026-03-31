@@ -768,20 +768,20 @@ class PDFParser:
             first_page_text = doc[0].get_text()
 
         if first_page_text:
-            # 常见 DOI 格式
+            # 常见 DOI 格式（优先匹配直接的 10. 格式，这是最通用的）
             patterns = [
-                r'DOI:\s*(10\.\d{4,}/[^\s]+)',  # DOI: 10.xxxx/xxx
-                r'doi:\s*(10\.\d{4,}/[^\s]+)',
-                r'https?://doi\.org/(10\.\d{4,}/[^\s]+)',  # https://doi.org/10.xxxx/xxx
-                r'https?://dx\.doi\.org/(10\.\d{4,}/[^\s]+)',
-                r'\b(10\.\d{4,}/[^\s]+)',  # 直接的 DOI 格式
+                r'\b(10\.\d{4,}/[^\s,;)\]]+)',  # 直接的 DOI 格式（最常见）
+                r'https?://doi\.org/(10\.\d{4,}/[^\s,;)\]]+)',  # https://doi.org/10.xxxx/xxx
+                r'https?://dx\.doi\.org/(10\.\d{4,}/[^\s,;)\]]+)',
+                r'DOI:\s*(10\.\d{4,}/[^\s,;)\]]+)',  # DOI: 10.xxxx/xxx
+                r'doi:\s*(10\.\d{4,}/[^\s,;)\]]+)',
             ]
 
             for pattern in patterns:
                 match = re.search(pattern, first_page_text, re.IGNORECASE)
                 if match:
                     doi = match.group(1).strip()
-                    # 清理末尾的标点
+                    # 清理末尾的标点（双重保险）
                     doi = re.sub(r'[.,;)\]]+$', '', doi)
                     if self._is_valid_doi(doi):
                         return doi.lower()
