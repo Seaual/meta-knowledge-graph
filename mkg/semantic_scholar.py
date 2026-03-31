@@ -731,39 +731,6 @@ class S2Client:
         except Exception as e:
             logger.error(f"Failed to get paper references: {e}")
             return []
-        cache_key = f"references_{paper_id}_{limit}"
-        cached = self.cache.get_cache(cache_key)
-        if cached is not None:
-            return cached
-
-        try:
-            sch = self._get_sch()
-            references = self._with_rate_limit(
-                sch.get_paper_references,
-                paper_id,
-                fields=['paperId', 'title', 'year', 'citationCount', 'authors'],
-                limit=limit
-            )
-
-            result = []
-            for item in references:
-                # Reference 对象的 paper 属性包含论文信息
-                paper = getattr(item, 'paper', None)
-                if paper:
-                    result.append({
-                        'paperId': paper.paperId if hasattr(paper, 'paperId') else None,
-                        'title': paper.title if hasattr(paper, 'title') else None,
-                        'year': paper.year if hasattr(paper, 'year') else None,
-                        'citationCount': paper.citationCount if hasattr(paper, 'citationCount') else 0,
-                        'authors': [{'name': a.name} for a in paper.authors] if hasattr(paper, 'authors') and paper.authors else []
-                    })
-
-            self.cache.set_cache(cache_key, result)
-            return result
-
-        except Exception as e:
-            logger.error(f"Failed to get paper references: {e}")
-            return []
 
     # ========================================
     # 搜索与推荐

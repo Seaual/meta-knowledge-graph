@@ -375,8 +375,8 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
-                        open_access_pdf_url = s2_data.get('openAccessPdf')
-                        tldr = s2_data.get('tldr')
+                        open_access_pdf_url = (s2_data.get('openAccessPdf') or {}).get('url')
+                        tldr = (s2_data.get('tldr') or {}).get('text')
                         fields_of_study = s2_data.get('s2FieldsOfStudy', [])
 
                         paper_data['s2_paper_id'] = s2_data.get('paperId')
@@ -495,9 +495,9 @@ async def batch_process_papers(request: BatchProcessRequest):
                                 'influential_citation_count': s2_data.get('influentialCitationCount', 0),
                                 'venue': s2_data.get('venue'),
                                 'year': s2_data.get('year'),
-                                'tldr': s2_data.get('tldr'),
+                                'tldr': (s2_data.get('tldr') or {}).get('text'),
                                 's2_fields_of_study': json.dumps(s2_data.get('s2FieldsOfStudy', [])),
-                                'open_access_pdf_url': s2_data.get('openAccessPdf'),
+                                'open_access_pdf_url': (s2_data.get('openAccessPdf') or {}).get('url'),
                                 's2_matched_at': datetime.now().isoformat(),
                             }
                             db.update_paper_metadata(doi, metadata_update)
@@ -781,8 +781,8 @@ async def process_single_paper(request: ProcessRequest):
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
                         s2_paper_id = s2_data.get('paperId')
-                        open_access_pdf_url = s2_data.get('openAccessPdf')
-                        tldr = s2_data.get('tldr')
+                        open_access_pdf_url = (s2_data.get('openAccessPdf') or {}).get('url')
+                        tldr = (s2_data.get('tldr') or {}).get('text')
                         fields_of_study = s2_data.get('s2FieldsOfStudy', [])
 
                         # Update paper with S2 metadata
