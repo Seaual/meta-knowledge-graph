@@ -70,6 +70,7 @@ def get_graph_data(max_depth: int = 3, folder: str = None):
         nodes.append(GraphNode(
             id=concept['id'],
             label=concept['text'],
+            label_en=concept.get('text_en'),
             category=concept.get('category', 'method'),
             paper_count=concept.get('paper_count', 0)
         ))

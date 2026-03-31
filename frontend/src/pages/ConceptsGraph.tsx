@@ -6,12 +6,14 @@ import { conceptsApi, graphApi, papersApi, exportApi, foldersApi } from '../lib/
 import { Download, ChevronDown, Folder, Search, X, ArrowLeft } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
 import FilterPanel from '../components/FilterPanel'
+import RecommendationPanel from '../components/RecommendationPanel'
 import { useTranslation } from '../i18n'
 
 // Types
 interface Concept {
   id: string
-  text: string
+  text: string  // 中文名称
+  text_en?: string  // 英文名称
   category: string | null | undefined
   paper_count: number
   parents?: Concept[]
@@ -45,7 +47,8 @@ type NodeType = 'concept' | 'paper' | 'center'
 
 interface GraphNode {
   id: string
-  name: string
+  name: string  // 中文名称
+  name_en?: string  // 英文名称
   type: NodeType
   category?: string
   paperCount?: number
@@ -102,7 +105,7 @@ interface ResearchPointsResponse {
 }
 
 export default function ConceptsGraph() {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
 
@@ -144,9 +147,14 @@ export default function ConceptsGraph() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCategories, setSelectedCategories] = useState<string[]>([
-    'field', 'direction', 'subdirection', 'task', 'method', 'technique'
+    'field', 'direction', 'subdirection', 'task', 'method', 'technique', 'dataset', 'finding'
   ])
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null)
+
+  // Recommendation panel state
+  const [recommendationPanelOpen, setRecommendationPanelOpen] = useState(false)
+  const [selectedConceptsForRecommendation, setSelectedConceptsForRecommendation] = useState<Concept[]>([])
+  const [isSelectingForRecommendation, setIsSelectingForRecommendation] = useState(false)
 
   // Filter handlers
   const handleSearch = useCallback((query: string) => {
@@ -167,6 +175,46 @@ export default function ConceptsGraph() {
     }
   }, [graphNodes])
 
+  // Recommendation handlers
+  const handleAddConceptToRecommendation = useCallback((concept: Concept) => {
+    setSelectedConceptsForRecommendation(prev => {
+      if (prev.some(c => c.id === concept.id)) return prev
+      return [...prev, concept]
+    })
+  }, [])
+
+  const handleRemoveConceptFromRecommendation = useCallback((conceptId: string) => {
+    setSelectedConceptsForRecommendation(prev => prev.filter(c => c.id !== conceptId))
+  }, [])
+
+  const handleStartRecommendationSelection = useCallback(() => {
+    // Start with currently selected concept
+    if (selectedConcept) {
+      setSelectedConceptsForRecommendation([selectedConcept])
+    }
+    setIsSelectingForRecommendation(true)
+    setShowConceptActions(false)
+    setRecommendationPanelOpen(true)
+  }, [selectedConcept])
+
+  const handleToggleConceptInRecommendation = useCallback((conceptId: string) => {
+    const concept = concepts.find(c => c.id === conceptId)
+    if (!concept) return
+
+    setSelectedConceptsForRecommendation(prev => {
+      if (prev.some(c => c.id === conceptId)) {
+        return prev.filter(c => c.id !== conceptId)
+      }
+      return [...prev, {
+        id: concept.id,
+        text: concept.text,
+        text_en: concept.text_en,
+        category: concept.category,
+        paper_count: concept.paper_count,
+      }]
+    })
+  }, [concepts])
+
   // Load folders
   const loadFolders = () => {
     foldersApi.list().then(res => {
@@ -179,9 +227,10 @@ export default function ConceptsGraph() {
     const loadData = async () => {
       try {
         const graphRes = await graphApi.data(activeFolder)
-        const nodesFromGraph = graphRes.data.nodes.map((n: { id: string; label: string; category?: string; paper_count?: number }) => ({
+        const nodesFromGraph = graphRes.data.nodes.map((n: { id: string; label: string; label_en?: string; category?: string; paper_count?: number }) => ({
           id: n.id,
           text: n.label,
+          text_en: n.label_en,
           category: n.category,
           paper_count: n.paper_count || 0,
         }))
@@ -220,6 +269,7 @@ export default function ConceptsGraph() {
     const nodes: GraphNode[] = concepts.map(c => ({
       id: c.id,
       name: c.text,
+      name_en: c.text_en,
       type: 'concept' as NodeType,
       category: c.category || 'method',
       paperCount: c.paper_count,
@@ -397,6 +447,7 @@ export default function ConceptsGraph() {
     const nodes: GraphNode[] = concepts.map(c => ({
       id: c.id,
       name: c.text,
+      name_en: c.text_en,
       type: 'concept' as NodeType,
       category: c.category || 'method',
       paperCount: c.paper_count,
@@ -429,7 +480,13 @@ export default function ConceptsGraph() {
     const graph = new ForceGraph(containerRef.current!)
       .graphData({ nodes: graphNodes, links: graphLinks })
       .nodeId('id')
-      .nodeLabel('name')
+      .nodeLabel((node: any) => {
+        // 根据语言选择显示名称
+        if (language === 'en' && node.name_en) {
+          return node.name_en
+        }
+        return node.name
+      })
       .nodeVal((node: any) => {
         if (node.type === 'center') return 3
         if (node.type === 'paper') return 1.5
@@ -438,6 +495,8 @@ export default function ConceptsGraph() {
       .nodeCanvasObject((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
         const isPaper = node.type === 'paper'
         const isCenter = node.type === 'center'
+        const isSelectedForRecommendation = isSelectingForRecommendation &&
+          selectedConceptsForRecommendation.some(c => c.id === node.id)
 
         let size: number
         let color: string
@@ -467,7 +526,9 @@ export default function ConceptsGraph() {
         // Calculate opacity based on search and category filter
         let opacity = 1
         if (searchQuery) {
-          const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase())
+          const searchLower = searchQuery.toLowerCase()
+          const matchesSearch = node.name.toLowerCase().includes(searchLower) ||
+            (node.name_en && node.name_en.toLowerCase().includes(searchLower))
           opacity = matchesSearch ? 1 : 0.2
         } else if (node.category && !selectedCategories.includes(node.category)) {
           opacity = 0.15
@@ -485,6 +546,23 @@ export default function ConceptsGraph() {
           ctx.beginPath()
           ctx.arc(x, y, size + 8, 0, 2 * Math.PI)
           ctx.fillStyle = 'rgba(184, 134, 11, 0.4)'
+          ctx.fill()
+        }
+
+        // Selected for recommendation indicator - green glow
+        if (isSelectedForRecommendation) {
+          ctx.beginPath()
+          ctx.arc(x, y, size + 6, 0, 2 * Math.PI)
+          ctx.fillStyle = 'rgba(45, 90, 39, 0.4)' // forest green glow
+          ctx.fill()
+          // Draw checkmark indicator
+          ctx.beginPath()
+          ctx.arc(x + size * 0.7, y - size * 0.7, 4, 0, 2 * Math.PI)
+          ctx.fillStyle = '#2d5a27'
+          ctx.fill()
+          ctx.beginPath()
+          ctx.arc(x + size * 0.7, y - size * 0.7, 2, 0, 2 * Math.PI)
+          ctx.fillStyle = '#ffffff'
           ctx.fill()
         }
 
@@ -536,7 +614,9 @@ export default function ConceptsGraph() {
           ctx.textAlign = 'center'
           ctx.textBaseline = 'top'
           ctx.fillStyle = '#2c1810'
-          const label = node.name && node.name.length > 30 ? node.name.substring(0, 30) + '...' : (node.name || '')
+          // 根据语言选择显示名称
+          const displayName = (language === 'en' && node.name_en) ? node.name_en : node.name
+          const label = displayName && displayName.length > 30 ? displayName.substring(0, 30) + '...' : (displayName || '')
           ctx.fillText(label, x, y + size + 4 / globalScale)
         }
 
@@ -585,7 +665,12 @@ export default function ConceptsGraph() {
         setHoverNode(null)
         if (node.type === 'concept') {
           if (viewMode === 'all') {
-            handleConceptClick(node)
+            if (isSelectingForRecommendation) {
+              // Toggle selection for recommendation
+              handleToggleConceptInRecommendation(node.id)
+            } else {
+              handleConceptClick(node)
+            }
           }
         } else if (node.type === 'paper') {
           handlePaperClick(node)
@@ -607,7 +692,7 @@ export default function ConceptsGraph() {
         graphRef.current._destructor()
       }
     }
-  }, [graphNodes, graphLinks, viewMode, handleConceptClick, handlePaperClick, forceStrength, searchQuery, selectedCategories, highlightedNodeId])
+  }, [graphNodes, graphLinks, viewMode, handleConceptClick, handlePaperClick, forceStrength, searchQuery, selectedCategories, highlightedNodeId, isSelectingForRecommendation, selectedConceptsForRecommendation, handleToggleConceptInRecommendation, language])
 
   if (loading) {
     return (
@@ -808,6 +893,12 @@ export default function ConceptsGraph() {
               className="btn-primary w-full flex items-center justify-center gap-2"
             >
               🔍 {t.concepts.discoverResearch}
+            </button>
+            <button
+              onClick={handleStartRecommendationSelection}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
+            >
+              📚 {t.concepts.recommendation.searchPapers}
             </button>
             {selectedConcept.papers && selectedConcept.papers.length > 0 && (
               <button
@@ -1187,6 +1278,47 @@ export default function ConceptsGraph() {
           onClose={() => setFilterPanelOpen(false)}
         />
       )}
+
+      {/* Selection Mode Banner */}
+      {isSelectingForRecommendation && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 card-academic px-4 py-2 animate-slide-down">
+          <div className="flex items-center gap-3">
+            <span className="font-body text-sm text-sepia">
+              {t.concepts.recommendation.selectedConcepts}: {selectedConceptsForRecommendation.length}
+            </span>
+            <button
+              onClick={() => setIsSelectingForRecommendation(false)}
+              className="btn-secondary-xs"
+            >
+              {t.common.confirm}
+            </button>
+            <button
+              onClick={() => {
+                setIsSelectingForRecommendation(false)
+                setSelectedConceptsForRecommendation([])
+                setRecommendationPanelOpen(false)
+              }}
+              className="btn-secondary-xs text-status-error border-status-error"
+            >
+              {t.common.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Recommendation Panel */}
+      <RecommendationPanel
+        isOpen={recommendationPanelOpen}
+        onClose={() => {
+          setRecommendationPanelOpen(false)
+          setIsSelectingForRecommendation(false)
+          setSelectedConceptsForRecommendation([])
+        }}
+        selectedConcepts={selectedConceptsForRecommendation}
+        onAddConcept={handleAddConceptToRecommendation}
+        onRemoveConcept={handleRemoveConceptFromRecommendation}
+        concepts={concepts}
+      />
     </div>
   )
 }

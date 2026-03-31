@@ -12,6 +12,8 @@ import os
 import asyncio
 import uuid
 import time
+import json
+from datetime import datetime
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -19,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from mkg.database import Database
 from mkg.pdf_parser import PDFParser, LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
 from mkg.graph import KnowledgeGraph
-from mkg.semantic_scholar import SemanticScholarClient
+from mkg.semantic_scholar import S2Client
 from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
 
 
@@ -131,7 +133,7 @@ S2_API_KEY = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
 
 def get_s2_client():
     """获取 Semantic Scholar 客户端"""
-    return SemanticScholarClient(S2_API_KEY)
+    return S2Client(api_key=S2_API_KEY)
 
 
 @router.get("/", response_model=List[PaperResponse])
@@ -147,6 +149,18 @@ def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
         papers = db.get_papers_by_status(status)
     else:
         papers = db.get_all_papers()
+
+    # Ensure list fields are not None
+    for p in papers:
+        if p.get('keywords') is None:
+            p['keywords'] = []
+        if p.get('contributions') is None:
+            p['contributions'] = []
+        if p.get('authors') is None:
+            p['authors'] = []
+        if p.get('s2_fields_of_study') is None:
+            p['s2_fields_of_study'] = []
+
     return papers
 
 
@@ -154,7 +168,16 @@ def list_papers(status: Optional[str] = None, folder: Optional[str] = None):
 def get_papers_by_folder(folder_id: str):
     """Get papers by folder - specific route before general {doi:path}"""
     db = get_db()
-    return db.get_papers_by_folder(folder_id)
+    papers = db.get_papers_by_folder(folder_id)
+    # Ensure list fields are not None
+    for p in papers:
+        if p.get('keywords') is None:
+            p['keywords'] = []
+        if p.get('contributions') is None:
+            p['contributions'] = []
+        if p.get('authors') is None:
+            p['authors'] = []
+    return papers
 
 
 @router.post("/upload")
@@ -210,13 +233,15 @@ async def upload_paper(file: UploadFile = File(...), folder: str = Form("default
             'pdf_path': str(file_path),
         }
 
-    # Semantic Scholar 元数据增强
-    s2_client = get_s2_client()
-    if s2_client and paper_data.get('title'):
-        try:
-            paper_data = s2_client.enhance_paper_data(paper_data['title'], paper_data)
-        except Exception as e:
-            print(f"S2 enhancement failed: {e}")  # 静默失败
+    # Semantic Scholar 元数据增强 - 跳过以避免上传卡住
+    # S2 匹配会在"处理"阶段进行，上传时跳过
+    # s2_client = get_s2_client()
+    # if s2_client and paper_data.get('title'):
+    #     try:
+    #         s2_data = s2_client.match_paper_by_title(paper_data['title'])
+    #         ...
+    #     except Exception as e:
+    #         print(f"S2 enhancement failed: {e}")
 
     doi = db.add_paper(paper_data)
 
@@ -289,9 +314,32 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
             s2_client = get_s2_client()
             if s2_client and paper_data.get('title'):
                 try:
-                    paper_data = s2_client.enhance_paper_data(paper_data['title'], paper_data)
+                    s2_data = s2_client.match_paper_by_title(paper_data['title'])
+                    if s2_data:
+                        external_ids = s2_data.get('externalIds', {})
+                        s2_doi = external_ids.get('DOI') if external_ids else None
+                        open_access_pdf_url = s2_data.get('openAccessPdf')
+                        tldr = s2_data.get('tldr')
+                        fields_of_study = s2_data.get('s2FieldsOfStudy', [])
+
+                        paper_data['s2_paper_id'] = s2_data.get('paperId')
+                        paper_data['s2_doi'] = s2_doi
+                        paper_data['citation_count'] = s2_data.get('citationCount', 0)
+                        paper_data['reference_count'] = s2_data.get('referenceCount', 0)
+                        paper_data['influential_citation_count'] = s2_data.get('influentialCitationCount', 0)
+                        paper_data['venue'] = s2_data.get('venue')
+                        paper_data['year'] = s2_data.get('year')
+                        paper_data['tldr'] = tldr
+                        paper_data['s2_fields_of_study'] = json.dumps(fields_of_study) if fields_of_study else None
+                        paper_data['open_access_pdf_url'] = open_access_pdf_url
+                        paper_data['s2_matched_at'] = datetime.now().isoformat()
+
+                        if s2_data.get('abstract') and not paper_data.get('abstract'):
+                            paper_data['abstract'] = s2_data['abstract']
+                        if s2_data.get('authors') and not paper_data.get('authors'):
+                            paper_data['authors'] = [a.get('name') for a in s2_data['authors'] if a.get('name')]
                 except Exception as e:
-                    print(f"S2 enhancement failed: {e}")  # 静默失败
+                    print(f"S2 enhancement failed: {e}")
 
             doi = db.add_paper(paper_data)
             uploaded.append({
@@ -320,7 +368,7 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
 
 @router.post("/batch-process")
 async def batch_process_papers(request: BatchProcessRequest):
-    """并行处理多个论文"""
+    """并行处理多个论文（分批处理，包含 S2 匹配）"""
     db = get_db()
     parser = get_parser()
     extractor = get_extractor()
@@ -336,13 +384,12 @@ async def batch_process_papers(request: BatchProcessRequest):
 
     db.update_batch_job(request.job_id, 0, 0, 0, 'processing')
 
-    results = []
     completed = 0
     successful = 0
     failed = 0
+    results = []
 
     async def process_single(doi: str) -> dict:
-        nonlocal completed, successful, failed
         try:
             paper = db.get_paper(doi)
             if not paper or not paper.get('pdf_path'):
@@ -360,29 +407,77 @@ async def batch_process_papers(request: BatchProcessRequest):
             if extracted.concept_tree:
                 graph.build_from_paper(doi, extracted.concept_tree.to_dict())
                 db.save_concept_extraction(doi, extracted.concept_tree.to_dict(), extracted.raw_response)
-                # Update paper status to processed
                 db.update_paper_status(doi, 'processed')
+
+                # S2 匹配和引用构建
+                s2_client = get_s2_client()
+                if s2_client and paper.get('title'):
+                    try:
+                        s2_data = s2_client.match_paper_by_title(paper['title'])
+                        if s2_data:
+                            external_ids = s2_data.get('externalIds', {})
+                            s2_doi = external_ids.get('DOI') if external_ids else None
+                            s2_paper_id = s2_data.get('paperId')
+
+                            metadata_update = {
+                                's2_paper_id': s2_paper_id,
+                                's2_doi': s2_doi,
+                                'citation_count': s2_data.get('citationCount', 0),
+                                'reference_count': s2_data.get('referenceCount', 0),
+                                'venue': s2_data.get('venue'),
+                                'year': s2_data.get('year'),
+                                'tldr': s2_data.get('tldr'),
+                                's2_matched_at': datetime.now().isoformat(),
+                            }
+                            db.update_paper_metadata(doi, metadata_update)
+
+                            # 构建引用关系
+                            if s2_paper_id:
+                                references = s2_client.get_paper_references(s2_paper_id, limit=50)
+                                for ref in references:
+                                    ref_s2_id = ref.get('paperId')
+                                    if not ref_s2_id:
+                                        continue
+                                    citation_data = {
+                                        'citing_paper_id': doi,
+                                        'cited_paper_id': ref_s2_id,
+                                        'citing_s2_id': s2_paper_id,
+                                        'cited_s2_id': ref_s2_id,
+                                        'citing_title': paper.get('title'),
+                                        'citing_year': paper.get('year'),
+                                        'cited_title': ref.get('title'),
+                                        'cited_year': ref.get('year'),
+                                        'cited_citation_count': ref.get('citationCount', 0),
+                                        'is_internal': False
+                                    }
+                                    db.add_paper_citation(citation_data)
+                    except Exception as e:
+                        print(f"S2 matching failed for {doi}: {e}")
+
                 return {"doi": doi, "status": "success", "concepts": len(extracted.concept_tree.children) if extracted.concept_tree.children else 0}
             else:
                 return {"doi": doi, "status": "failed", "error": "No concepts extracted"}
         except Exception as e:
             return {"doi": doi, "status": "failed", "error": str(e)}
 
-    semaphore = asyncio.Semaphore(3)
+    # 每 5 个一批处理
+    batch_size = 5
 
-    async def process_with_limit(doi: str):
-        async with semaphore:
-            result = await process_single(doi)
+    for i in range(0, len(request.dois), batch_size):
+        batch = request.dois[i:i + batch_size]
+        batch_results = await asyncio.gather(*[process_single(doi) for doi in batch])
+
+        for result in batch_results:
+            results.append(result)
             completed += 1
             if result["status"] == "success":
                 successful += 1
             else:
                 failed += 1
-            db.update_batch_job(request.job_id, completed, successful, failed,
-                              'completed' if completed == len(request.dois) else 'processing')
-            return result
 
-    results = await asyncio.gather(*[process_with_limit(doi) for doi in request.dois])
+        # 更新进度
+        db.update_batch_job(request.job_id, completed, successful, failed,
+                          'completed' if completed == len(request.dois) else 'processing')
 
     return {
         "job_id": request.job_id,
@@ -407,7 +502,7 @@ def get_batch_status(job_id: str):
 
 @router.post("/process", response_model=ProcessResponse)
 def process_paper(request: ProcessRequest):
-    """Process a paper with LLM extraction"""
+    """Process a paper with LLM extraction, S2 metadata, and citation building"""
     db = get_db()
     paper = db.get_paper(request.doi)
 
@@ -445,9 +540,91 @@ def process_paper(request: ProcessRequest):
             # Save extraction
             db.save_concept_extraction(request.doi, concept_tree, extracted.raw_response)
 
+            # Perform S2 metadata matching and citation building
+            s2_client = get_s2_client()
+            if s2_client and paper.get('title'):
+                try:
+                    s2_data = s2_client.match_paper_by_title(paper['title'])
+                    if s2_data:
+                        external_ids = s2_data.get('externalIds', {})
+                        s2_doi = external_ids.get('DOI') if external_ids else None
+                        s2_paper_id = s2_data.get('paperId')
+
+                        # Update paper with S2 metadata
+                        metadata_update = {
+                            's2_paper_id': s2_paper_id,
+                            's2_doi': s2_doi,
+                            'citation_count': s2_data.get('citationCount', 0),
+                            'reference_count': s2_data.get('referenceCount', 0),
+                            'influential_citation_count': s2_data.get('influentialCitationCount', 0),
+                            'venue': s2_data.get('venue'),
+                            'year': s2_data.get('year'),
+                            'tldr': s2_data.get('tldr'),
+                            's2_fields_of_study': json.dumps(s2_data.get('s2FieldsOfStudy', [])),
+                            'open_access_pdf_url': s2_data.get('openAccessPdf'),
+                            's2_matched_at': datetime.now().isoformat(),
+                        }
+                        db.update_paper_metadata(request.doi, metadata_update)
+
+                        # Build citation relationships
+                        if s2_paper_id:
+                            existing_papers = db.get_papers_with_s2_id()
+                            s2_to_doi = {p['s2_paper_id']: p['doi'] for p in existing_papers if p.get('s2_paper_id')}
+
+                            # Get references
+                            try:
+                                references = s2_client.get_paper_references(s2_paper_id, limit=50)
+                                for ref in references:
+                                    ref_s2_id = ref.get('paperId')
+                                    if not ref_s2_id:
+                                        continue
+                                    is_internal = ref_s2_id in s2_to_doi
+                                    citation_data = {
+                                        'citing_paper_id': request.doi,
+                                        'cited_paper_id': s2_to_doi.get(ref_s2_id, ref_s2_id),
+                                        'citing_s2_id': s2_paper_id,
+                                        'cited_s2_id': ref_s2_id,
+                                        'citing_title': paper.get('title'),
+                                        'citing_year': paper.get('year'),
+                                        'cited_title': ref.get('title'),
+                                        'cited_year': ref.get('year'),
+                                        'cited_citation_count': ref.get('citationCount', 0),
+                                        'is_internal': is_internal
+                                    }
+                                    db.add_paper_citation(citation_data)
+                            except Exception as e:
+                                print(f"Failed to get references: {e}")
+
+                            # Get citations
+                            try:
+                                citations = s2_client.get_paper_citations(s2_paper_id, limit=50)
+                                for cit in citations:
+                                    cit_s2_id = cit.get('paperId')
+                                    if not cit_s2_id:
+                                        continue
+                                    is_internal = cit_s2_id in s2_to_doi
+                                    citation_data = {
+                                        'citing_paper_id': s2_to_doi.get(cit_s2_id, cit_s2_id),
+                                        'cited_paper_id': request.doi,
+                                        'citing_s2_id': cit_s2_id,
+                                        'cited_s2_id': s2_paper_id,
+                                        'citing_title': cit.get('title'),
+                                        'citing_year': cit.get('year'),
+                                        'cited_title': paper.get('title'),
+                                        'cited_year': paper.get('year'),
+                                        'cited_citation_count': s2_data.get('citationCount', 0),
+                                        'is_internal': is_internal
+                                    }
+                                    db.add_paper_citation(citation_data)
+                            except Exception as e:
+                                print(f"Failed to get citations: {e}")
+
+                except Exception as e:
+                    print(f"S2 matching failed for {request.doi}: {e}")
+
             return ProcessResponse(
                 success=True,
-                message="Paper processed successfully",
+                message="Paper processed successfully with S2 metadata and citations",
                 concept_tree=concept_tree
             )
         else:
@@ -466,6 +643,7 @@ async def process_single_paper(request: ProcessRequest):
     Process a single paper and return duration for time estimation.
 
     Same logic as /process but adds duration and concepts_count to response.
+    Also performs S2 metadata matching and builds citation relationships.
     """
     start_time = time.time()
 
@@ -500,15 +678,110 @@ async def process_single_paper(request: ProcessRequest):
             graph.build_from_paper(request.doi, concept_tree)
             db.save_concept_extraction(request.doi, concept_tree, extracted.raw_response)
 
+            # Perform S2 metadata matching and citation building
+            s2_client = get_s2_client()
+            s2_data = None
+            citation_count = 0
+
+            if s2_client and paper.get('title'):
+                try:
+                    s2_data = s2_client.match_paper_by_title(paper['title'])
+                    if s2_data:
+                        external_ids = s2_data.get('externalIds', {})
+                        s2_doi = external_ids.get('DOI') if external_ids else None
+                        s2_paper_id = s2_data.get('paperId')
+                        open_access_pdf_url = s2_data.get('openAccessPdf')
+                        tldr = s2_data.get('tldr')
+                        fields_of_study = s2_data.get('s2FieldsOfStudy', [])
+
+                        # Update paper with S2 metadata
+                        metadata_update = {
+                            's2_paper_id': s2_paper_id,
+                            's2_doi': s2_doi,
+                            'citation_count': s2_data.get('citationCount', 0),
+                            'reference_count': s2_data.get('referenceCount', 0),
+                            'influential_citation_count': s2_data.get('influentialCitationCount', 0),
+                            'venue': s2_data.get('venue'),
+                            'year': s2_data.get('year'),
+                            'tldr': tldr,
+                            's2_fields_of_study': json.dumps(fields_of_study) if fields_of_study else None,
+                            'open_access_pdf_url': open_access_pdf_url,
+                            's2_matched_at': datetime.now().isoformat(),
+                        }
+                        db.update_paper_metadata(request.doi, metadata_update)
+
+                        # Build citation relationships
+                        if s2_paper_id:
+                            # Get papers with s2_id for internal citation check
+                            existing_papers = db.get_papers_with_s2_id()
+                            s2_to_doi = {p['s2_paper_id']: p['doi'] for p in existing_papers if p.get('s2_paper_id')}
+
+                            # Get references (papers this paper cites)
+                            try:
+                                references = s2_client.get_paper_references(s2_paper_id, limit=50)
+                                for ref in references:
+                                    ref_s2_id = ref.get('paperId')
+                                    if not ref_s2_id:
+                                        continue
+
+                                    is_internal = ref_s2_id in s2_to_doi
+                                    citation_data = {
+                                        'citing_paper_id': request.doi,
+                                        'cited_paper_id': s2_to_doi.get(ref_s2_id, ref_s2_id),
+                                        'citing_s2_id': s2_paper_id,
+                                        'cited_s2_id': ref_s2_id,
+                                        'citing_title': paper.get('title'),
+                                        'citing_year': paper.get('year'),
+                                        'cited_title': ref.get('title'),
+                                        'cited_year': ref.get('year'),
+                                        'cited_citation_count': ref.get('citationCount', 0),
+                                        'is_internal': is_internal
+                                    }
+                                    db.add_paper_citation(citation_data)
+                                    citation_count += 1
+                            except Exception as e:
+                                print(f"Failed to get references for {s2_paper_id}: {e}")
+
+                            # Get citations (papers that cite this paper)
+                            try:
+                                citations = s2_client.get_paper_citations(s2_paper_id, limit=50)
+                                for cit in citations:
+                                    cit_s2_id = cit.get('paperId')
+                                    if not cit_s2_id:
+                                        continue
+
+                                    is_internal = cit_s2_id in s2_to_doi
+                                    citation_data = {
+                                        'citing_paper_id': s2_to_doi.get(cit_s2_id, cit_s2_id),
+                                        'cited_paper_id': request.doi,
+                                        'citing_s2_id': cit_s2_id,
+                                        'cited_s2_id': s2_paper_id,
+                                        'citing_title': cit.get('title'),
+                                        'citing_year': cit.get('year'),
+                                        'cited_title': paper.get('title'),
+                                        'cited_year': paper.get('year'),
+                                        'cited_citation_count': s2_data.get('citationCount', 0),
+                                        'is_internal': is_internal
+                                    }
+                                    db.add_paper_citation(citation_data)
+                                    citation_count += 1
+                            except Exception as e:
+                                print(f"Failed to get citations for {s2_paper_id}: {e}")
+
+                except Exception as e:
+                    print(f"S2 matching failed for {request.doi}: {e}")
+
             duration = time.time() - start_time
             concepts_count = count_concepts(concept_tree)
 
             return {
                 "success": True,
-                "message": "Paper processed successfully",
+                "message": "Paper processed successfully with S2 metadata and citations",
                 "concept_tree": concept_tree,
                 "duration": duration,
-                "concepts_count": concepts_count
+                "concepts_count": concepts_count,
+                "s2_matched": s2_data is not None,
+                "citations_added": citation_count
             }
         else:
             duration = time.time() - start_time
@@ -659,6 +932,232 @@ def delete_paper(doi: str):
     return {"success": True, "message": "Paper and orphaned concepts deleted"}
 
 
+class AddFromS2Request(BaseModel):
+    """从 S2 添加论文元数据"""
+    s2_paper_id: str
+    title: str
+    year: Optional[int] = None
+    abstract: Optional[str] = None
+    authors: Optional[List[str]] = None
+    venue: Optional[str] = None
+    citation_count: Optional[int] = 0
+    tldr: Optional[str] = None
+    open_access_pdf_url: Optional[str] = None
+
+
+class DownloadAndProcessRequest(BaseModel):
+    """下载 PDF 并处理"""
+    s2_paper_id: str
+    title: str
+    open_access_pdf_url: str
+    year: Optional[int] = None
+    abstract: Optional[str] = None
+    authors: Optional[List[str]] = None
+    venue: Optional[str] = None
+    citation_count: Optional[int] = 0
+    tldr: Optional[str] = None
+
+
+@router.post("/add-from-s2")
+def add_paper_from_s2(request: AddFromS2Request):
+    """
+    仅添加 S2 元数据，不处理 PDF。
+
+    论文会出现在列表中，但不会有概念树。
+    引用关系仍会在引用图谱中显示。
+    """
+    db = get_db()
+
+    # 检查是否已存在
+    existing = db.get_paper_by_s2_id(request.s2_paper_id)
+    if existing:
+        return {
+            "success": False,
+            "message": "Paper already exists in graph",
+            "doi": existing['doi']
+        }
+
+    # 使用 S2 paper ID 作为 DOI（如果没有真实 DOI）
+    doi = request.s2_paper_id
+
+    # 创建论文记录
+    paper_data = {
+        'doi': doi,
+        'title': request.title,
+        'abstract': request.abstract or "",
+        'authors': request.authors or [],
+        'year': request.year,
+        'venue': request.venue,
+        'citation_count': request.citation_count,
+        'tldr': request.tldr,
+        's2_paper_id': request.s2_paper_id,
+        's2_matched_at': datetime.now().isoformat(),
+        'open_access_pdf_url': request.open_access_pdf_url,
+        'pdf_path': None,  # 没有 PDF
+        'status': 'processed',  # 标记为已处理（虽然没有概念树）
+    }
+
+    try:
+        db.add_paper(paper_data)
+        return {
+            "success": True,
+            "message": "Paper metadata added successfully",
+            "doi": doi,
+            "title": request.title
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/download-and-process")
+async def download_and_process_paper(request: DownloadAndProcessRequest):
+    """
+    下载开放获取 PDF 并自动处理。
+
+    1. 下载 PDF 到 papers/pending/ 目录
+    2. 创建论文记录
+    3. 自动触发处理流程（PyMuPDF + S2 匹配 + LLM 提取）
+    """
+    import requests
+
+    db = get_db()
+    parser = get_parser()
+    extractor = get_extractor()
+
+    if not extractor:
+        raise HTTPException(status_code=400, detail="LLM not configured")
+
+    # 检查是否已存在
+    existing = db.get_paper_by_s2_id(request.s2_paper_id)
+    if existing:
+        return {
+            "success": False,
+            "message": "Paper already exists in graph",
+            "doi": existing['doi']
+        }
+
+    # 下载 PDF
+    project_root = Path(__file__).parent.parent.parent
+    pending_dir = project_root / "papers" / "pending"
+    pending_dir.mkdir(parents=True, exist_ok=True)
+
+    # 生成安全文件名
+    safe_title = request.title[:50].replace('/', '_').replace('\\', '_').replace(':', '_')
+    unique_name = f"{safe_title}_{int(time.time())}.pdf"
+    file_path = pending_dir / unique_name
+
+    try:
+        # 下载 PDF
+        response = requests.get(request.open_access_pdf_url, timeout=30)
+        response.raise_for_status()
+        with open(file_path, "wb") as f:
+            f.write(response.content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to download PDF: {str(e)}")
+
+    # 使用 S2 paper ID 作为 DOI
+    doi = request.s2_paper_id
+
+    # 先解析 PDF 提取基本信息
+    try:
+        content = await asyncio.to_thread(parser.parse, str(file_path))
+    except Exception as e:
+        print(f"PDF parse error: {e}")
+        content = None
+
+    # 创建论文记录（使用 S2 元数据作为基础）
+    paper_data = {
+        'doi': doi,
+        'title': request.title,
+        'abstract': request.abstract or (content.abstract if content else "") or "",
+        'authors': request.authors or (content.authors if content else []) or [],
+        'year': request.year,
+        'venue': request.venue,
+        'citation_count': request.citation_count,
+        'tldr': request.tldr,
+        's2_paper_id': request.s2_paper_id,
+        's2_matched_at': datetime.now().isoformat(),
+        'open_access_pdf_url': request.open_access_pdf_url,
+        'pdf_path': str(file_path),
+        'status': 'pending',
+    }
+
+    try:
+        db.add_paper(paper_data)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to create paper: {str(e)}")
+
+    # 自动触发处理流程
+    try:
+        # 提取概念
+        concept_tree = None
+        if content and content.full_text:
+            concepts_json = await asyncio.to_thread(extractor.extract_concepts, content.full_text)
+            if concepts_json:
+                concept_tree = json.loads(concepts_json)
+
+                # 添加概念到图谱
+                graph = get_graph()
+                root_id = graph.add_concept_tree(doi, concept_tree)
+                db.update_paper_status(doi, 'processed')
+
+                # 更新贡献信息
+                contribution = db.get_paper_contribution(doi)
+                if contribution:
+                    db.update_paper_metadata(doi, {
+                        'concepts_count': contribution.get('node_count', 0),
+                        'root_concept': contribution.get('root_concept')
+                    })
+
+        # 构建引用关系
+        s2_client = get_s2_client()
+        if s2_client and request.s2_paper_id:
+            try:
+                existing_papers = db.get_papers_with_s2_id()
+                s2_to_doi = {p['s2_paper_id']: p['doi'] for p in existing_papers if p.get('s2_paper_id')}
+
+                # Get references
+                references = s2_client.get_paper_references(request.s2_paper_id, limit=50)
+                for ref in references:
+                    ref_s2_id = ref.get('paperId')
+                    if not ref_s2_id:
+                        continue
+                    is_internal = ref_s2_id in s2_to_doi
+                    citation_data = {
+                        'citing_paper_id': doi,
+                        'cited_paper_id': s2_to_doi.get(ref_s2_id, ref_s2_id),
+                        'citing_s2_id': request.s2_paper_id,
+                        'cited_s2_id': ref_s2_id,
+                        'citing_title': request.title,
+                        'citing_year': request.year,
+                        'cited_title': ref.get('title'),
+                        'cited_year': ref.get('year'),
+                        'cited_citation_count': ref.get('citationCount', 0),
+                        'is_internal': is_internal
+                    }
+                    db.add_paper_citation(citation_data)
+            except Exception as e:
+                print(f"Failed to build citations: {e}")
+
+        return {
+            "success": True,
+            "message": "Paper downloaded and processed successfully",
+            "doi": doi,
+            "title": request.title,
+            "concepts_count": len(concept_tree.get('children', [])) if concept_tree else 0
+        }
+
+    except Exception as e:
+        # 处理失败但论文已创建
+        db.update_paper_status(doi, 'failed')
+        return {
+            "success": False,
+            "message": f"Paper created but processing failed: {str(e)}",
+            "doi": doi,
+            "title": request.title
+        }
+
+
 @router.patch("/{doi:path}/folder")
 def move_paper(doi: str, request: MovePaperRequest):
     """Move paper to a different folder"""
@@ -694,4 +1193,13 @@ def get_paper(doi: str):
     paper = db.get_paper(doi)
     if not paper:
         raise HTTPException(status_code=404, detail="Paper not found")
+    # Ensure list fields are not None
+    if paper.get('keywords') is None:
+        paper['keywords'] = []
+    if paper.get('contributions') is None:
+        paper['contributions'] = []
+    if paper.get('authors') is None:
+        paper['authors'] = []
+    if paper.get('s2_fields_of_study') is None:
+        paper['s2_fields_of_study'] = []
     return paper

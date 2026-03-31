@@ -18,9 +18,12 @@ from dataclasses import dataclass, field
 
 
 STAGE1_SUMMARY_PROMPT = """<s>
-你是一位学术论文审稿人。请对以下论文进行结构化总结。
-你的目标不是复述论文内容，而是回答一个核心问题：
-**这篇论文对学术界的独特贡献是什么？它做了什么别人没做过的事？**
+You are a senior academic literature analyst with expertise in identifying the precise contribution boundaries of research papers. Your core skill is distinguishing what a paper actually contributed from what it merely mentioned or used as background.
+
+Your working principles:
+- Extract contributions conservatively: if unsure whether something is a contribution or background, classify it as background.
+- Name concepts using the terminology the academic community would recognize, not the paper's idiosyncratic phrasing.
+- Provide BOTH English and Chinese for all text fields. Keep internationally recognized terms (e.g., Transformer, BERT, GAN) in their original form.
 </s>
 
 <paper>
@@ -31,60 +34,122 @@ STAGE1_SUMMARY_PROMPT = """<s>
 </paper>
 
 <task>
-请输出以下 JSON 结构：
+Before generating JSON, think through these questions (this reasoning will not be shown to users):
+
+1. What is the SINGLE most important thing this paper did that didn't exist before?
+2. What field and direction does this belong to?
+3. Which concepts in this paper are BACKGROUND (would exist without this paper) vs NOVEL (wouldn't exist without this paper)?
+4. How many real contributions does this paper have? (Usually 1-3. If you're counting more than 3, you're probably including background work.)
+
+Then output the following JSON:
 
 {{
-  "one_sentence_summary": "用一句话概括这篇论文（不超过50字）",
+  "one_sentence_summary": {{
+    "en": "One sentence summary (max 50 words)",
+    "zh": "一句话概括（不超过50字）"
+  }},
 
   "research_context": {{
-    "field": "所属大领域",
-    "direction": "所属研究方向",
-    "existing_gap": "论文试图填补的研究空白（1-2句话）"
+    "field": {{
+      "en": "Major research field",
+      "zh": "所属大领域"
+    }},
+    "direction": {{
+      "en": "Specific research direction",
+      "zh": "所属研究方向"
+    }},
+    "existing_gap": {{
+      "en": "The specific gap this paper fills — what was impossible or unsolved before this paper? (1-2 sentences)",
+      "zh": "这篇论文填补了什么空白——在这篇论文之前什么是做不到或未解决的？（1-2句话）"
+    }}
   }},
 
   "core_contributions": [
     {{
       "type": "new_method | new_framework | new_dataset | new_finding | improvement | theoretical",
-      "claim": "贡献的具体描述（1句话）",
-      "novelty": "与已有工作相比，新在哪里（1句话）"
+      "claim": {{
+        "en": "What exactly did this paper contribute? (1 sentence, be specific)",
+        "zh": "这篇论文具体贡献了什么？（1句话，要具体）"
+      }},
+      "novelty": {{
+        "en": "Compared to the closest prior work, what is new? Name the prior work explicitly. (1 sentence)",
+        "zh": "与最接近的已有工作相比新在哪？请明确指出已有工作的名称。（1句话）"
+      }}
     }}
   ],
 
   "methodology_summary": {{
-    "approach": "核心方法的一句话概述",
-    "key_components": ["方法中最关键的2-3个技术组件"],
-    "baselines": ["对比的基线方法"]
+    "approach": {{
+      "en": "Core method in one sentence",
+      "zh": "核心方法一句话概述"
+    }},
+    "key_components": {{
+      "en": ["2-3 most critical technical components (not all components, just the novel ones)"],
+      "zh": ["最关键的2-3个技术组件（只列新颖的，不列标准组件）"]
+    }},
+    "baselines": {{
+      "en": ["Baseline methods compared against"],
+      "zh": ["对比的基线方法"]
+    }}
   }},
 
   "results_summary": {{
-    "datasets": ["使用的数据集"],
-    "metrics": ["评估指标"],
-    "main_finding": "最重要的实验结论（1句话）"
+    "datasets": {{
+      "en": ["Datasets used"],
+      "zh": ["使用的数据集"]
+    }},
+    "metrics": {{
+      "en": ["Evaluation metrics"],
+      "zh": ["评估指标"]
+    }},
+    "main_finding": {{
+      "en": "Most important result WITH numbers if available (e.g., 'Outperforms QMIX by 12-18% win rate on SMAC hard scenarios')",
+      "zh": "最重要的实验结论，尽量带具体数字"
+    }}
   }},
 
-  "background_concepts": ["论文提及但非其贡献的已有概念"],
-  "novel_concepts": ["论文首次提出或深入探讨的概念"]
+  "background_concepts": {{
+    "en": ["Concepts this paper USES but did NOT create — these would be well-known even if this paper didn't exist"],
+    "zh": ["论文使用但并非其创造的概念——即使这篇论文不存在，这些概念也是学术界广泛认知的"]
+  }},
+  "novel_concepts": {{
+    "en": ["Concepts that ONLY exist because of this paper — if this paper disappeared, these concepts would not be known"],
+    "zh": ["因为这篇论文才存在的概念——如果这篇论文消失，这些概念就不会被人知道"]
+  }}
 }}
 </task>
 
 <rules>
-关键判断规则：
-- "background_concepts" vs "novel_concepts" 的区分是最重要的。
-  判断标准：如果这篇论文不存在，这个概念还会被学术界广泛认知吗？
-  会 → background。不会 → novel。
-- core_contributions 通常只有 1-3 个。超过 5 个说明没有区分"贡献"和"论文提到的东西"。
-- 所有内容使用中文。国际通用专有名词（Transformer、BERT）可保留英文。
+Critical rules:
+
+1. BACKGROUND vs NOVEL is the most important judgment in this task.
+   - Baselines are ALWAYS background (e.g., QMIX, BERT, ResNet — these exist regardless of this paper)
+   - Standard techniques are ALWAYS background (e.g., attention mechanism, dropout, batch normalization)
+   - Only concepts NAMED and DEFINED for the first time in this paper are novel
+
+2. core_contributions should have 1-3 items.
+   - If you listed 4+, re-examine: are some of these "things the paper did" rather than "things the paper contributed"?
+   - "Used dataset X" is not a contribution unless the paper CREATED dataset X.
+   - "Achieved SOTA" is a result, not a contribution — the contribution is the METHOD that achieved SOTA.
+
+3. Provide BOTH English and Chinese for all text fields.
+
+4. If the paper is unclear or you cannot determine the contribution with confidence, say so in one_sentence_summary rather than guessing.
 </rules>
 
-只输出 JSON，不要其他内容。"""
+Output JSON only, no other content."""
 
 
 STAGE2_EXTRACTION_PROMPT = """<s>
-你是一位学术知识图谱构建专家。你的任务是基于论文总结，构建一棵精炼的概念树。
+You are an academic knowledge graph construction expert. Your task is to build a refined concept tree based on the paper summary.
 
-关键原则——区分"锚点"和"贡献"：
-- **锚点路径**：从根节点到论文核心贡献的最短路径。只需存在，不展开子树。作用是定位"这篇论文属于哪里"。
-- **贡献子树**：论文真正贡献的概念。展开详细子节点。这些是图谱中因为这篇论文而新增的知识。
+Key Principle — Distinguish "anchors" from "contributions":
+- **Anchor Path**: The shortest path from root to the paper's core contribution. These nodes just need to EXIST to locate the paper in the graph. Do NOT expand subtrees for anchors.
+- **Contribution Subtree**: Concepts the paper truly contributed. These get full subtree expansion. These are the NEW KNOWLEDGE this paper adds to the graph.
+
+Analogy: Anchor path is the "address" (Beijing → Haidian → Zhongguancun). Contribution subtree is "what's inside the room". You don't describe how big Beijing is — you describe what's in this specific room.
+
+Node budget: Aim for 8-12 nodes total. More than 15 means you're extracting background, not contributions.
 </s>
 
 <paper_summary>
@@ -94,69 +159,98 @@ STAGE2_EXTRACTION_PROMPT = """<s>
 {existing_graph_section}
 
 <taxonomy>
-层级定义（基于"最小可发表单元"原则）：
-- field：能建大学院系 → 如"人工智能"
-- direction：有专门学术会议 → 如"多智能体强化学习"
-- subdirection：综述论文的独立章节 → 如"值分解方法"
-- task：可表述为"给定X求Y" → 如"信用分配问题"
-- method：有名字的可复现算法 → 如"QMIX"
-- technique：方法内部的组件/技巧 → 如"注意力加权混合"
+Hierarchy Definition (based on "Minimum Publishable Unit" principle):
 
-判定：五步 yes/no 排除法：
-1. 能不能围绕它建一个大学院系？→ field
-2. 有没有专门的学术会议或期刊专题？→ direction
-3. 会不会在该方向的综述论文中作为独立章节？→ subdirection
-4. 能不能表述成"给定X，求解/优化Y"的问题定义？→ task
-5. 有没有具体名字和可复现的算法流程？→ method
-6. 以上都不是 → technique
+| Level | Code | Definition | Decision Rule | Examples |
+|-------|------|------------|---------------|----------|
+| Major field | field | An independent academic discipline | Could a university build a department around it? | AI, Operations Research |
+| Direction | direction | Has its own research community | Is there a dedicated conference or journal track? | Reinforcement Learning, Object Detection |
+| Subdirection | subdirection | Subdivision within a direction | Would it be an independent chapter in a survey of the parent direction? | Multi-Agent RL, Few-shot Object Detection |
+| Task | task | Specific problem definition | Can you state it as "Given X, find/optimize Y"? | Credit Assignment, Domain Adaptation |
+| Dataset | dataset | Named benchmark or data contribution | Is it a specific named dataset used by the community as a benchmark? | ImageNet, SMAC, HumanEval |
+| Method | method | Named, reproducible algorithm | Does it have a specific name and reproducible procedure? | QMIX, YOLOv5, LoRA |
+| Finding | finding | Key experimental discovery or empirical law | Is it a named result that changed how people think? | Scaling Laws, Bitter Lesson |
+| Technique | technique | Component or trick within a method | None of the above → default to technique | Attention weighting, Gradient clipping |
+
+Decision flow (ask in this order, stop at first "yes"):
+1. University department? → field
+2. Dedicated conference? → direction
+3. Survey chapter? → subdirection
+4. "Given X, find Y"? → task
+5. Named benchmark dataset? → dataset
+6. Named reproducible algorithm? → method
+7. Named empirical discovery? → finding
+8. None of above → technique
+
+Three structural invariants:
+1. **Strict monotonicity**: Parent level must be strictly higher than all children
+2. **Context sensitivity**: Same term can be different levels depending on paper scope
+3. **Conservative default**: When ambiguous between two adjacent levels, pick the lower (more specific) one
 </taxonomy>
 
 <task>
-请构建概念树，分三步执行：
+Build the concept tree in three steps:
 
-**第一步：画锚点路径**
-从 paper_summary.research_context 提取 field → direction 的最短路径。
-这些节点标记 "is_anchor": true，不展开子树。
+**Step 1: Draw Anchor Path**
+From paper_summary.research_context, extract the shortest path: field → direction.
+- Mark these nodes "is_anchor": true
+- Do NOT expand any children for anchor nodes
+- If existing_graph has matching concepts, reuse their exact names
 
-**第二步：在锚点末端展开贡献子树**
-从 paper_summary.core_contributions 和 novel_concepts 提取概念。
-标记 "is_anchor": false。
+**Step 2: Expand Contribution Subtree**
+From paper_summary.core_contributions and novel_concepts, extract the concepts this paper actually contributed.
+- Mark these "is_anchor": false
+- Attach them as children of the deepest anchor node
+- Each contribution concept must have a category assigned using the taxonomy above
+- Include datasets and findings as leaf nodes IF the paper contributed them (not if it merely used them)
 
-**第三步：标注贡献类型**
-对每个核心节点标注 contribution_role：
-- "proposed"：论文首次提出
-- "improved"：论文改进了已有方法
-- "applied"：已有方法应用于新场景
-- "analyzed"：对已有概念的深入分析
+**Step 3: Label Contribution Type**
+For each non-anchor node, assign contribution_role:
+- "proposed": First introduced by this paper (confidence should be ≥ 0.85)
+- "improved": Paper modified or enhanced an existing concept (confidence ≥ 0.75)
+- "applied": Paper applied an existing concept to a new domain/task (confidence ≥ 0.70)
+- "analyzed": Paper provided new analysis/understanding of existing concept (confidence ≥ 0.65)
+
+Note: contribution_role and confidence are correlated. "proposed" concepts should naturally have high confidence because the paper explicitly defines them. "analyzed" concepts may have lower confidence because the analysis boundary is fuzzy.
 </task>
 
 <confidence_scale>
-| 分数 | 含义 |
-|------|------|
-| 0.90-1.00 | 论文明确讨论，层级无歧义 |
-| 0.75-0.89 | 论文涉及，层级基本确定 |
-| 0.60-0.74 | 从论文内容合理推断 |
-| < 0.60 | 不要输出 |
+| Score | Meaning | Typical Scenario |
+|-------|---------|-----------------|
+| 0.90-1.00 | Paper explicitly discusses, level unambiguous | Concepts in paper title, core contribution |
+| 0.75-0.89 | Paper involves, level basically certain | Techniques described in methods section |
+| 0.60-0.74 | Reasonably inferred from content | Implied upper-level concepts not explicitly named |
+| < 0.60 | Do not output | — |
 </confidence_scale>
 
 <output_format>
-输出 JSON：
-
 {{
-  "paper_summary": "one_sentence_summary 的内容",
+  "paper_summary": {{
+    "en": "one_sentence_summary.en from Stage 1",
+    "zh": "one_sentence_summary.zh from Stage 1"
+  }},
   "concept_tree": {{
-    "concept": "根概念（中文）",
+    "concept": {{
+      "en": "Root concept (English)",
+      "zh": "根概念（中文）"
+    }},
     "category": "field",
     "is_anchor": true,
     "children": [
       {{
-        "concept": "方向概念（中文）",
+        "concept": {{
+          "en": "Direction (English)",
+          "zh": "方向（中文）"
+        }},
         "category": "direction",
         "is_anchor": true,
         "children": [
           {{
-            "concept": "核心贡献概念",
-            "category": "subdirection|task|method|technique",
+            "concept": {{
+              "en": "Core contribution (English)",
+              "zh": "核心贡献（中文）"
+            }},
+            "category": "subdirection|task|dataset|method|finding|technique",
             "is_anchor": false,
             "contribution_role": "proposed|improved|applied|analyzed",
             "confidence": 0.60-1.00,
@@ -166,21 +260,40 @@ STAGE2_EXTRACTION_PROMPT = """<s>
       }}
     ]
   }},
-  "methodology": "核心方法概述",
-  "datasets": ["数据集"],
-  "metrics": ["指标"]
+  "methodology": {{
+    "en": "Core method overview",
+    "zh": "核心方法概述"
+  }},
+  "datasets": {{
+    "en": ["Datasets"],
+    "zh": ["数据集"]
+  }},
+  "metrics": {{
+    "en": ["Metrics"],
+    "zh": ["指标"]
+  }}
 }}
-
-节点数量指引：
-- 锚点路径：2-4 个节点
-- 贡献子树：4-10 个节点
-- 总计：6-15 个。超过 15 个 → 你在提取背景而非核心。
 </output_format>
 
-只输出 JSON，不要其他内容。"""
+<rules>
+Final checks before outputting:
+1. Count your nodes. Anchor path: 2-4 nodes. Contribution subtree: 4-10 nodes. Total: 6-15.
+2. Every parent's level is strictly higher than its children's level.
+3. No anchor node has children that are also anchors (anchor path is a single chain, not a tree).
+4. Every non-anchor node has a contribution_role.
+5. English and Chinese names are provided for ALL concepts.
+6. If a concept from existing_graph matches an anchor, you used its EXACT name.
+</rules>
+
+Output JSON only, no other content."""
 
 EXISTING_GRAPH_SECTION = """<existing_graph>
-当前知识图谱中已有的概念。请优先复用已有节点作为锚点，避免重复创建。
+Current concept nodes in the knowledge graph.
+RULES for existing graph:
+1. If an anchor concept already exists in this graph, REUSE its exact name (both en and zh) — do not create a synonym.
+2. If a novel concept overlaps with an existing node, still create it but note the overlap — the dedup system will handle merging later.
+3. Use the existing node's category as reference, but if you believe it's wrong based on the taxonomy below, use your judgment.
+
 {existing_tree}
 </existing_graph>"""
 
@@ -213,7 +326,8 @@ class ConceptTree:
         "children": [...]
     }
     """
-    concept: str
+    concept: str  # 中文名称
+    concept_en: Optional[str] = None  # 英文名称
     category: str = "method"
     confidence: float = 0.9
     is_anchor: bool = False  # 新增：是否为锚点节点
@@ -224,10 +338,11 @@ class ConceptTree:
         """转换为字典"""
         result = {
             'concept': self.concept,
+            'concept_en': self.concept_en,
             'category': self.category,
             'confidence': self.confidence,
             'is_anchor': self.is_anchor,
-            'id': self._to_slug(self.concept)
+            'id': self._to_slug(self.concept_en or self.concept)
         }
         if self.contribution_role:
             result['contribution_role'] = self.contribution_role
@@ -237,9 +352,21 @@ class ConceptTree:
 
     @classmethod
     def from_dict(cls, data: dict) -> 'ConceptTree':
-        """从字典构建 ConceptTree"""
+        """从字典构建 ConceptTree（支持双语格式）"""
+        # 支持新旧两种格式
+        concept_data = data.get('concept', '')
+        if isinstance(concept_data, dict):
+            # 新格式: {"en": "...", "zh": "..."}
+            concept = concept_data.get('zh', concept_data.get('en', ''))
+            concept_en = concept_data.get('en')
+        else:
+            # 旧格式: 字符串
+            concept = concept_data
+            concept_en = data.get('concept_en')
+
         return cls(
-            concept=data.get('concept', ''),
+            concept=concept,
+            concept_en=concept_en,
             category=data.get('category', 'method'),
             confidence=data.get('confidence', 0.9),
             is_anchor=data.get('is_anchor', False),
@@ -248,9 +375,18 @@ class ConceptTree:
         )
 
     def _to_slug(self, text: str) -> str:
-        """转换为 slug ID（支持中文）"""
+        """转换为 slug ID（优先使用英文）"""
         import re
         import hashlib
+
+        # 如果是英文，直接处理
+        if text and re.match(r'^[a-zA-Z0-9\s\-]+$', text):
+            slug = text.lower()
+            slug = re.sub(r'[^a-z0-9-]', '-', slug)
+            slug = re.sub(r'-+', '-', slug)
+            slug = slug.strip('-')
+            if slug:
+                return slug[:100]
 
         # 尝试转换为拼音
         try:
@@ -1163,24 +1299,12 @@ class LLMConceptExtractor:
             )
 
     def _build_concept_tree(self, data: dict) -> ConceptTree:
-        """递归构建概念树"""
+        """递归构建概念树（支持双语格式）"""
         if not data or 'concept' not in data:
             return None
 
-        tree = ConceptTree(
-            concept=data['concept'],
-            category=data.get('category', 'method'),
-            confidence=data.get('confidence', 0.8),
-            is_anchor=data.get('is_anchor', False),
-            contribution_role=data.get('contribution_role')
-        )
-
-        for child_data in data.get('children', []):
-            child_tree = self._build_concept_tree(child_data)
-            if child_tree:
-                tree.children.append(child_tree)
-
-        return tree
+        # 使用 from_dict 方法处理双语格式
+        return ConceptTree.from_dict(data)
 
     def _create_fallback_concept_tree(self, content: PaperContent) -> ConceptTree:
         """回退方案：从标题和摘要创建简单的概念树"""

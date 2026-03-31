@@ -344,6 +344,89 @@ class Database:
         except sqlite3.OperationalError:
             pass
 
+        # 新增：S2 匹配时间
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN s2_matched_at TIMESTAMP")
+        except sqlite3.OperationalError:
+            pass
+
+        # 新增：Open Access PDF URL（独立字段）
+        try:
+            cursor.execute("ALTER TABLE papers ADD COLUMN open_access_pdf_url TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+        # ============================================================
+        # 新表：论文引用关系
+        # ============================================================
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS paper_citations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                citing_paper_id TEXT NOT NULL,
+                cited_paper_id TEXT NOT NULL,
+                citing_s2_id TEXT,
+                cited_s2_id TEXT,
+                citing_title TEXT,
+                citing_year INTEGER,
+                cited_title TEXT,
+                cited_year INTEGER,
+                cited_citation_count INTEGER,
+                is_internal BOOLEAN DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(citing_paper_id, cited_paper_id)
+            )
+        """)
+
+        # 新表：S2 推荐论文缓存
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS s2_recommendations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source_type TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                recommended_s2_id TEXT NOT NULL,
+                recommended_title TEXT,
+                recommended_abstract TEXT,
+                recommended_year INTEGER,
+                recommended_citation_count INTEGER,
+                recommended_tldr TEXT,
+                recommended_open_access_pdf TEXT,
+                score REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 为 paper_citations 创建索引
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_paper_citations_citing
+            ON paper_citations(citing_paper_id)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_paper_citations_cited
+            ON paper_citations(cited_paper_id)
+        """)
+
+        # 为 s2_recommendations 创建索引
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_s2_recommendations_source
+            ON s2_recommendations(source_type, source_id)
+        """)
+
+        # 迁移：添加 citing_title 和 citing_year 字段到 paper_citations 表
+        try:
+            cursor.execute("ALTER TABLE paper_citations ADD COLUMN citing_title TEXT")
+        except:
+            pass  # 字段已存在
+        try:
+            cursor.execute("ALTER TABLE paper_citations ADD COLUMN citing_year INTEGER")
+        except:
+            pass  # 字段已存在
+
+        # 迁移：添加 text_en 字段到 concepts 表（英文概念名）
+        try:
+            cursor.execute("ALTER TABLE concepts ADD COLUMN text_en TEXT")
+        except:
+            pass  # 字段已存在
+
         self.conn.commit()
 
     def add_paper(self, paper_data: dict) -> str:
@@ -445,11 +528,11 @@ class Database:
         self.conn.commit()
 
     def get_paper(self, identifier: str) -> Optional[dict]:
-        """获取论文（支持 DOI 或 arXiv ID）"""
+        """获取论文（支持 DOI、arXiv ID 或 S2 Paper ID）"""
         cursor = self.conn.cursor()
         cursor.execute("""
-            SELECT * FROM papers WHERE doi = ? OR arxiv_id = ?
-        """, (identifier, identifier))
+            SELECT * FROM papers WHERE doi = ? OR arxiv_id = ? OR s2_paper_id = ?
+        """, (identifier, identifier, identifier))
         row = cursor.fetchone()
         if row:
             paper = dict(row)
@@ -469,6 +552,37 @@ class Database:
                     paper['contributions'] = json.loads(paper['contributions'])
                 except:
                     paper['contributions'] = []
+            return paper
+        return None
+
+    def get_paper_by_s2_id(self, s2_paper_id: str) -> Optional[dict]:
+        """通过 S2 paper ID 获取论文"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM papers WHERE s2_paper_id = ?", (s2_paper_id,))
+        row = cursor.fetchone()
+        if row:
+            paper = dict(row)
+            # Deserialize JSON fields
+            if paper.get('authors') and isinstance(paper['authors'], str):
+                try:
+                    paper['authors'] = json.loads(paper['authors'])
+                except:
+                    paper['authors'] = []
+            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                try:
+                    paper['keywords'] = json.loads(paper['keywords'])
+                except:
+                    paper['keywords'] = []
+            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                try:
+                    paper['contributions'] = json.loads(paper['contributions'])
+                except:
+                    paper['contributions'] = []
+            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                try:
+                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                except:
+                    paper['s2_fields_of_study'] = []
             return paper
         return None
 
@@ -531,7 +645,7 @@ class Database:
         return papers
 
     def update_paper_metadata(self, doi: str, metadata: dict):
-        """更新论文元数据（作者、摘要、关键词、创新点等）"""
+        """更新论文元数据（作者、摘要、关键词、创新点、S2元数据等）"""
         cursor = self.conn.cursor()
         cursor.execute("""
             UPDATE papers SET
@@ -540,6 +654,17 @@ class Database:
                 authors = COALESCE(?, authors),
                 keywords = COALESCE(?, keywords),
                 contributions = COALESCE(?, contributions),
+                s2_paper_id = COALESCE(?, s2_paper_id),
+                s2_doi = COALESCE(?, s2_doi),
+                citation_count = COALESCE(?, citation_count),
+                reference_count = COALESCE(?, reference_count),
+                influential_citation_count = COALESCE(?, influential_citation_count),
+                venue = COALESCE(?, venue),
+                year = COALESCE(?, year),
+                tldr = COALESCE(?, tldr),
+                s2_fields_of_study = COALESCE(?, s2_fields_of_study),
+                open_access_pdf_url = COALESCE(?, open_access_pdf_url),
+                s2_matched_at = COALESCE(?, s2_matched_at),
                 updated_at = CURRENT_TIMESTAMP
             WHERE doi = ?
         """, (
@@ -548,6 +673,17 @@ class Database:
             json.dumps(metadata['authors']) if metadata.get('authors') else None,
             json.dumps(metadata['keywords']) if metadata.get('keywords') else None,
             json.dumps(metadata['contributions']) if metadata.get('contributions') else None,
+            metadata.get('s2_paper_id'),
+            metadata.get('s2_doi'),
+            metadata.get('citation_count'),
+            metadata.get('reference_count'),
+            metadata.get('influential_citation_count'),
+            metadata.get('venue'),
+            metadata.get('year'),
+            metadata.get('tldr'),
+            metadata.get('s2_fields_of_study'),
+            metadata.get('open_access_pdf_url'),
+            metadata.get('s2_matched_at'),
             doi
         ))
         self.conn.commit()
@@ -559,15 +695,28 @@ class Database:
         cursor = self.conn.cursor()
         concept_id = concept_data['id']
 
-        # 只在概念不存在时插入，不更新 paper_count
-        cursor.execute("""
-            INSERT OR IGNORE INTO concepts (id, text, category, paper_count, updated_at)
-            VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
-        """, (
-            concept_id,
-            concept_data['text'],
-            concept_data.get('category'),
-        ))
+        # 检查概念是否已存在
+        cursor.execute("SELECT id FROM concepts WHERE id = ?", (concept_id,))
+        existing = cursor.fetchone()
+
+        if existing:
+            # 更新 text_en 如果提供了且当前为空
+            if concept_data.get('text_en'):
+                cursor.execute("""
+                    UPDATE concepts SET text_en = ?
+                    WHERE id = ? AND (text_en IS NULL OR text_en = '')
+                """, (concept_data['text_en'], concept_id))
+        else:
+            # 插入新概念
+            cursor.execute("""
+                INSERT INTO concepts (id, text, text_en, category, paper_count, updated_at)
+                VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+            """, (
+                concept_id,
+                concept_data['text'],
+                concept_data.get('text_en'),
+                concept_data.get('category'),
+            ))
 
         self.conn.commit()
         return concept_id
@@ -809,31 +958,42 @@ class Database:
 
         Args:
             paper_doi: 论文 DOI
-            concept_tree: LLM 返回的概念树结构
+            concept_tree: LLM 返回的概念树结构（支持双语）
                 {
-                    "concept": "人工智能",
+                    "concept": {"en": "Artificial Intelligence", "zh": "人工智能"},
                     "category": "field",
                     "is_anchor": true,
-                    "contribution_role": null,  # proposed/improved/applied/analyzed
-                    "children": [
-                        {
-                            "concept": "机器学习",
-                            "category": "field",
-                            "is_anchor": false,
-                            "contribution_role": "proposed",
-                            "children": [...]
-                        }
-                    ]
+                    "contribution_role": null,
+                    "children": [...]
+                }
+                或旧格式：
+                {
+                    "concept": "人工智能",
+                    "concept_en": "Artificial Intelligence",
+                    ...
                 }
         """
         # 递归插入概念树
         def insert_concept(node: dict, parent_id: str = None) -> str:
-            # 创建或获取概念
-            concept_id = node.get('id', self._to_slug(node['concept']))
+            # 解析概念名称（支持双语格式）
+            concept_data = node.get('concept', '')
+            if isinstance(concept_data, dict):
+                # 新格式: {"en": "...", "zh": "..."}
+                concept_text = concept_data.get('zh', concept_data.get('en', ''))
+                concept_en = concept_data.get('en')
+            else:
+                # 旧格式
+                concept_text = concept_data
+                concept_en = node.get('concept_en')
 
+            # 生成 ID（优先使用英文）
+            concept_id = node.get('id', self._to_slug(concept_en or concept_text))
+
+            # 创建或获取概念
             concept_data = {
                 'id': concept_id,
-                'text': node['concept'],
+                'text': concept_text,
+                'text_en': concept_en,
                 'category': node.get('category', 'method')
             }
             self.add_concept(concept_data)
@@ -1460,6 +1620,248 @@ class Database:
                 updated_at = CURRENT_TIMESTAMP
         """, (api_key, enabled))
         return self.get_s2_config()
+
+    # ==================== Paper Citations ====================
+
+    def add_paper_citation(self, data: Dict):
+        """
+        添加论文引用关系
+
+        Args:
+            data: {
+                citing_paper_id, cited_paper_id,
+                citing_s2_id, cited_s2_id,
+                citing_title, citing_year,
+                cited_title, cited_year, cited_citation_count,
+                is_internal
+            }
+        """
+        self.execute_write("""
+            INSERT INTO paper_citations (
+                citing_paper_id, cited_paper_id,
+                citing_s2_id, cited_s2_id,
+                citing_title, citing_year,
+                cited_title, cited_year, cited_citation_count,
+                is_internal
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(citing_paper_id, cited_paper_id) DO UPDATE SET
+                citing_title = excluded.citing_title,
+                citing_year = excluded.citing_year,
+                cited_title = excluded.cited_title,
+                cited_year = excluded.cited_year,
+                cited_citation_count = excluded.cited_citation_count,
+                is_internal = excluded.is_internal
+        """, (
+            data['citing_paper_id'],
+            data['cited_paper_id'],
+            data.get('citing_s2_id'),
+            data.get('cited_s2_id'),
+            data.get('citing_title'),
+            data.get('citing_year'),
+            data.get('cited_title'),
+            data.get('cited_year'),
+            data.get('cited_citation_count'),
+            data.get('is_internal', False)
+        ))
+
+    def get_paper_citations(self, paper_id: str) -> List[Dict]:
+        """获取论文引用的所有论文（这篇论文引用了谁）"""
+        cursor = self.execute_read("""
+            SELECT * FROM paper_citations
+            WHERE citing_paper_id = ?
+            ORDER BY cited_citation_count DESC
+        """, (paper_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_paper_cited_by(self, paper_id: str) -> List[Dict]:
+        """获取引用了这篇论文的所有论文（谁引用了这篇论文）
+
+        同时检查 DOI 和 S2 ID 匹配
+        """
+        # 先获取论文的 S2 paper ID
+        paper = self.get_paper(paper_id)
+        s2_id = paper.get('s2_paper_id') if paper else None
+
+        if s2_id:
+            # 同时匹配 DOI 和 S2 ID
+            cursor = self.execute_read("""
+                SELECT * FROM paper_citations
+                WHERE cited_paper_id = ? OR cited_s2_id = ?
+                ORDER BY cited_citation_count DESC
+            """, (paper_id, s2_id))
+        else:
+            cursor = self.execute_read("""
+                SELECT * FROM paper_citations
+                WHERE cited_paper_id = ?
+                ORDER BY cited_citation_count DESC
+            """, (paper_id,))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_internal_citation_edges(self) -> List[Dict]:
+        """获取所有内部引用边（两端都在图谱中）
+
+        通过 S2 ID 匹配来判断是否为内部引用
+        """
+        cursor = self.execute_read("""
+            SELECT
+                pc.citing_paper_id as source,
+                pc.cited_paper_id as target,
+                p1.title as source_title,
+                COALESCE(p2.title, pc.cited_title) as target_title
+            FROM paper_citations pc
+            JOIN papers p1 ON pc.citing_paper_id = p1.doi
+            LEFT JOIN papers p2 ON pc.cited_s2_id = p2.s2_paper_id
+            WHERE p2.doi IS NOT NULL OR pc.is_internal = 1
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_papers_with_s2_id(self) -> List[Dict]:
+        """获取所有有 S2 paper ID 的论文"""
+        cursor = self.execute_read("""
+            SELECT doi, title, s2_paper_id, citation_count, year, venue
+            FROM papers
+            WHERE s2_paper_id IS NOT NULL
+            ORDER BY citation_count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_papers_basic(self) -> List[Dict]:
+        """获取所有论文的基本信息（用于引用图谱）"""
+        cursor = self.execute_read("""
+            SELECT doi, title, s2_paper_id, citation_count, year, venue
+            FROM papers
+            ORDER BY citation_count DESC
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_all_citations(self) -> List[Dict]:
+        """获取所有引用数据"""
+        cursor = self.execute_read("SELECT * FROM paper_citations")
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_citation_by_s2_id(self, s2_id: str) -> Dict:
+        """根据 S2 ID 获取引用信息"""
+        cursor = self.execute_read("""
+            SELECT cited_title, cited_year, cited_citation_count
+            FROM paper_citations
+            WHERE cited_s2_id = ?
+            LIMIT 1
+        """, (s2_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def get_all_citation_edges(self) -> List[Dict]:
+        """获取所有引用边（用于引用图谱可视化）"""
+        cursor = self.execute_read("""
+            SELECT
+                citing_paper_id as source,
+                cited_s2_id as target,
+                citing_title as source_title,
+                cited_title as target_title,
+                cited_year as target_year,
+                cited_citation_count as target_citation_count
+            FROM paper_citations
+        """)
+        return [dict(row) for row in cursor.fetchall()]
+
+    def clear_paper_citations(self, paper_id: str = None):
+        """清除论文引用关系（可选指定论文）"""
+        if paper_id:
+            self.execute_write(
+                "DELETE FROM paper_citations WHERE citing_paper_id = ? OR cited_paper_id = ?",
+                (paper_id, paper_id)
+            )
+        else:
+            self.execute_write("DELETE FROM paper_citations")
+
+    # ==================== S2 Recommendations ====================
+
+    def add_s2_recommendation(self, data: Dict):
+        """添加推荐论文"""
+        self.execute_write("""
+            INSERT INTO s2_recommendations (
+                source_type, source_id,
+                recommended_s2_id, recommended_title,
+                recommended_abstract, recommended_year,
+                recommended_citation_count, recommended_tldr,
+                recommended_open_access_pdf, score
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            data['source_type'],
+            data['source_id'],
+            data['recommended_s2_id'],
+            data.get('recommended_title'),
+            data.get('recommended_abstract'),
+            data.get('recommended_year'),
+            data.get('recommended_citation_count'),
+            data.get('recommended_tldr'),
+            data.get('recommended_open_access_pdf'),
+            data.get('score')
+        ))
+
+    def get_s2_recommendations(self, source_type: str, source_id: str) -> List[Dict]:
+        """获取推荐论文"""
+        cursor = self.execute_read("""
+            SELECT * FROM s2_recommendations
+            WHERE source_type = ? AND source_id = ?
+            ORDER BY score DESC, recommended_citation_count DESC
+        """, (source_type, source_id))
+        return [dict(row) for row in cursor.fetchall()]
+
+    def clear_s2_recommendations(self, source_type: str = None, source_id: str = None):
+        """清除推荐论文缓存"""
+        if source_type and source_id:
+            self.execute_write(
+                "DELETE FROM s2_recommendations WHERE source_type = ? AND source_id = ?",
+                (source_type, source_id)
+            )
+        elif source_type:
+            self.execute_write(
+                "DELETE FROM s2_recommendations WHERE source_type = ?",
+                (source_type,)
+            )
+        else:
+            self.execute_write("DELETE FROM s2_recommendations")
+
+    # ==================== S2 Metadata Update ====================
+
+    def update_paper_s2_metadata(self, doi: str, metadata: Dict):
+        """
+        更新论文的 S2 元数据
+
+        Args:
+            doi: 论文 DOI
+            metadata: S2 元数据字典
+        """
+        self.execute_write("""
+            UPDATE papers SET
+                s2_paper_id = ?,
+                s2_doi = ?,
+                citation_count = ?,
+                reference_count = ?,
+                influential_citation_count = ?,
+                venue = ?,
+                year = ?,
+                tldr = ?,
+                s2_fields_of_study = ?,
+                open_access_pdf_url = ?,
+                s2_matched_at = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE doi = ?
+        """, (
+            metadata.get('s2_paper_id'),
+            metadata.get('doi'),
+            metadata.get('citation_count', 0),
+            metadata.get('reference_count', 0),
+            metadata.get('influential_citation_count', 0),
+            metadata.get('venue'),
+            metadata.get('year'),
+            metadata.get('tldr'),
+            metadata.get('s2_fields_of_study'),
+            metadata.get('open_access_pdf_url'),
+            metadata.get('s2_matched_at'),
+            doi
+        ))
 
     # ========== 上下文管理器 ==========
 

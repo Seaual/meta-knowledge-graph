@@ -5,6 +5,7 @@ export const zh = {
     home: '首页',
     papers: '论文',
     concepts: '概念',
+    citations: '引用',
   },
 
   // Home page
@@ -159,6 +160,47 @@ export const zh = {
       keyContributions: '主要贡献',
       more: '人',
     },
+    // Recommendation panel
+    recommendation: {
+      title: '论文推荐',
+      basedOn: '基于',
+      concepts: '个概念',
+      addConcept: '添加概念',
+      searchPapers: '搜索相关论文',
+      combinedSearch: '组合搜索',
+      singleSearch: '单个搜索',
+      loading: '正在搜索...',
+      noResults: '未找到相关论文',
+      rateLimited: 'API 请求过于频繁，请稍后再试',
+      error: '搜索出错，请重试',
+      year: '年份',
+      minCitations: '最低引用数',
+      allYears: '不限',
+      clearAll: '清空全部',
+      openPdf: '开放 PDF',
+      viewOnS2: '查看详情',
+      addToGraph: '添加到图谱',
+      selectedConcepts: '已选择',
+      downloadAndProcess: '下载并处理',
+      addMetadataOnly: '仅添加元数据',
+      processing: '处理中...',
+      adding: '添加中...',
+      added: '已添加',
+      addFailed: '添加失败',
+    },
+    // Citation graph panel
+    citationGraph: {
+      title: '引用图谱',
+      build: '构建引用图谱',
+      building: '构建中...',
+      refresh: '刷新',
+      noData: '暂无引用图谱数据',
+      noDataDesc: '点击"构建引用图谱"从 Semantic Scholar 拉取引用关系',
+      papers: '篇论文',
+      edges: '条引用关系',
+      citing: '引用了',
+      citedBy: '被引用',
+    },
   },
 
   // Modals
@@ -258,6 +300,28 @@ export const zh = {
     markdownDesc: '纯文本双链',
   },
 
+  // Citation graph page
+  citation: {
+    title: '引用图谱',
+    build: '构建引用图谱',
+    building: '构建中...',
+    loading: '加载引用图谱...',
+    refresh: '刷新',
+    noData: '暂无引用图谱数据',
+    noDataDesc: '点击"构建引用图谱"从 Semantic Scholar 拉取引用关系',
+    papers: '篇论文',
+    edges: '条引用关系',
+    citing: '引用了',
+    citedBy: '被引用',
+    citations: '引用',
+    times: '次',
+    moreEdges: '更多引用关系',
+    internalEdges: '内部引用关系',
+    references: '引用的论文',
+    citedByPapers: '被引论文',
+    viewOnS2: '在 Semantic Scholar 查看',
+  },
+
   // Common
   common: {
     loading: '加载中...',
@@ -267,11 +331,14 @@ export const zh = {
     delete: '删除',
     edit: '编辑',
     confirm: '确认',
+    cancel: '取消',
     success: '成功',
     error: '错误',
     language: '语言',
     chinese: '中文',
     english: 'English',
+    retry: '重试',
+    back: '返回',
   },
 }
 

@@ -5,6 +5,7 @@ export const en = {
     home: 'Home',
     papers: 'Papers',
     concepts: 'Concepts',
+    citations: 'Citations',
   },
 
   // Home page
@@ -159,6 +160,47 @@ export const en = {
       keyContributions: 'Key Contributions',
       more: 'more',
     },
+    // Recommendation panel
+    recommendation: {
+      title: 'Paper Recommendations',
+      basedOn: 'Based on',
+      concepts: 'concepts',
+      addConcept: 'Add Concept',
+      searchPapers: 'Search Related Papers',
+      combinedSearch: 'Combined Search',
+      singleSearch: 'Single Search',
+      loading: 'Searching...',
+      noResults: 'No papers found',
+      rateLimited: 'API rate limited, please try again later',
+      error: 'Search error, please retry',
+      year: 'Year',
+      minCitations: 'Min Citations',
+      allYears: 'All',
+      clearAll: 'Clear All',
+      openPdf: 'Open PDF',
+      viewOnS2: 'View Details',
+      addToGraph: 'Add to Graph',
+      selectedConcepts: 'Selected',
+      downloadAndProcess: 'Download & Process',
+      addMetadataOnly: 'Add Metadata Only',
+      processing: 'Processing...',
+      adding: 'Adding...',
+      added: 'Added',
+      addFailed: 'Add failed',
+    },
+    // Citation graph panel
+    citationGraph: {
+      title: 'Citation Graph',
+      build: 'Build Citation Graph',
+      building: 'Building...',
+      refresh: 'Refresh',
+      noData: 'No citation graph data',
+      noDataDesc: 'Click "Build Citation Graph" to fetch citations from Semantic Scholar',
+      papers: 'papers',
+      edges: 'citation edges',
+      citing: 'citing',
+      citedBy: 'cited by',
+    },
   },
 
   // Modals
@@ -258,6 +300,28 @@ export const en = {
     markdownDesc: 'Plain text with bidirectional links',
   },
 
+  // Citation graph page
+  citation: {
+    title: 'Citation Graph',
+    build: 'Build Citation Graph',
+    building: 'Building...',
+    loading: 'Loading citation graph...',
+    refresh: 'Refresh',
+    noData: 'No citation graph data',
+    noDataDesc: 'Click "Build Citation Graph" to fetch citations from Semantic Scholar',
+    papers: 'papers',
+    edges: 'citation edges',
+    citing: 'citing',
+    citedBy: 'cited by',
+    citations: 'citations',
+    times: 'times',
+    moreEdges: 'more edges',
+    internalEdges: 'Internal Citations',
+    references: 'References',
+    citedByPapers: 'Cited By',
+    viewOnS2: 'View on Semantic Scholar',
+  },
+
   // Common
   common: {
     loading: 'Loading...',
@@ -267,11 +331,14 @@ export const en = {
     delete: 'Delete',
     edit: 'Edit',
     confirm: 'Confirm',
+    cancel: 'Cancel',
     success: 'Success',
     error: 'Error',
     language: 'Language',
     chinese: '中文',
     english: 'English',
+    retry: 'Retry',
+    back: 'Back',
   },
 }
 

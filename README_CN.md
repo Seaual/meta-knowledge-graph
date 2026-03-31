@@ -36,6 +36,18 @@
 
 ---
 
+## v2.1 新特性
+
+| 功能 | 描述 |
+|------|------|
+| 🧠 **优化提取 Prompt** | 两阶段 prompt 优化，更好地区分背景/新概念 |
+| 🌐 **双语概念名称** | 概念同时存储中英文名称，优化 S2 论文搜索 |
+| 📚 **论文推荐** | 根据概念在 Semantic Scholar 搜索相关论文 |
+| 🔍 **研究点发现增强** | 修复研究点发现功能，增加 S2 领域趋势分析 |
+| 🎨 **界面优化** | 修复语言切换、期刊名称溢出等问题 |
+
+---
+
 ## v2.0 新特性
 
 | 功能 | 描述 |
@@ -142,6 +154,20 @@ curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/de
 
 > 💡 API Key 保存在本地数据库中，无需设置环境变量。
 
+### Docker 手动部署
+
+```bash
+# 拉取并运行
+docker pull danceinsophy/meta-knowledge-graph:latest
+docker run -d -p 8088:8088 \
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  --restart unless-stopped \
+  danceinsophy/meta-knowledge-graph:latest
+```
+
+访问 http://localhost:8088
+
 ### Docker Compose 部署
 
 ```bash
@@ -189,12 +215,14 @@ cd frontend && npm run dev
 Stage 1: 论文理解
 ├── 研究背景识别
 ├── 核心贡献区分
-└── 背景/新概念分类
+├── 背景/新概念分类
+└── 双语输出（英文 + 中文）
 
 Stage 2: 概念提取
 ├── 锚点路径（定位论文归属）
 ├── 贡献子树（论文真正贡献）
-└── 贡献角色标注（proposed/improved/applied/analyzed）
+├── 贡献角色标注（proposed/improved/applied/analyzed）
+└── 类别分配（field/direction/subdirection/task/method/technique/dataset/finding）
 ```
 
 ### 研究点发现方法论
@@ -216,6 +244,8 @@ Stage 2: 概念提取
 | task | 研究任务 | 信用分配问题 | 小 |
 | method | 方法/算法 | QMIX | 较小 |
 | technique | 技术细节 | 注意力加权混合 | 最小 |
+| dataset | 基准/数据集 | ImageNet, SMAC | 中 |
+| finding | 关键发现 | Scaling Laws | 中 |
 
 ---
 
@@ -228,7 +258,7 @@ Stage 2: 概念提取
 
 ### 处理论文
 1. 点击「处理」按钮或「批量处理」
-2. LLM 自动提取概念树
+2. LLM 自动提取概念树（含中英文名称）
 3. 概念添加到知识图谱
 
 ### 浏览图谱
@@ -240,7 +270,12 @@ Stage 2: 概念提取
 ### 发现研究点
 1. 点击概念节点
 2. 点击「发现研究点」
-3. LLM 分析图谱结构，生成 3-5 个研究方向
+3. LLM 分析图谱结构，生成 3-5 个研究方向（含 S2 趋势分析）
+
+### 搜索相关论文
+1. 点击概念节点
+2. 点击「搜索论文」
+3. 查看 Semantic Scholar 上的相关论文（使用英文概念名搜索）
 
 ### 概念去重
 1. 点击「去重扫描」
@@ -319,6 +354,7 @@ meta-knowledge-graph/
 | `/api/s2/papers/{doi}/enhance` | POST | 从 S2 增强元数据 |
 | `/api/concepts/` | GET | 获取所有概念 |
 | `/api/concepts/{id}/research-points` | GET | 发现研究点 |
+| `/api/concepts/{id}/search-papers` | GET | 按概念搜索论文 |
 | `/api/concepts/dedup/scan` | POST | 扫描重复概念 |
 | `/api/graph/export/obsidian/html` | GET | 导出 HTML |
 
@@ -336,6 +372,8 @@ meta-knowledge-graph/
 - [x] 中英文双语支持
 - [x] Semantic Scholar 元数据增强
 - [x] 图谱搜索与筛选
+- [x] 双语概念名称优化 S2 搜索
+- [x] 按概念推荐论文
 - [ ] 协作功能
 - [ ] Neo4j 支持
 

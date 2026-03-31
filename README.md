@@ -37,6 +37,18 @@
 
 ---
 
+## What's New in v2.1
+
+| Feature | Description |
+|---------|-------------|
+| 🧠 **Improved Extraction Prompt** | Two-stage prompt optimized for better background/novel concept distinction |
+| 🌐 **Bilingual Concepts** | Concepts stored in both Chinese and English for better S2 paper search |
+| 📚 **Paper Recommendation** | Search related papers by concept on Semantic Scholar |
+| 🔍 **Enhanced Research Discovery** | Fixed research points discovery with S2 trend analysis |
+| 🎨 **UI Improvements** | Fixed language switching, venue display overflow, and more |
+
+---
+
 ## What's New in v2.0
 
 | Feature | Description |
@@ -204,12 +216,14 @@ Open http://localhost:5173 and configure your API Key in **Settings** page.
 Stage 1: Paper Understanding
 ├── Research context identification
 ├── Core contribution distinction
-└── Background/novel concept classification
+├── Background/novel concept classification
+└── Bilingual output (English + Chinese)
 
 Stage 2: Concept Extraction
 ├── Anchor path (paper positioning)
 ├── Contribution subtree (actual contributions)
-└── Contribution role annotation (proposed/improved/applied/analyzed)
+├── Contribution role annotation (proposed/improved/applied/analyzed)
+└── Category assignment (field/direction/subdirection/task/method/technique/dataset/finding)
 ```
 
 ### Research Point Discovery Methods
@@ -231,6 +245,8 @@ Stage 2: Concept Extraction
 | task | Research task | Credit Assignment | Small |
 | method | Algorithm | QMIX | Smaller |
 | technique | Technical detail | Attention-weighted mixing | Smallest |
+| dataset | Benchmark/Dataset | ImageNet, SMAC | Medium |
+| finding | Key discovery | Scaling Laws | Medium |
 
 ---
 
@@ -243,7 +259,7 @@ Stage 2: Concept Extraction
 
 ### Process Papers
 1. Click **Process** or **Batch Process**
-2. LLM extracts concept tree
+2. LLM extracts concept tree with bilingual names
 3. Concepts added to knowledge graph
 
 ### Explore Graph
@@ -255,7 +271,12 @@ Stage 2: Concept Extraction
 ### Discover Research Points
 1. Click a concept node
 2. Click **Discover Research Points**
-3. LLM analyzes graph structure, generates 3-5 research directions
+3. LLM analyzes graph structure, generates 3-5 research directions with S2 trend analysis
+
+### Find Related Papers
+1. Click a concept node
+2. Click **Search Papers**
+3. View related papers from Semantic Scholar (searches using English concept names)
 
 ### Deduplicate
 1. Click **Dedup Scan**
@@ -334,6 +355,7 @@ Access http://localhost:8088/docs after starting
 | `/api/s2/papers/{doi}/enhance` | POST | Enhance metadata from S2 |
 | `/api/concepts/` | GET | Get all concepts |
 | `/api/concepts/{id}/research-points` | GET | Discover research points |
+| `/api/concepts/{id}/search-papers` | GET | Search papers by concept |
 | `/api/concepts/dedup/scan` | POST | Scan duplicates |
 | `/api/graph/export/obsidian/html` | GET | Export HTML |
 
@@ -351,6 +373,8 @@ Access http://localhost:8088/docs after starting
 - [x] Bilingual support (Chinese/English)
 - [x] Semantic Scholar metadata enhancement
 - [x] Graph search and filter
+- [x] Bilingual concept names for better S2 search
+- [x] Paper recommendation by concept
 - [ ] Collaboration features
 - [ ] Neo4j support
 

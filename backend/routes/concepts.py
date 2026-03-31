@@ -21,6 +21,7 @@ from mkg.database import Database
 from mkg.graph import KnowledgeGraph
 from mkg.pdf_parser import LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
 from mkg.dedup import ConceptDeduplicator
+from mkg.semantic_scholar import S2Client
 from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
 
 router = APIRouter(prefix="/api/concepts", tags=["concepts"])
@@ -159,7 +160,8 @@ def _build_research_prompt(
     descendants: List[dict],
     siblings: List[dict],
     edge_nodes: List[dict],
-    papers: List[dict]
+    papers: List[dict],
+    s2_context: str = ""
 ) -> str:
     """
     构建研究点发现提示词
@@ -170,6 +172,14 @@ def _build_research_prompt(
     - 瓶颈识别法：某节点连接大量子节点但自身缺少兄弟节点
     - 迁移应用法：一个分支的成熟方法能否迁移到另一个问题尚未解决的分支
     """
+    # S2 领域热度数据部分
+    s2_section = ""
+    if s2_context:
+        s2_section = f"""
+## 领域热度数据（来自 Semantic Scholar）
+{s2_context}
+"""
+
     prompt = f"""<s>
 你是一位拥有 20 年经验的科研导师，擅长从知识图谱的结构特征中识别研究机会。
 
@@ -205,7 +215,7 @@ def _build_research_prompt(
 
 ## 相关论文
 {json.dumps([{'title': p.get('title', ''), 'research_questions': p.get('keywords', [])} for p in papers], ensure_ascii=False, indent=2)}
-</context>
+{s2_section}</context>
 
 <output_format>
 输出 JSON 数组，每个研究点包含：
@@ -308,6 +318,52 @@ def get_concept_papers(concept_id: str, limit: int = 20):
     db = get_db()
     papers = db.get_papers_by_concept(concept_id)
     return papers[:limit]
+
+
+@router.get("/{concept_id}/search-papers")
+def search_papers_by_concept(
+    concept_id: str,
+    year: str = "2023-2026",
+    min_citations: int = 0,
+    limit: int = 20
+):
+    """
+    基于概念搜索 S2 论文
+
+    优先使用英文概念名称搜索，如果没有则使用中文
+    """
+    db = get_db()
+    s2_client = S2Client()
+
+    # 获取概念
+    concept = db.get_concept(concept_id)
+    if not concept:
+        raise HTTPException(status_code=404, detail="Concept not found")
+
+    # 优先使用英文概念名称（更适合 S2 搜索）
+    concept_text = concept.get('text_en') or concept['text']
+
+    # 搜索论文
+    results = s2_client.search_papers(
+        query=concept_text,
+        year=year,
+        limit=limit,
+        min_citation_count=min_citations
+    )
+
+    # 过滤已在图谱中的论文
+    papers = db.get_papers_with_s2_id()
+    existing_s2_ids = {p['s2_paper_id'] for p in papers if p.get('s2_paper_id')}
+    filtered = [r for r in results if r.get('paperId') not in existing_s2_ids]
+
+    return {
+        "concept_id": concept_id,
+        "concept_text": concept_text,  # 用于搜索的文本（英文优先）
+        "concept_text_zh": concept.get('text'),  # 中文名称
+        "concept_text_en": concept.get('text_en'),  # 英文名称
+        "papers": filtered,
+        "total": len(filtered)
+    }
 
 
 @router.get("/{concept_id}/children")
@@ -424,6 +480,61 @@ def discover_research_points(concept_id: str):
         'related_papers': paper_info,
     }
 
+    # 6.5 收集 S2 领域热度数据（新增）
+    s2_context = ""
+    try:
+        from mkg.semantic_scholar import S2Client
+        s2_client = S2Client()
+
+        # 用概念名称搜索相关论文
+        search_results = s2_client.search_papers(
+            concept['text'],
+            year="2020-2026",
+            limit=100,
+            min_citation_count=0
+        )
+
+        if search_results:
+            total = len(search_results)
+            recent = len([p for p in search_results if p.get('year', 0) >= 2024])
+            avg_citations = sum(p.get('citationCount', 0) for p in search_results) / total if total > 0 else 0
+
+            # 找最高被引论文
+            top_paper = max(search_results, key=lambda p: p.get('citationCount', 0)) if search_results else None
+
+            # 计算年度趋势
+            by_year = {}
+            for p in search_results:
+                y = p.get('year', 0)
+                if y > 0:
+                    by_year[y] = by_year.get(y, 0) + 1
+
+            years_sorted = sorted(by_year.keys())
+            if len(years_sorted) >= 2:
+                recent_avg = sum(by_year.get(y, 0) for y in years_sorted[-2:]) / 2
+                earlier_avg = sum(by_year.get(y, 0) for y in years_sorted[:-2]) / max(len(years_sorted) - 2, 1)
+                if recent_avg > earlier_avg * 1.2:
+                    trend = "rising (上升趋势)"
+                elif recent_avg < earlier_avg * 0.8:
+                    trend = "declining (下降趋势)"
+                else:
+                    trend = "stable (稳定)"
+            else:
+                trend = "unknown (数据不足)"
+
+            s2_context = f"""- 概念 "{concept['text']}" 相关论文搜索结果：{total} 篇
+- 2024-2026 年新论文：{recent} 篇（占比 {recent*100//total if total > 0 else 0}%）
+- 平均引用数：{avg_citations:.1f}
+- 年度趋势：{trend}
+- 最高被引论文："{top_paper.get('title', 'N/A')}" ({top_paper.get('citationCount', 0)} citations, {top_paper.get('year', '?')})
+- 年度分布：{json.dumps(by_year, ensure_ascii=False)}"""
+        else:
+            s2_context = "未找到相关论文，可能是较新或较冷门的方向。"
+
+    except Exception as e:
+        print(f"S2 search failed for research points: {e}")
+        s2_context = f"领域热度数据获取失败: {str(e)}"
+
     # 7. 构建提示词并调用LLM分析
     prompt = _build_research_prompt(
         concept=context['concept'],
@@ -431,7 +542,8 @@ def discover_research_points(concept_id: str):
         descendants=context['descendants'],
         siblings=context['siblings'],
         edge_nodes=context['edge_nodes'],
-        papers=paper_info
+        papers=paper_info,
+        s2_context=s2_context
     )
 
     try:

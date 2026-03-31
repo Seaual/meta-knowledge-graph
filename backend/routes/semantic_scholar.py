@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
-from mkg.semantic_scholar import SemanticScholarClient
+from mkg.semantic_scholar import S2Client
 from backend.schemas import (
     S2ConfigResponse, S2ConfigRequest, S2TestResponse,
     S2CitationsResponse, S2Citation, S2ReferencesResponse, S2Reference
@@ -64,7 +64,7 @@ def save_config(request: S2ConfigRequest):
 @router.post("/test", response_model=S2TestResponse)
 def test_connection(request: S2ConfigRequest):
     """测试 API Key 是否有效"""
-    result = SemanticScholarClient.test_connection(S2_API_KEY)
+    result = S2Client.test_connection(S2_API_KEY)
     return S2TestResponse(success=result['success'], message=result['message'])
 
 
@@ -80,31 +80,60 @@ def enhance_paper(doi: str):
     if not paper.get('title'):
         raise HTTPException(status_code=400, detail="Paper has no title to search")
 
-    client = SemanticScholarClient(S2_API_KEY)
-    enhanced = client.enhance_paper_data(paper['title'], {})
+    client = S2Client(api_key=S2_API_KEY)
+    enhanced = client.match_paper_by_title(paper['title'])
 
     if enhanced:
-        # 更新数据库
-        update_fields = []
-        update_values = []
-        for field in ['s2_paper_id', 's2_doi', 's2_arxiv_id', 's2_external_ids',
-                       'abstract', 'authors', 'venue', 'year',
-                       'citation_count', 'reference_count', 'influential_citation_count', 'open_access_pdf',
-                       'tldr', 's2_fields_of_study']:
-            if field in enhanced:
-                update_fields.append(f"{field} = ?")
-                value = enhanced[field]
-                # JSON 序列化 list/dict 字段
-                if field in ('authors', 's2_fields_of_study') and isinstance(value, list):
-                    value = json.dumps(value)
-                update_values.append(value)
+        # 提取 DOI from externalIds
+        external_ids = enhanced.get('externalIds', {})
+        s2_doi = external_ids.get('DOI')
 
-        if update_fields:
-            update_values.append(doi)
-            db.execute_write(
-                f"UPDATE papers SET {', '.join(update_fields)}, updated_at = CURRENT_TIMESTAMP WHERE doi = ?",
-                tuple(update_values)
-            )
+        # 提取 authors
+        authors = enhanced.get('authors', [])
+        authors_json = json.dumps([a.get('name') for a in authors if a.get('name')])
+
+        # 提取 fields of study
+        fields_of_study = enhanced.get('s2FieldsOfStudy', [])
+        fields_json = json.dumps(fields_of_study) if fields_of_study else None
+
+        # 提取 open access PDF
+        open_access_pdf_url = enhanced.get('openAccessPdf')
+
+        # 更新数据库
+        db.execute_write("""
+            UPDATE papers SET
+                s2_paper_id = ?,
+                s2_doi = ?,
+                s2_external_ids = ?,
+                abstract = COALESCE(?, abstract),
+                authors = CASE WHEN ? IS NOT NULL THEN ? ELSE authors END,
+                venue = ?,
+                year = ?,
+                citation_count = ?,
+                reference_count = ?,
+                influential_citation_count = ?,
+                open_access_pdf_url = ?,
+                tldr = ?,
+                s2_fields_of_study = ?,
+                s2_matched_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE doi = ?
+        """, (
+            enhanced.get('paperId'),
+            s2_doi,
+            json.dumps(external_ids) if external_ids else None,
+            enhanced.get('abstract'),
+            authors_json, authors_json,
+            enhanced.get('venue'),
+            enhanced.get('year'),
+            enhanced.get('citationCount', 0),
+            enhanced.get('referenceCount', 0),
+            enhanced.get('influentialCitationCount', 0),
+            open_access_pdf_url,
+            enhanced.get('tldr'),
+            fields_json,
+            doi
+        ))
 
     return {"success": True, "enhanced": enhanced}
 
@@ -122,7 +151,7 @@ def get_paper_citations(doi: str, limit: int = 50):
     if not s2_paper_id:
         raise HTTPException(status_code=400, detail="Paper has no S2 paper ID")
 
-    client = SemanticScholarClient(S2_API_KEY)
+    client = S2Client(api_key=S2_API_KEY)
     citations = client.get_paper_citations(s2_paper_id, limit)
 
     if citations is None:
@@ -145,7 +174,7 @@ def get_paper_references(doi: str, limit: int = 50):
     if not s2_paper_id:
         raise HTTPException(status_code=400, detail="Paper has no S2 paper ID")
 
-    client = SemanticScholarClient(S2_API_KEY)
+    client = S2Client(api_key=S2_API_KEY)
     references = client.get_paper_references(s2_paper_id, limit)
 
     if references is None:

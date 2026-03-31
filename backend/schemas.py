@@ -47,6 +47,7 @@ class PaperResponse(PaperBase):
 class ConceptBase(BaseModel):
     id: str
     text: str
+    text_en: Optional[str] = None
     category: Optional[str] = None
     paper_count: int = 0
 
@@ -80,6 +81,7 @@ class GraphStats(BaseModel):
 class GraphNode(BaseModel):
     id: str
     label: str
+    label_en: Optional[str] = None
     category: str
     paper_count: int
 
