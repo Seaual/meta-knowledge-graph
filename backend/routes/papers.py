@@ -138,16 +138,25 @@ def get_s2_client():
 
 def enhance_paper_with_s2(
     s2_client,
-    title: str,
+    title: str = None,
+    doi: str = None,
+    arxiv_id: str = None,
     paper_context: dict = None,
     use_llm_fallback: bool = True
 ) -> Optional[dict]:
     """
-    使用 S2 增强论文元数据（支持 LLM 回退）
+    使用 S2 增强论文元数据（优先 DOI/arXiv ID）
+
+    匹配优先级：
+    1. DOI 精确查询
+    2. arXiv ID 精确查询
+    3. 标题搜索（支持 LLM 回退）
 
     Args:
         s2_client: S2Client 实例
         title: 论文标题
+        doi: DOI 标识符
+        arxiv_id: arXiv ID
         paper_context: 论文上下文 {'abstract': ..., 'authors': ...}
         use_llm_fallback: 是否使用 LLM 回退
 
@@ -163,8 +172,10 @@ def enhance_paper_with_s2(
         except Exception:
             pass
 
-    return s2_client.match_paper_by_title(
-        title,
+    return s2_client.match_paper(
+        title=title,
+        doi=doi,
+        arxiv_id=arxiv_id,
         llm_client=llm_client,
         paper_context=paper_context
     )
@@ -329,10 +340,11 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
 
             if content and content.title:
                 paper_data = {
-                    'doi': base_name,
+                    'doi': content.doi or base_name,  # 优先使用提取的 DOI
                     'title': content.title,
                     'abstract': content.abstract or "",
                     'authors': content.authors or [],
+                    'arxiv_id': content.arxiv_id or "",  # arXiv ID
                     'pdf_path': str(file_path),
                 }
             else:
@@ -341,6 +353,7 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
                     'title': base_name.replace('_', ' ').replace('-', ' '),
                     'abstract': "",
                     'authors': [],
+                    'arxiv_id': "",
                     'pdf_path': str(file_path),
                 }
 
@@ -352,7 +365,13 @@ async def batch_upload_papers(files: List[UploadFile] = File(...)):
                         'abstract': paper_data.get('abstract'),
                         'authors': paper_data.get('authors')
                     }
-                    s2_data = enhance_paper_with_s2(s2_client, paper_data['title'], paper_context)
+                    s2_data = enhance_paper_with_s2(
+                        s2_client,
+                        title=paper_data['title'],
+                        doi=paper_data.get('doi') if paper_data.get('doi') != base_name else None,  # 只有真实的 DOI 才传入
+                        arxiv_id=paper_data.get('arxiv_id'),
+                        paper_context=paper_context
+                    )
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
@@ -455,7 +474,14 @@ async def batch_process_papers(request: BatchProcessRequest):
                             'abstract': paper.get('abstract'),
                             'authors': paper.get('authors')
                         }
-                        s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
+                        # 使用提取的 DOI/arXiv ID
+                        s2_data = enhance_paper_with_s2(
+                            s2_client,
+                            title=paper['title'],
+                            doi=getattr(content, 'doi', None),
+                            arxiv_id=getattr(content, 'arxiv_id', None),
+                            paper_context=paper_context
+                        )
                         if s2_data:
                             external_ids = s2_data.get('externalIds', {})
                             s2_doi = external_ids.get('DOI') if external_ids else None
@@ -593,7 +619,13 @@ def process_paper(request: ProcessRequest):
                         'abstract': paper.get('abstract'),
                         'authors': paper.get('authors')
                     }
-                    s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
+                    s2_data = enhance_paper_with_s2(
+                        s2_client,
+                        title=paper['title'],
+                        doi=getattr(content, 'doi', None),
+                        arxiv_id=getattr(content, 'arxiv_id', None),
+                        paper_context=paper_context
+                    )
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None
@@ -738,7 +770,13 @@ async def process_single_paper(request: ProcessRequest):
                         'abstract': paper.get('abstract'),
                         'authors': paper.get('authors')
                     }
-                    s2_data = enhance_paper_with_s2(s2_client, paper['title'], paper_context)
+                    s2_data = enhance_paper_with_s2(
+                        s2_client,
+                        title=paper['title'],
+                        doi=getattr(content, 'doi', None),
+                        arxiv_id=getattr(content, 'arxiv_id', None),
+                        paper_context=paper_context
+                    )
                     if s2_data:
                         external_ids = s2_data.get('externalIds', {})
                         s2_doi = external_ids.get('DOI') if external_ids else None

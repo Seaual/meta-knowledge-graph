@@ -307,6 +307,8 @@ class PaperContent:
     full_text: str
     sections: Dict[str, str]
     metadata: Dict
+    doi: str = ""  # DOI 标识符
+    arxiv_id: str = ""  # arXiv ID
     keywords: List[str] = field(default_factory=list)
     contributions: List[str] = field(default_factory=list)
 
@@ -461,6 +463,13 @@ class PDFParser:
             for page in doc:
                 full_text += page.get_text()
 
+            # 首页文本（用于提取 DOI/arXiv ID）
+            first_page_text = doc[0].get_text() if len(doc) > 0 else ""
+
+            # 提取 DOI 和 arXiv ID（优先级高于标题）
+            doi = self._extract_doi(doc, first_page_text)
+            arxiv_id = self._extract_arxiv_id(doc, first_page_text)
+
             # 提取标题（通常是第一行）
             title = self._extract_title(doc)
 
@@ -481,7 +490,9 @@ class PDFParser:
                 abstract=abstract,
                 full_text=full_text,
                 sections=sections,
-                metadata=metadata
+                metadata=metadata,
+                doi=doi,
+                arxiv_id=arxiv_id
             )
 
         except Exception as e:
@@ -735,6 +746,110 @@ class PDFParser:
             print(f"字体大小提取失败: {e}")
 
         return ""
+
+    def _extract_doi(self, doc: fitz.Document, first_page_text: str = None) -> str:
+        """
+        提取 DOI
+
+        来源优先级：
+        1. PDF 元数据 (/doi)
+        2. 首页正文中的 DOI 格式
+
+        Returns:
+            DOI 字符串（如 "10.1234/abc123"），未找到返回空字符串
+        """
+        # 方法1: PDF 元数据
+        doi = doc.metadata.get('doi', '')
+        if doi and self._is_valid_doi(doi):
+            return doi.strip().lower()
+
+        # 方法2: 从首页文本中搜索
+        if first_page_text is None and len(doc) > 0:
+            first_page_text = doc[0].get_text()
+
+        if first_page_text:
+            # 常见 DOI 格式
+            patterns = [
+                r'DOI:\s*(10\.\d{4,}/[^\s]+)',  # DOI: 10.xxxx/xxx
+                r'doi:\s*(10\.\d{4,}/[^\s]+)',
+                r'https?://doi\.org/(10\.\d{4,}/[^\s]+)',  # https://doi.org/10.xxxx/xxx
+                r'https?://dx\.doi\.org/(10\.\d{4,}/[^\s]+)',
+                r'\b(10\.\d{4,}/[^\s]+)',  # 直接的 DOI 格式
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, first_page_text, re.IGNORECASE)
+                if match:
+                    doi = match.group(1).strip()
+                    # 清理末尾的标点
+                    doi = re.sub(r'[.,;)\]]+$', '', doi)
+                    if self._is_valid_doi(doi):
+                        return doi.lower()
+
+        return ""
+
+    def _extract_arxiv_id(self, doc: fitz.Document, first_page_text: str = None) -> str:
+        """
+        提取 arXiv ID
+
+        来源优先级：
+        1. PDF 元数据
+        2. 首页正文中的 arXiv 格式
+
+        Returns:
+            arXiv ID（如 "2301.12345"），未找到返回空字符串
+        """
+        # 方法1: PDF 元数据
+        for key in ['arxiv_id', 'arxiv', 'eprint']:
+            arxiv_id = doc.metadata.get(key, '')
+            if arxiv_id and self._is_valid_arxiv_id(arxiv_id):
+                return arxiv_id.strip()
+
+        # 方法2: 从首页文本中搜索
+        if first_page_text is None and len(doc) > 0:
+            first_page_text = doc[0].get_text()
+
+        if first_page_text:
+            # arXiv ID 格式
+            patterns = [
+                r'arXiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',  # arXiv:2301.12345 或 arXiv:2301.12345v2
+                r'arxiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',
+                r'arXiv:\s*([a-z-]+/\d{7}(v\d+)?)',  # 旧格式：arXiv:hep-th/9901001
+                r'arxiv:\s*([a-z-]+/\d{7}(v\d+)?)',
+            ]
+
+            for pattern in patterns:
+                match = re.search(pattern, first_page_text, re.IGNORECASE)
+                if match:
+                    arxiv_id = match.group(1).strip()
+                    if self._is_valid_arxiv_id(arxiv_id):
+                        return arxiv_id
+
+        return ""
+
+    def _is_valid_doi(self, doi: str) -> bool:
+        """验证 DOI 格式是否有效"""
+        if not doi or len(doi) < 6:
+            return False
+        # DOI 必须以 10. 开头
+        if not doi.lower().startswith('10.'):
+            return False
+        # 必须包含 /
+        if '/' not in doi:
+            return False
+        return True
+
+    def _is_valid_arxiv_id(self, arxiv_id: str) -> bool:
+        """验证 arXiv ID 格式是否有效"""
+        if not arxiv_id or len(arxiv_id) < 5:
+            return False
+        # 新格式：2301.12345
+        if re.match(r'^\d{4}\.\d{4,5}(v\d+)?$', arxiv_id):
+            return True
+        # 旧格式：hep-th/9901001
+        if re.match(r'^[a-z-]+/\d{7}(v\d+)?$', arxiv_id, re.IGNORECASE):
+            return True
+        return False
 
     def _extract_authors(self, doc: fitz.Document) -> List[str]:
         """提取作者 - 改进版"""

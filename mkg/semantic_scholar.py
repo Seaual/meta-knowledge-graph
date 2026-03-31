@@ -447,17 +447,18 @@ class S2Client:
         self,
         title: str,
         llm_client=None,
-        paper_context: dict = None,
-        similarity_threshold: float = 0.65
+        paper_context: dict = None
     ) -> Optional[Dict]:
         """
-        用论文标题匹配 S2 论文（支持 LLM 回退）
+        用论文标题匹配 S2 论文（简化版：信任 S2 搜索排序）
+
+        注意：此方法作为 DOI/arXiv ID 查询的回退方案。
+        优先使用 match_paper() 方法，它会先尝试精确匹配。
 
         Args:
             title: 论文标题
             llm_client: LLM 客户端（可选，用于标题修正）
             paper_context: 论文上下文 {'abstract': ..., 'authors': ...}
-            similarity_threshold: 相似度阈值，低于此值触发 LLM 回退
 
         Returns:
             匹配的论文信息，如果匹配失败返回 None
@@ -473,94 +474,72 @@ class S2Client:
         if cached is not None:
             return cached
 
-        # 内部搜索函数
-        def _search_and_match(query_title: str) -> tuple:
-            """搜索并返回最佳匹配及其相似度"""
-            results = self._with_rate_limit(
-                sch.search_paper,
-                query_title,
-                fields=DEFAULT_FIELDS,
-                limit=10  # 增加搜索结果数量
-            )
-
-            if not results:
-                return None, 0.0
-
-            items = list(results)
-            if len(items) == 0:
-                return None, 0.0
-
-            # 计算综合相似度
-            def similarity(p):
-                s2_title = p.title or ""
-
-                # 1. 词集交集比例
-                query_words = set(query_title.lower().split())
-                result_words = set(s2_title.lower().split())
-                stop_words = {'a', 'an', 'the', 'for', 'of', 'and', 'in', 'on', 'to', 'with', 'is', 'are'}
-                query_words -= stop_words
-                result_words -= stop_words
-
-                word_overlap = 0.0
-                if query_words:
-                    word_overlap = len(query_words & result_words) / len(query_words)
-
-                # 2. Levenshtein 编辑距离
-                edit_ratio = levenshtein_ratio(query_title, s2_title)
-
-                # 3. 综合评分 (词集 0.6 + 编辑距离 0.4)
-                return 0.6 * word_overlap + 0.4 * edit_ratio
-
-            # 找最佳匹配
-            best = max(items, key=similarity)
-            best_score = similarity(best)
-
-            return best, best_score
-
         try:
             sch = self._get_sch()
 
-            # 第一次搜索
-            best, best_score = _search_and_match(cleaned)
-
-            # 只有一个结果时直接返回
-            if best is None:
-                self.cache.set_cache(cache_key, None)
-                return None
-
-            # 如果只有一个搜索结果，直接返回
+            # 搜索论文
             results = self._with_rate_limit(
                 sch.search_paper,
                 cleaned,
                 fields=DEFAULT_FIELDS,
-                limit=10
+                limit=5
             )
-            items = list(results) if results else []
 
+            if not results:
+                self.cache.set_cache(cache_key, None)
+                return None
+
+            items = list(results)
+            if not items:
+                self.cache.set_cache(cache_key, None)
+                return None
+
+            # 如果只有一个结果，直接返回
             if len(items) == 1:
                 result = self._normalize_paper(items[0])
                 self.cache.set_cache(cache_key, result)
                 return result
 
-            # 相似度足够高，直接返回
-            if best_score >= similarity_threshold:
-                result = self._normalize_paper(best)
-                self.cache.set_cache(cache_key, result)
-                return result
+            # 多个结果：检查第一个结果是否足够匹配
+            first = items[0]
+            s2_title = first.title or ""
 
-            # 相似度不足，尝试 LLM 回退
-            if llm_client and best_score < similarity_threshold:
-                refined_title = llm_refine_title(cleaned, llm_client, paper_context)
-                if refined_title and refined_title != cleaned:
-                    logger.info(f"LLM refined title: '{cleaned}' -> '{refined_title}'")
-                    # 用修正后的标题重新搜索
-                    refined_best, refined_score = _search_and_match(refined_title)
-                    if refined_best and refined_score >= similarity_threshold:
-                        result = self._normalize_paper(refined_best)
-                        self.cache.set_cache(cache_key, result)
-                        return result
+            # 简单的相似度检查：词集交集
+            query_words = set(cleaned.lower().split())
+            result_words = set(s2_title.lower().split())
+            stop_words = {'a', 'an', 'the', 'for', 'of', 'and', 'in', 'on', 'to', 'with', 'is', 'are'}
+            query_words -= stop_words
+            result_words -= stop_words
 
-            # 最终失败，返回 None（但不要缓存失败结果，允许后续重试）
+            if query_words:
+                overlap = len(query_words & result_words) / len(query_words)
+                # 如果关键词匹配度 >= 50%，信任 S2 排序
+                if overlap >= 0.5:
+                    result = self._normalize_paper(first)
+                    self.cache.set_cache(cache_key, result)
+                    return result
+
+                # 匹配度不够，尝试 LLM 修正标题
+                if llm_client:
+                    refined_title = llm_refine_title(cleaned, llm_client, paper_context)
+                    if refined_title and refined_title != cleaned:
+                        logger.info(f"LLM refined title: '{cleaned}' -> '{refined_title}'")
+                        # 用修正后的标题重新搜索
+                        refined_results = self._with_rate_limit(
+                            sch.search_paper,
+                            refined_title,
+                            fields=DEFAULT_FIELDS,
+                            limit=5
+                        )
+                        if refined_results:
+                            refined_items = list(refined_results)
+                            if refined_items:
+                                result = self._normalize_paper(refined_items[0])
+                                self.cache.set_cache(cache_key, result)
+                                return result
+
+            # 匹配失败
+            self.cache.set_cache(cache_key, None)
             return None
 
         except Exception as e:
@@ -598,6 +577,62 @@ class S2Client:
         except Exception as e:
             logger.error(f"Failed to get paper details: {e}")
             return None
+
+    def match_paper(
+        self,
+        title: str = None,
+        doi: str = None,
+        arxiv_id: str = None,
+        llm_client=None,
+        paper_context: dict = None
+    ) -> Optional[Dict]:
+        """
+        智能匹配论文（优先 DOI/arXiv ID，回退标题匹配）
+
+        匹配优先级：
+        1. DOI 精确查询（100% 准确）
+        2. arXiv ID 精确查询（100% 准确）
+        3. 标题搜索（可能需要相似度匹配）
+
+        Args:
+            title: 论文标题
+            doi: DOI 标识符（如 "10.1234/abc123"）
+            arxiv_id: arXiv ID（如 "2301.12345"）
+            llm_client: LLM 客户端（用于标题修正）
+            paper_context: 论文上下文
+
+        Returns:
+            匹配的论文信息，失败返回 None
+        """
+        # 优先级 1: DOI 精确查询
+        if doi:
+            logger.info(f"Trying DOI lookup: {doi}")
+            result = self.get_paper_details(f"DOI:{doi}")
+            if result:
+                logger.info(f"DOI lookup succeeded: {doi}")
+                return result
+            logger.warning(f"DOI lookup failed: {doi}")
+
+        # 优先级 2: arXiv ID 精确查询
+        if arxiv_id:
+            logger.info(f"Trying arXiv lookup: {arxiv_id}")
+            # arXiv ID 格式：ARXIV:2301.12345
+            result = self.get_paper_details(f"ARXIV:{arxiv_id}")
+            if result:
+                logger.info(f"arXiv lookup succeeded: {arxiv_id}")
+                return result
+            logger.warning(f"arXiv lookup failed: {arxiv_id}")
+
+        # 优先级 3: 标题搜索
+        if title:
+            logger.info(f"Trying title search: {title[:50]}...")
+            return self.match_paper_by_title(
+                title,
+                llm_client=llm_client,
+                paper_context=paper_context
+            )
+
+        return None
 
     # ========================================
     # 引用关系
