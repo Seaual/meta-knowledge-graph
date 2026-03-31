@@ -424,9 +424,12 @@ async def batch_process_papers(request: BatchProcessRequest):
                                 's2_doi': s2_doi,
                                 'citation_count': s2_data.get('citationCount', 0),
                                 'reference_count': s2_data.get('referenceCount', 0),
+                                'influential_citation_count': s2_data.get('influentialCitationCount', 0),
                                 'venue': s2_data.get('venue'),
                                 'year': s2_data.get('year'),
                                 'tldr': s2_data.get('tldr'),
+                                's2_fields_of_study': json.dumps(s2_data.get('s2FieldsOfStudy', [])),
+                                'open_access_pdf_url': s2_data.get('openAccessPdf'),
                                 's2_matched_at': datetime.now().isoformat(),
                             }
                             db.update_paper_metadata(doi, metadata_update)
