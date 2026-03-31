@@ -19,7 +19,7 @@ class CandidateGenerator:
     """候选对生成器"""
 
     SIMILARITY_THRESHOLD = 0.6
-    CATEGORIES = ['field', 'direction', 'subdirection', 'task', 'method', 'technique']
+    CATEGORIES = ['field', 'direction', 'subdirection', 'task', 'method', 'technique', 'dataset', 'finding']
     HIGH_SIMILARITY_THRESHOLD = 0.9  # Above this, auto-merge without LLM
 
     @staticmethod

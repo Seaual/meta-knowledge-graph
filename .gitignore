@@ -59,3 +59,22 @@ paper_analysis.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Semantic Scholar cache
+.s2_cache/
+
+# Demo/temp databases
+mkg-demo.db
+mkg.db
+mkg.db-shm
+mkg.db-wal
+
+# Test files
+test_*.pdf
+test_*.txt
+*.log
+
+# Generated data files
+concept_tree_output.json
+paper_analysis.json
+demo_papers*.json

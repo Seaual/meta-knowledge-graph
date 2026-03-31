@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Upload, FileText, Trash2, Play, RefreshCw, CheckCircle, XCircle, Loader2, FolderPlus, Folder, GitBranch, ChevronLeft, ChevronRight } from 'lucide-react'
-import { papersApi, foldersApi } from '../lib/api'
+import { papersApi, foldersApi, batchApi } from '../lib/api'
 import CreateFolderModal from '../components/CreateFolderModal'
 import { useTranslation } from '../i18n'
 
@@ -40,6 +40,7 @@ interface Contribution {
 }
 
 interface QueueState {
+  total: number  // 初始总数，固定不变
   pending: string[]
   current: string | null
   completed: number
@@ -58,8 +59,8 @@ export default function Papers() {
   const [uploadResults, setUploadResults] = useState<UploadResult[]>([])
   const [processing, setProcessing] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const MAX_DURATIONS = 50
   const [queueState, setQueueState] = useState<QueueState>({
+    total: 0,
     pending: [],
     current: null,
     completed: 0,
@@ -191,9 +192,15 @@ export default function Papers() {
     }
 
     const dois = pendingPapers.map(p => p.doi)
+    const batchSize = 5
+    const newDurations: number[] = []
+    let successful = 0
+    let failed = 0
+
     setQueueState({
+      total: dois.length,
       pending: dois,
-      current: dois[0],
+      current: 'processing',
       completed: 0,
       successful: 0,
       failed: 0,
@@ -202,17 +209,15 @@ export default function Papers() {
       durations: []
     })
 
-    const newDurations: number[] = []
-    let successful = 0
-    let failed = 0
-
-    for (let i = 0; i < dois.length; i++) {
-      const doi = dois[i]
+    // 每 5 个一批处理
+    for (let i = 0; i < dois.length; i += batchSize) {
+      const batch = dois.slice(i, i + batchSize)
+      const batchStart = Date.now()
 
       setQueueState(prev => ({
         ...prev,
-        current: doi,
-        pending: dois.slice(i + 1),
+        current: `处理第 ${i + 1}-${Math.min(i + batchSize, dois.length)} 篇`,
+        pending: dois.slice(i + batchSize),
         completed: i,
         avgTimePerPaper: newDurations.length > 0
           ? newDurations.reduce((a, b) => a + b, 0) / newDurations.length
@@ -220,38 +225,36 @@ export default function Papers() {
       }))
 
       try {
-        const res = await papersApi.processSingle(doi)
-        const duration = res.data.duration
+        const jobId = `batch_${Date.now()}_${i}`
+        const res = await batchApi.process(jobId, batch)
+        const batchDuration = (Date.now() - batchStart) / 1000
 
-        if (newDurations.length >= MAX_DURATIONS) {
+        // 记录这批的平均时间（每篇）
+        const avgBatchTime = batchDuration / batch.length
+        if (newDurations.length >= 50) {
           newDurations.shift()
         }
-        newDurations.push(duration)
+        newDurations.push(avgBatchTime)
 
-        if (res.data.success) {
-          successful++
-        } else {
-          failed++
-        }
+        successful += res.data.successful
+        failed += res.data.failed
+
+        const avgTime = newDurations.reduce((a, b) => a + b, 0) / newDurations.length
+        const remaining = dois.length - i - batch.length
+
+        setQueueState(prev => ({
+          ...prev,
+          completed: i + batch.length,
+          successful,
+          failed,
+          durations: [...newDurations],
+          avgTimePerPaper: avgTime,
+          estimatedTime: Math.ceil(avgTime * remaining)
+        }))
       } catch (err) {
-        failed++
-        console.error(`Failed to process ${doi}:`, err)
+        console.error('Batch process failed:', err)
+        failed += batch.length
       }
-
-      const avgTime = newDurations.length > 0
-        ? newDurations.reduce((a, b) => a + b, 0) / newDurations.length
-        : 0
-      const remaining = dois.length - i - 1
-
-      setQueueState(prev => ({
-        ...prev,
-        completed: i + 1,
-        successful,
-        failed,
-        durations: [...newDurations],
-        avgTimePerPaper: avgTime,
-        estimatedTime: Math.ceil(avgTime * remaining)
-      }))
     }
 
     setQueueState(prev => ({
@@ -568,14 +571,14 @@ export default function Papers() {
                   <div
                     className="h-full bg-gradient-amber rounded-full transition-all duration-300"
                     style={{
-                      width: `${(queueState.completed + queueState.pending.length) > 0
-                        ? (queueState.completed / (queueState.completed + queueState.pending.length)) * 100
+                      width: `${queueState.total > 0
+                        ? (queueState.completed / queueState.total) * 100
                         : 0}%`
                     }}
                   />
                 </div>
                 <span className="font-mono text-sm text-muted">
-                  {queueState.completed}/{queueState.completed + queueState.pending.length}
+                  {queueState.completed}/{queueState.total}
                 </span>
               </div>
 

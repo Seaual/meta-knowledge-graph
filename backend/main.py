@@ -13,7 +13,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.routes import papers, concepts, graph, llm, folders, semantic_scholar
+from backend.routes import papers, concepts, graph, llm, folders, semantic_scholar, s2
 
 app = FastAPI(
     title="Meta Knowledge Graph API",
@@ -24,7 +24,7 @@ app = FastAPI(
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://localhost:8088"],
+    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost:8088"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -37,6 +37,7 @@ app.include_router(graph.router)
 app.include_router(llm.router)
 app.include_router(folders.router)
 app.include_router(semantic_scholar.router)
+app.include_router(s2.router)
 
 
 @app.get("/api")
@@ -70,8 +71,15 @@ def startup():
 
 
 # Serve frontend index.html for all non-API routes (SPA support)
+# Only handle non-api paths to avoid conflicting with API routes
 @app.get("/{path:path}")
 async def serve_frontend(path: str):
+    # Skip API routes - they should be handled by routers
+    if path.startswith("api/") or path == "api":
+        # Let FastAPI handle 404 for unknown API routes
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="API endpoint not found")
+
     frontend_dist = os.environ.get("FRONTEND_DIST")
     if frontend_dist and Path(frontend_dist).exists():
         # Check if it's a static file request

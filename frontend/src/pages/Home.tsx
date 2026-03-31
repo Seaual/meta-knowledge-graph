@@ -5,6 +5,7 @@ import { graphApi, llmApi, s2Api } from '../lib/api'
 import LLMConfigModal from '../components/LLMConfigModal'
 import S2ConfigModal from '../components/S2ConfigModal'
 import OnboardingModal from '../components/OnboardingModal'
+import { FadeContent, AnimatedNumber } from '../components/ui/animations'
 import { useTranslation } from '../i18n'
 
 interface Stats {
@@ -85,163 +86,187 @@ export default function Home() {
 
       {/* Stats Grid - Elegant Card Design */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-        <div className="card-stat animate-slide-up" style={{ animationDelay: '0ms' }}>
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
-              <FileText className="w-5 h-5 text-vellum" />
-            </div>
-            <div>
-              <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.papers}</p>
-              <p className="font-display text-2xl text-sepia font-medium">{stats?.papers?.total || 0}</p>
+        <FadeContent delay={0} direction="up">
+          <div className="card-stat">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
+                <FileText className="w-5 h-5 text-vellum" />
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.papers}</p>
+                <p className="font-display text-2xl text-sepia font-medium">
+                  <AnimatedNumber value={stats?.papers?.total || 0} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </FadeContent>
 
-        <div className="card-stat animate-slide-up" style={{ animationDelay: '50ms' }}>
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
-              <GitBranch className="w-5 h-5 text-vellum" />
-            </div>
-            <div>
-              <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.concepts}</p>
-              <p className="font-display text-2xl text-sepia font-medium">{stats?.concepts?.total || 0}</p>
+        <FadeContent delay={0.1} direction="up">
+          <div className="card-stat">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
+                <GitBranch className="w-5 h-5 text-vellum" />
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.concepts}</p>
+                <p className="font-display text-2xl text-sepia font-medium">
+                  <AnimatedNumber value={stats?.concepts?.total || 0} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </FadeContent>
 
-        <div className="card-stat animate-slide-up" style={{ animationDelay: '100ms' }}>
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
-              <Network className="w-5 h-5 text-vellum" />
-            </div>
-            <div>
-              <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.relations}</p>
-              <p className="font-display text-2xl text-sepia font-medium">{stats?.relations || 0}</p>
+        <FadeContent delay={0.2} direction="up">
+          <div className="card-stat">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
+                <Network className="w-5 h-5 text-vellum" />
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.relations}</p>
+                <p className="font-display text-2xl text-sepia font-medium">
+                  <AnimatedNumber value={stats?.relations || 0} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </FadeContent>
 
-        <div className="card-stat animate-slide-up" style={{ animationDelay: '150ms' }}>
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
-              <TrendingUp className="w-5 h-5 text-vellum" />
-            </div>
-            <div>
-              <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.roots}</p>
-              <p className="font-display text-2xl text-sepia font-medium">{stats?.root_concepts || 0}</p>
+        <FadeContent delay={0.3} direction="up">
+          <div className="card-stat">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
+                <TrendingUp className="w-5 h-5 text-vellum" />
+              </div>
+              <div>
+                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.roots}</p>
+                <p className="font-display text-2xl text-sepia font-medium">
+                  <AnimatedNumber value={stats?.root_concepts || 0} />
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        </FadeContent>
       </div>
 
       {/* Quick Actions - Two Column Layout */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
         {/* Primary Actions */}
-        <Link
-          to="/papers"
-          className="card-action group animate-slide-up"
-          style={{ animationDelay: '200ms' }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-amber group-hover:border-transparent transition-all duration-300">
-              <BookOpen className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+        <FadeContent delay={0.4} direction="up">
+          <Link
+            to="/papers"
+            className="card-action group block"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-amber group-hover:border-transparent transition-all duration-300">
+                <BookOpen className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.uploadPapers}</h3>
+                <p className="font-body text-sm text-muted">{t.home.actions.uploadDesc}</p>
+              </div>
+              <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
+                <Layers className="w-4 h-4" />
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.uploadPapers}</h3>
-              <p className="font-body text-sm text-muted">{t.home.actions.uploadDesc}</p>
-            </div>
-            <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
-              <Layers className="w-4 h-4" />
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </FadeContent>
 
-        <Link
-          to="/concepts"
-          className="card-action group animate-slide-up"
-          style={{ animationDelay: '250ms' }}
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-sepia group-hover:border-transparent transition-all duration-300">
-              <GitBranch className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+        <FadeContent delay={0.5} direction="up">
+          <Link
+            to="/concepts"
+            className="card-action group block"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-sepia group-hover:border-transparent transition-all duration-300">
+                <GitBranch className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.exploreConcepts}</h3>
+                <p className="font-body text-sm text-muted">{t.home.actions.exploreDesc}</p>
+              </div>
+              <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
+                <Network className="w-4 h-4" />
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.exploreConcepts}</h3>
-              <p className="font-body text-sm text-muted">{t.home.actions.exploreDesc}</p>
-            </div>
-            <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
-              <Network className="w-4 h-4" />
-            </div>
-          </div>
-        </Link>
+          </Link>
+        </FadeContent>
       </div>
 
       {/* Configuration Section */}
-      <div className="section-academic animate-slide-up" style={{ animationDelay: '300ms' }}>
-        <div className="flex items-center gap-3 mb-5">
-          <Settings className="w-5 h-5 text-muted" />
-          <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.config}</h2>
-        </div>
+      <FadeContent delay={0.6} direction="up">
+        <div className="section-academic">
+          <div className="flex items-center gap-3 mb-5">
+            <Settings className="w-5 h-5 text-muted" />
+            <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.config}</h2>
+          </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <button
-            onClick={() => setShowLLMModal(true)}
-            className="card-action text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
-                <Settings className="w-5 h-5 text-muted" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setShowLLMModal(true)}
+              className="card-action text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
+                  <Settings className="w-5 h-5 text-muted" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-body font-medium text-sepia">{t.home.llmProvider}</p>
+                  <p className="font-mono text-xs text-muted">{llmStatus}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-body font-medium text-sepia">{t.home.llmProvider}</p>
-                <p className="font-mono text-xs text-muted">{llmStatus}</p>
-              </div>
-            </div>
-          </button>
+            </button>
 
-          <button
-            onClick={() => setShowS2Modal(true)}
-            className="card-action text-left"
-          >
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
-                <Database className="w-5 h-5 text-muted" />
+            <button
+              onClick={() => setShowS2Modal(true)}
+              className="card-action text-left"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
+                  <Database className="w-5 h-5 text-muted" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-body font-medium text-sepia">{t.home.semanticScholar}</p>
+                  <p className="font-mono text-xs text-muted">{s2Status}</p>
+                </div>
               </div>
-              <div className="flex-1">
-                <p className="font-body font-medium text-sepia">{t.home.semanticScholar}</p>
-                <p className="font-mono text-xs text-muted">{s2Status}</p>
-              </div>
-            </div>
-          </button>
+            </button>
+          </div>
         </div>
-      </div>
+      </FadeContent>
 
       {/* Paper Status Section */}
       {stats?.papers && (
-        <div className="section-academic mt-6 animate-slide-up" style={{ animationDelay: '350ms' }}>
-          <div className="flex items-center gap-3 mb-5">
-            <FileText className="w-5 h-5 text-muted" />
-            <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.processingStatus}</h2>
-          </div>
+        <FadeContent delay={0.7} direction="up">
+          <div className="section-academic mt-6">
+            <div className="flex items-center gap-3 mb-5">
+              <FileText className="w-5 h-5 text-muted" />
+              <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.processingStatus}</h2>
+            </div>
 
-          <div className="flex flex-wrap gap-4">
-            {Object.entries(stats.papers)
-              .filter(([k]) => k !== 'total')
-              .map(([status, count]) => (
-                <div
-                  key={status}
-                  className={`px-5 py-4 rounded-large border border-academic bg-vellum
-                    ${status === 'processed' ? 'border-l-2 border-l-graph-technique' : ''}
-                    ${status === 'pending' ? 'border-l-2 border-l-amber' : ''}
-                    ${status === 'failed' ? 'border-l-2 border-l-status-error' : ''}
-                  `}
-                >
-                  <p className="font-display text-xl text-sepia">{count}</p>
-                  <p className="font-mono text-xs text-muted capitalize">{t.papers.status[status as keyof typeof t.papers.status] || status}</p>
-                </div>
-              ))}
+            <div className="flex flex-wrap gap-4">
+              {Object.entries(stats.papers)
+                .filter(([k]) => k !== 'total')
+                .map(([status, count]) => (
+                  <div
+                    key={status}
+                    className={`px-5 py-4 rounded-large border border-academic bg-vellum
+                      ${status === 'processed' ? 'border-l-2 border-l-graph-technique' : ''}
+                      ${status === 'pending' ? 'border-l-2 border-l-amber' : ''}
+                      ${status === 'failed' ? 'border-l-2 border-l-status-error' : ''}
+                    `}
+                  >
+                    <p className="font-display text-xl text-sepia">
+                      <AnimatedNumber value={count as number} />
+                    </p>
+                    <p className="font-mono text-xs text-muted capitalize">{t.papers.status[status as keyof typeof t.papers.status] || status}</p>
+                  </div>
+                ))}
+            </div>
           </div>
-        </div>
+        </FadeContent>
       )}
 
       {/* Modals */}

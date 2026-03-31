@@ -30,3 +30,6 @@ openai>=1.0.0
 
 # Environment
 python-dotenv>=1.0.0
+
+# Semantic Scholar API
+semanticscholar>=0.11.0

@@ -230,6 +230,51 @@ body {
     }
   }
 
+  .btn-secondary-xs {
+    background: var(--color-paper);
+    color: var(--color-sepia);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid var(--color-border-medium);
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--color-vellum);
+      border-color: var(--color-amber);
+    }
+  }
+
+  .btn-primary-xs {
+    background: var(--color-sepia);
+    color: var(--color-vellum);
+    font-family: var(--font-body);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: none;
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+
+    &:hover {
+      background: var(--color-amber);
+    }
+  }
+
+  .badge-academic-xs {
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    font-weight: 500;
+    padding: 0.125rem 0.375rem;
+    border-radius: 3px;
+    white-space: nowrap;
+    letter-spacing: 0.02em;
+  }
+
   .btn-ghost {
     background: transparent;
     color: var(--color-muted);

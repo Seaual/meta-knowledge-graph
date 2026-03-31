@@ -12,7 +12,7 @@ logger = logging.getLogger("mkg.dedup")
 
 
 # 层级结构定义
-CATEGORY_HIERARCHY = ['field', 'direction', 'subdirection', 'method', 'task', 'technique']
+CATEGORY_HIERARCHY = ['field', 'direction', 'subdirection', 'method', 'task', 'technique', 'dataset', 'finding']
 
 
 def find_floating_concepts(db) -> List[Dict]:
