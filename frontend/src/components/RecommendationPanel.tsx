@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
-import { X, ExternalLink, Plus, Search, Loader2, Download, Database, CheckCircle, AlertCircle } from 'lucide-react'
-import { recommendationApi, s2PaperApi } from '../lib/api'
+import { X, ExternalLink, Plus, Search, Loader2 } from 'lucide-react'
+import { recommendationApi } from '../lib/api'
 import { useTranslation } from '../i18n'
 
 interface Concept {
@@ -21,6 +21,7 @@ interface RecommendedPaper {
   venue?: string
   openAccessPdf?: { url: string }
   tldr?: { text: string }
+  externalIds?: { DOI?: string }
 }
 
 interface RecommendationPanelProps {
@@ -66,9 +67,6 @@ export default function RecommendationPanel({
   const [yearFilter, setYearFilter] = useState('2023-2026')
   const [minCitations, setMinCitations] = useState(0)
   const [showConceptPicker, setShowConceptPicker] = useState(false)
-  const [addingPapers, setAddingPapers] = useState<Set<string>>(new Set()) // 正在添加的论文
-  const [addedPapers, setAddedPapers] = useState<Set<string>>(new Set()) // 已成功添加的论文
-  const [addErrors, setAddErrors] = useState<Map<string, string>>(new Map()) // 添加失败的错误
 
   // Search papers when concepts change
   const searchPapers = useCallback(async () => {
@@ -131,86 +129,6 @@ export default function RecommendationPanel({
       searchPapers()
     }
   }, [isOpen, selectedConcepts, searchPapers])
-
-  // Handle adding paper metadata only
-  const handleAddMetadata = useCallback(async (paper: RecommendedPaper) => {
-    setAddingPapers(prev => new Set(prev).add(paper.paperId))
-    setAddErrors(prev => {
-      const next = new Map(prev)
-      next.delete(paper.paperId)
-      return next
-    })
-
-    try {
-      const res = await s2PaperApi.addMetadata({
-        s2_paper_id: paper.paperId,
-        title: paper.title,
-        year: paper.year,
-        abstract: paper.abstract,
-        authors: paper.authors,
-        venue: paper.venue,
-        citation_count: paper.citationCount,
-        tldr: paper.tldr,
-        open_access_pdf_url: paper.openAccessPdf?.url,
-      })
-
-      if (res.data.success) {
-        setAddedPapers(prev => new Set(prev).add(paper.paperId))
-      } else {
-        setAddErrors(prev => new Map(prev).set(paper.paperId, res.data.message))
-      }
-    } catch (err: any) {
-      console.error('Failed to add metadata:', err)
-      setAddErrors(prev => new Map(prev).set(paper.paperId, err.response?.data?.detail || '添加失败'))
-    } finally {
-      setAddingPapers(prev => {
-        const next = new Set(prev)
-        next.delete(paper.paperId)
-        return next
-      })
-    }
-  }, [])
-
-  // Handle downloading and processing paper
-  const handleDownloadAndProcess = useCallback(async (paper: RecommendedPaper) => {
-    if (!paper.openAccessPdf?.url) return
-
-    setAddingPapers(prev => new Set(prev).add(paper.paperId))
-    setAddErrors(prev => {
-      const next = new Map(prev)
-      next.delete(paper.paperId)
-      return next
-    })
-
-    try {
-      const res = await s2PaperApi.downloadAndProcess({
-        s2_paper_id: paper.paperId,
-        title: paper.title,
-        year: paper.year,
-        abstract: paper.abstract,
-        authors: paper.authors,
-        venue: paper.venue,
-        citation_count: paper.citationCount,
-        tldr: paper.tldr,
-        open_access_pdf_url: paper.openAccessPdf.url,
-      })
-
-      if (res.data.success) {
-        setAddedPapers(prev => new Set(prev).add(paper.paperId))
-      } else {
-        setAddErrors(prev => new Map(prev).set(paper.paperId, res.data.message))
-      }
-    } catch (err: any) {
-      console.error('Failed to download and process:', err)
-      setAddErrors(prev => new Map(prev).set(paper.paperId, err.response?.data?.detail || '处理失败'))
-    } finally {
-      setAddingPapers(prev => {
-        const next = new Set(prev)
-        next.delete(paper.paperId)
-        return next
-      })
-    }
-  }, [])
 
   // Available concepts for adding (exclude already selected)
   const availableConcepts = concepts.filter(
@@ -444,62 +362,11 @@ export default function RecommendationPanel({
 
               {/* Actions */}
               <div className="flex items-center flex-wrap gap-2 mt-3">
-                {/* Already added indicator */}
-                {addedPapers.has(paper.paperId) && (
-                  <span className="btn-secondary-xs flex items-center gap-1 text-status-success border-status-success">
-                    <CheckCircle className="w-3 h-3" />
-                    已添加
+                {/* DOI */}
+                {paper.externalIds?.DOI && (
+                  <span className="font-mono text-xs text-sepia bg-paper px-2 py-1 rounded-soft border border-academic">
+                    DOI: {paper.externalIds.DOI}
                   </span>
-                )}
-
-                {/* Error indicator */}
-                {addErrors.has(paper.paperId) && (
-                  <span className="text-xs text-status-error flex items-center gap-1">
-                    <AlertCircle className="w-3 h-3" />
-                    {addErrors.get(paper.paperId)}
-                  </span>
-                )}
-
-                {/* Download and process button */}
-                {paper.openAccessPdf?.url && !addedPapers.has(paper.paperId) && (
-                  <button
-                    onClick={() => handleDownloadAndProcess(paper)}
-                    disabled={addingPapers.has(paper.paperId)}
-                    className="btn-primary-xs flex items-center gap-1"
-                  >
-                    {addingPapers.has(paper.paperId) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        处理中...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-3 h-3" />
-                        下载并处理
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {/* Add metadata only button */}
-                {!addedPapers.has(paper.paperId) && (
-                  <button
-                    onClick={() => handleAddMetadata(paper)}
-                    disabled={addingPapers.has(paper.paperId)}
-                    className="btn-secondary-xs flex items-center gap-1"
-                  >
-                    {addingPapers.has(paper.paperId) ? (
-                      <>
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                        添加中...
-                      </>
-                    ) : (
-                      <>
-                        <Database className="w-3 h-3" />
-                        仅添加元数据
-                      </>
-                    )}
-                  </button>
                 )}
 
                 {/* View on S2 */}

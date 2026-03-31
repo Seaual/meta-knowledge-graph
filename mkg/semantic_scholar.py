@@ -379,7 +379,7 @@ DEFAULT_FIELDS = [
 
 SEARCH_FIELDS = [
     'paperId', 'title', 'abstract', 'year', 'authors', 'venue',
-    'citationCount', 'openAccessPdf'
+    'citationCount', 'openAccessPdf', 'externalIds'
 ]
 
 
