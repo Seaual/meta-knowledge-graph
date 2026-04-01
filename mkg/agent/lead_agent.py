@@ -28,14 +28,16 @@ class IntentResult:
 class LeadAgent:
     """Lead Agent - 意图识别和任务分发"""
 
-    def __init__(self, llm_client):
+    def __init__(self, llm_client, db=None):
         """
         初始化 Lead Agent
 
         Args:
             llm_client: LLM 客户端（LiteLLMClient 实例）
+            db: Database 实例（可选）
         """
         self.llm_client = llm_client
+        self.db = db
 
     def recognize_intent(self, message: str, context: Dict[str, Any]) -> IntentResult:
         """
@@ -180,5 +182,41 @@ class LeadAgent:
                     'name': result.get('paper', {}).get('title', ''),
                 },
                 'keyFindings': [result.get('analysis', {}).get('summary', '')],
+            }
+        }
+
+    def dispatch_to_research_agent(self, target_name: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """分发到 Research Point Agent"""
+        from .research_agent import ResearchPointAgent
+        from mkg.semantic_scholar import S2Client
+
+        # 创建 S2 客户端
+        s2_client = S2Client()
+
+        # 创建 Research Agent
+        research_agent = ResearchPointAgent(self.llm_client, self.db, s2_client)
+
+        # 执行分析
+        result = research_agent.analyze(target_name)
+
+        # 格式化响应
+        if 'error' in result:
+            return {
+                'message': result['error'],
+                'agent': 'research',
+                'contextUpdate': None
+            }
+
+        formatted = research_agent.format_response(result)
+
+        return {
+            'message': formatted,
+            'agent': 'research',
+            'contextUpdate': {
+                'currentTarget': {
+                    'type': 'concept',
+                    'id': result.get('concept', {}).get('id', ''),
+                    'name': result.get('concept', {}).get('name', ''),
+                },
             }
         }
