@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Papers from './pages/Papers'
 import ConceptsGraph from './pages/ConceptsGraph'
 import { useTranslation } from './i18n'
+import ResearchAgentBubble from './components/ResearchAgentBubble'
 
 // Navigation link component with active state
 function NavLink({ to, children }: { to: string; children: React.ReactNode }) {
@@ -75,6 +76,9 @@ function App() {
             <Route path="/concepts" element={<ConceptsGraph />} />
           </Routes>
         </main>
+
+        {/* Global Research Agent Bubble */}
+        <ResearchAgentBubble />
       </div>
     </BrowserRouter>
   )
