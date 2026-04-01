@@ -40,13 +40,13 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
   }, [sessionId, onComplete])
 
   return (
-    <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
+    <div className="space-y-3 p-3 bg-white/30 backdrop-blur-sm rounded-lg border border-white/30">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-gray-700">深入研究进度</span>
         <span className="text-sm text-gray-500">{progress}%</span>
       </div>
 
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-white/30 rounded-full h-2">
         <div
           className="bg-amber-500 h-2 rounded-full transition-all duration-300"
           style={{ width: `${progress}%` }}
@@ -69,7 +69,7 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
       </div>
 
       {status === 'completed' && (
-        <div className="flex items-center gap-2 text-sm text-green-600 pt-2 border-t border-gray-200">
+        <div className="flex items-center gap-2 text-sm text-green-600 pt-2 border-t border-white/30">
           <FileText className="w-4 h-4" />
           <span>研究完成，报告已生成</span>
         </div>

@@ -61,8 +61,8 @@ const generateId = () => Math.random().toString(36).substring(2, 9)
 
 export const useAgentStore = create<AgentState>((set) => ({
   // UI State
-  isOpen: false,
-  isMinimized: true,
+  isOpen: true,  // 默认显示透明浮框
+  isMinimized: false,
   position: { x: 0, y: 0 },
 
   // Conversation State
