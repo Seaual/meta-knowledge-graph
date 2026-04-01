@@ -441,4 +441,61 @@ export const foldersApi = {
   delete: (id: string) => api.delete(`/folders/${id}`),
 }
 
+// Agent API types
+interface AgentContextSummary {
+  currentTarget?: {
+    type: 'concept' | 'paper'
+    id: string
+    name: string
+  }
+  contextTags: string[]
+  keyFindings: string[]
+  intentHistory: string[]
+  lastActiveAgent: string
+}
+
+interface AgentChatResponse {
+  message: string
+  agent: string
+  contextUpdate?: Partial<AgentContextSummary>
+  researchSessionId?: string
+}
+
+// Agent API
+export const agentApi = {
+  chat: async (message: string, context: AgentContextSummary): Promise<AgentChatResponse> => {
+    const response = await api.post<AgentChatResponse>('/agent/chat', {
+      message,
+      context,
+    })
+    return response.data
+  },
+
+  startDeepResearch: async (targetId: string, targetType: 'concept' | 'paper', query: string) => {
+    const response = await api.post<{ sessionId: string }>('/agent/deep-research/start', {
+      targetId,
+      targetType,
+      query,
+    })
+    return response.data
+  },
+
+  getResearchStatus: async (sessionId: string) => {
+    const response = await api.get<{
+      status: string
+      progress: number
+      dimensions: string[]
+      completedDimensions: string[]
+    }>(`/agent/deep-research/${sessionId}/status`)
+    return response.data
+  },
+
+  getResearchReport: async (sessionId: string) => {
+    const response = await api.get<{ report: string; format: string }>(
+      `/agent/deep-research/${sessionId}/report`
+    )
+    return response.data
+  },
+}
+
 export default api
