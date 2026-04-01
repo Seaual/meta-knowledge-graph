@@ -15,57 +15,58 @@ function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messag
         right: 0,
         top: '50%',
         transform: 'translateY(-50%)',
-        width: '48px',
-        height: '200px',
+        width: '28px',
+        height: '180px',
         background: 'rgba(250, 248, 245, 0.01)',
-        backdropFilter: 'blur(2px)',
-        WebkitBackdropFilter: 'blur(2px)',
-        border: '1px solid rgba(184, 134, 11, 0.08)',
+        backdropFilter: 'blur(1px)',
+        WebkitBackdropFilter: 'blur(1px)',
+        border: '1px solid rgba(184, 134, 11, 0.06)',
         borderRight: 'none',
-        borderRadius: '20px 0 0 20px',
-        boxShadow: '-2px 0 16px rgba(44, 24, 16, 0.02)',
-        transition: 'all 0.3s ease-out',
+        borderRadius: '14px 0 0 14px',
+        boxShadow: '-1px 0 8px rgba(44, 24, 16, 0.01)',
+        transition: 'all 0.25s ease-out',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: '8px',
+        gap: '6px',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.03)'
-        e.currentTarget.style.width = '56px'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.02)'
+        e.currentTarget.style.width = '32px'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'rgba(250, 248, 245, 0.01)'
-        e.currentTarget.style.width = '48px'
+        e.currentTarget.style.width = '28px'
       }}
     >
       {/* 图标 */}
       <div
-        className="w-9 h-9 rounded-full flex items-center justify-center"
+        className="w-6 h-6 rounded-full flex items-center justify-center"
         style={{
           background: 'linear-gradient(135deg, var(--color-amber) 0%, var(--color-gold) 100%)',
         }}
       >
-        <Sparkles className="w-4 h-4 text-white" />
+        <Sparkles className="w-3 h-3 text-white" />
       </div>
 
       {/* 垂直文字 */}
       <div
-        className="font-display text-xs font-medium writing-vertical"
+        className="font-display text-[10px] font-medium"
         style={{
-          color: 'var(--color-sepia)',
+          color: 'var(--color-muted)',
           writingMode: 'vertical-rl',
           textOrientation: 'mixed',
+          letterSpacing: '0.05em',
         }}
       >
-        Research
+        RESEARCH
       </div>
 
       {/* 消息数 */}
       {messageCount > 0 && (
         <span
-          className="px-1.5 py-0.5 rounded-full text-[10px] font-mono"
+          className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-mono"
           style={{
             background: 'rgba(184, 134, 11, 0.1)',
             color: 'var(--color-amber)',
@@ -76,7 +77,7 @@ function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messag
       )}
 
       {/* 展开箭头 */}
-      <ChevronLeft className="w-4 h-4 group-hover:translate-x-[-2px] transition-transform" style={{ color: 'var(--color-muted)' }} />
+      <ChevronLeft className="w-3 h-3 group-hover:translate-x-[-1px] transition-transform" style={{ color: 'var(--color-faint)' }} />
     </div>
   )
 }
