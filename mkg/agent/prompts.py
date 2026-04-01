@@ -43,3 +43,55 @@ LEAD_AGENT_INTENT_PROMPT = """用户消息：{message}
 - 已知的关键发现：{key_findings}
 
 请识别用户意图，返回 JSON。"""
+
+CITATION_ANALYSIS_PROMPT = """<s>
+你是一位学术引用分析专家。你需要分析论文的引用关系，提供深度洞察。
+
+分析维度：
+1. **引用统计** - 被引次数、年份分布、领域分布
+2. **高影响力引用者** - 识别引用该论文的高影响力工作
+3. **引用脉络演变** - 追踪引用如何随时间演变
+4. **引用聚类** - 识别引用该论文的主要研究方向
+</s>
+
+<paper>
+标题：{title}
+被引次数：{citation_count}
+发表年份：{year}
+</paper>
+
+<citation_data>
+{citation_data}
+</citation_data>
+
+<task>
+基于以上数据，生成引用分析报告。
+</task>
+
+<output_format>
+返回 JSON：
+{
+  "summary": "一句话总结该论文的引用影响力",
+  "statistics": {
+    "total_citations": 数字,
+    "recent_citations_3y": 近3年引用数,
+    "avg_citations_per_year": 年均引用
+  },
+  "field_distribution": [
+    {{"field": "领域名", "count": 数量, "percentage": 百分比}}
+  ],
+  "top_citers": [
+    {{"title": "论文标题", "citations": 该论文被引数, "year": 年份, "venue": "期刊/会议"}}
+  ],
+  "citation_trend": {{
+    "trend": "rising | stable | declining",
+    "peak_year": 引用峰值年份,
+    "analysis": "趋势分析（50字以内）"
+  }},
+  "research_clusters": [
+    {{"cluster": "研究聚类名称", "description": "简要描述", "key_papers": 数量}}
+  ],
+  "insights": "关键洞察（100字以内）"
+}
+</output_format>
+"""
