@@ -17,21 +17,21 @@ function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messag
         bottom: '16px',
         width: '800px',
         height: '52px',
-        background: 'rgba(250, 248, 245, 0.06)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        border: '1px solid rgba(184, 134, 11, 0.12)',
+        background: 'rgba(250, 248, 245, 0.01)',
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
+        border: '1px solid rgba(184, 134, 11, 0.08)',
         borderRadius: '26px',
-        boxShadow: '0 2px 16px rgba(44, 24, 16, 0.02)',
+        boxShadow: '0 2px 16px rgba(44, 24, 16, 0.01)',
         transition: 'all 0.25s ease-out',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.1)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.2)'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.02)'
+        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.15)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.06)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.12)'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.01)'
+        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.08)'
       }}
     >
       <div className="flex items-center justify-between h-full px-6">
@@ -136,10 +136,10 @@ function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
         ...(isUser ? {
           background: 'linear-gradient(135deg, var(--color-amber) 0%, var(--color-gold) 100%)',
           color: 'var(--color-vellum)',
-          boxShadow: '0 2px 10px rgba(184, 134, 11, 0.12)',
+          boxShadow: '0 2px 8px rgba(184, 134, 11, 0.1)',
         } : {
-          background: 'rgba(245, 240, 232, 0.08)',
-          border: '1px solid rgba(184, 134, 11, 0.06)',
+          background: 'rgba(245, 240, 232, 0.02)',
+          border: '1px solid rgba(184, 134, 11, 0.04)',
           color: 'var(--color-ink)',
         })
       }}
@@ -213,7 +213,7 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
       className="p-4 flex-shrink-0"
       style={{
         background: 'transparent',
-        borderTop: '1px solid rgba(184, 134, 11, 0.08)',
+        borderTop: '1px solid rgba(184, 134, 11, 0.06)',
       }}
     >
       <div className="flex items-center gap-3">
@@ -225,8 +225,8 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
           style={{
             flex: 1,
             padding: '0.75rem 1rem',
-            background: 'rgba(245, 240, 232, 0.06)',
-            border: '1px solid rgba(184, 134, 11, 0.1)',
+            background: 'rgba(245, 240, 232, 0.02)',
+            border: '1px solid rgba(184, 134, 11, 0.08)',
             borderRadius: '8px',
             color: 'var(--color-ink)',
             fontFamily: 'var(--font-body)',
@@ -364,12 +364,12 @@ export default function ResearchAgentBubble() {
         height: '600px',
         left: dialogPosition.x,
         top: dialogPosition.y,
-        background: 'rgba(250, 248, 245, 0.06)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        border: '1px solid rgba(184, 134, 11, 0.1)',
+        background: 'rgba(250, 248, 245, 0.01)',
+        backdropFilter: 'blur(2px)',
+        WebkitBackdropFilter: 'blur(2px)',
+        border: '1px solid rgba(184, 134, 11, 0.08)',
         borderRadius: '20px',
-        boxShadow: '0 4px 32px rgba(44, 24, 16, 0.04)',
+        boxShadow: '0 4px 24px rgba(44, 24, 16, 0.02)',
         animation: 'expandUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
