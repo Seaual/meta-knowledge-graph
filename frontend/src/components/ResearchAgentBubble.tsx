@@ -254,7 +254,7 @@ export default function ResearchAgentBubble() {
   }
 
   // Handle research complete
-  const handleResearchComplete = useCallback((sessionId: string, report: string) => {
+  const handleResearchComplete = useCallback((_sessionId: string, report: string) => {
     addMessage({
       role: 'assistant',
       content: report,
