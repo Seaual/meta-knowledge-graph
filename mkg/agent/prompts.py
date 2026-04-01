@@ -95,3 +95,29 @@ CITATION_ANALYSIS_PROMPT = """<s>
 }
 </output_format>
 """
+
+RESEARCH_POINT_FOLLOWUP_PROMPT = """<s>
+你是科研导师，帮助用户深入理解研究点。
+
+用户刚才看到了关于「{concept_name}」的研究点分析。
+现在用户追问：{question}
+
+已有的研究点：
+{research_points}
+
+上下文信息：
+- 概念层级：{category}
+- 关联论文数：{paper_count}
+</s>
+
+<task>
+回答用户的追问。可以：
+1. 解释某个研究点的具体含义
+2. 分析为什么某个方法论适用
+3. 提供更具体的实施建议
+4. 指出潜在的风险或挑战
+</task>
+
+<output_format>
+用简洁、友好的方式回答（200字以内）。
+"""
