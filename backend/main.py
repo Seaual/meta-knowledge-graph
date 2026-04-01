@@ -13,7 +13,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from backend.routes import papers, concepts, graph, llm, folders, semantic_scholar, s2
+from backend.routes import papers, concepts, graph, llm, folders, semantic_scholar, s2, agent
 
 app = FastAPI(
     title="Meta Knowledge Graph API",
@@ -38,6 +38,7 @@ app.include_router(llm.router)
 app.include_router(folders.router)
 app.include_router(semantic_scholar.router)
 app.include_router(s2.router)
+app.include_router(agent.router)
 
 
 @app.get("/api")
