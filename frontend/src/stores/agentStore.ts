@@ -18,6 +18,7 @@ export interface Message {
   role: 'user' | 'assistant'
   content: string
   agent?: 'lead' | 'citation' | 'research' | 'deep_research'
+  researchSessionId?: string
   timestamp: number
 }
 

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { MessageCircle, X, Minus, Send, Loader2 } from 'lucide-react'
 import { useAgentStore, Message } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
+import { DeepResearchProgress } from './DeepResearchProgress'
 
 // Bubble button (minimized state)
 function BubbleButton({ onClick }: { onClick: () => void }) {
@@ -57,7 +58,7 @@ function DialogHeader({
 }
 
 // Message list
-function MessageList({ messages }: { messages: Message[] }) {
+function MessageList({ messages, onResearchComplete }: { messages: Message[]; onResearchComplete: (sessionId: string, report: string) => void }) {
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -82,7 +83,7 @@ function MessageList({ messages }: { messages: Message[] }) {
       {messages.map((msg) => (
         <div
           key={msg.id}
-          className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
         >
           <div
             className={`max-w-[85%] px-3 py-2 rounded-xl text-sm ${
@@ -93,6 +94,15 @@ function MessageList({ messages }: { messages: Message[] }) {
           >
             {msg.content}
           </div>
+          {/* Show progress for deep research */}
+          {msg.role === 'assistant' && msg.agent === 'deep_research' && msg.researchSessionId && (
+            <div className="w-full max-w-[85%] mt-2">
+              <DeepResearchProgress
+                sessionId={msg.researchSessionId}
+                onComplete={(report) => onResearchComplete(msg.researchSessionId!, report)}
+              />
+            </div>
+          )}
         </div>
       ))}
     </div>
@@ -214,11 +224,21 @@ export default function ResearchAgentBubble() {
         setCurrentAgent(response.agent as any)
       }
 
-      addMessage({
-        role: 'assistant',
-        content: response.message,
-        agent: response.agent as any,
-      })
+      // Handle deep research with session
+      if (response.researchSessionId) {
+        addMessage({
+          role: 'assistant',
+          content: response.message,
+          agent: 'deep_research',
+          researchSessionId: response.researchSessionId,
+        })
+      } else {
+        addMessage({
+          role: 'assistant',
+          content: response.message,
+          agent: response.agent as any,
+        })
+      }
 
       if (response.contextUpdate) {
         updateContext(response.contextUpdate)
@@ -232,6 +252,15 @@ export default function ResearchAgentBubble() {
       setLoading(false)
     }
   }
+
+  // Handle research complete
+  const handleResearchComplete = useCallback((sessionId: string, report: string) => {
+    addMessage({
+      role: 'assistant',
+      content: report,
+      agent: 'deep_research',
+    })
+  }, [addMessage])
 
   // Show bubble button when minimized
   if (isMinimized || !isOpen) {
@@ -257,7 +286,7 @@ export default function ResearchAgentBubble() {
         onClose={() => useAgentStore.setState({ isOpen: false })}
         onMouseDown={handleMouseDown}
       />
-      <MessageList messages={messages} />
+      <MessageList messages={messages} onResearchComplete={handleResearchComplete} />
       <ChatInput onSend={handleSend} isLoading={isLoading} />
     </div>
   )
