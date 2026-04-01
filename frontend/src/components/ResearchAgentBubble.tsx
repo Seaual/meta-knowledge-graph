@@ -1,77 +1,107 @@
 // frontend/src/components/ResearchAgentBubble.tsx
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { X, Send, Loader2, Maximize2, Minimize2, Sparkles } from 'lucide-react'
+import { Send, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useAgentStore, Message } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
 import { DeepResearchProgress } from './DeepResearchProgress'
 
-// 科技感头部 - 学术风格
+// 静默状态 - 窄条
+function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messageCount: number }) {
+  return (
+    <div
+      onClick={onExpand}
+      className="fixed z-50 cursor-pointer transition-all duration-300 hover:shadow-lg group"
+      style={{
+        left: '50%',
+        transform: 'translateX(-50%)',
+        bottom: '24px',
+        width: '280px',
+        height: '48px',
+        background: 'rgba(250, 248, 245, 0.85)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '24px',
+        border: '1px solid rgba(184, 134, 11, 0.12)',
+        boxShadow: '0 4px 20px rgba(44, 24, 16, 0.08)',
+      }}
+    >
+      {/* 渐变光效 */}
+      <div
+        className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.08) 0%, transparent 50%, rgba(212, 160, 18, 0.05) 100%)',
+        }}
+      />
+
+      <div className="flex items-center justify-between h-full px-4">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="w-7 h-7 rounded-full flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #b8860b 0%, #d4a012 100%)',
+              boxShadow: '0 2px 8px rgba(184, 134, 11, 0.25)',
+            }}
+          >
+            <Sparkles className="w-4 h-4 text-white" />
+          </div>
+          <span className="font-display text-sm font-medium text-academic-ink">研究助手</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {messageCount > 0 && (
+            <span
+              className="px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{
+                background: 'rgba(184, 134, 11, 0.1)',
+                color: '#b8860b',
+              }}
+            >
+              {messageCount}
+            </span>
+          )}
+          <ChevronLeft className="w-4 h-4 text-academic-muted group-hover:text-academic-amber transition-colors" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// 展开状态头部
 function DialogHeader({
   onMouseDown,
-  isExpanded,
-  onToggleExpand,
-  onClose,
+  onCollapse,
 }: {
   onMouseDown: (e: React.MouseEvent) => void
-  isExpanded: boolean
-  onToggleExpand: () => void
-  onClose: () => void
+  onCollapse: () => void
 }) {
   return (
     <div
       className="flex items-center justify-between px-4 py-2.5 cursor-move select-none relative"
       style={{
-        background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.08) 0%, rgba(212, 160, 18, 0.04) 100%)',
-        borderBottom: '1px solid rgba(184, 134, 11, 0.15)',
+        background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.06) 0%, rgba(212, 160, 18, 0.03) 100%)',
+        borderBottom: '1px solid rgba(184, 134, 11, 0.1)',
       }}
       onMouseDown={onMouseDown}
     >
-      {/* 流光动画 */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      <div className="flex items-center gap-2.5">
         <div
-          className="absolute inset-0 opacity-30"
-          style={{
-            background: 'linear-gradient(90deg, transparent, rgba(212, 160, 18, 0.3), transparent)',
-            animation: 'shimmer 3s linear infinite',
-            backgroundSize: '200% 100%',
-          }}
-        />
-      </div>
-
-      <div className="flex items-center gap-2.5 relative z-10">
-        <div
-          className="w-6 h-6 rounded-md flex items-center justify-center"
+          className="w-6 h-6 rounded-full flex items-center justify-center"
           style={{
             background: 'linear-gradient(135deg, #b8860b 0%, #d4a012 100%)',
-            boxShadow: '0 0 8px rgba(184, 134, 11, 0.3)',
           }}
         >
           <Sparkles className="w-3.5 h-3.5 text-white" />
         </div>
-        <div className="flex items-baseline gap-1.5">
-          <span className="font-display text-base font-semibold text-academic-ink">
-            Research Assistant
-          </span>
-          <span className="text-academic-amber text-[10px] font-mono animate-pulse-soft">●</span>
-        </div>
+        <span className="font-display text-sm font-semibold text-academic-ink">Research Assistant</span>
+        <span className="w-1.5 h-1.5 rounded-full bg-academic-amber animate-pulse" />
       </div>
 
-      <div className="flex items-center gap-1 relative z-10">
-        <button
-          onClick={onToggleExpand}
-          className="w-7 h-7 rounded-soft flex items-center justify-center text-academic-muted hover:text-academic-sepia hover:bg-academic-amber/10 transition-all"
-          title={isExpanded ? "缩小" : "放大"}
-        >
-          {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-        </button>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-soft flex items-center justify-center text-academic-muted hover:text-status-error hover:bg-status-error/10 transition-all"
-          title="关闭"
-        >
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      <button
+        onClick={onCollapse}
+        className="flex items-center gap-1 px-2 py-1 rounded-soft text-xs text-academic-muted hover:text-academic-sepia hover:bg-academic-amber/10 transition-all"
+      >
+        <span>收起</span>
+        <ChevronRight className="w-3.5 h-3.5" />
+      </button>
     </div>
   )
 }
@@ -80,7 +110,7 @@ function DialogHeader({
 function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
   return (
     <div
-      className={`max-w-[85%] px-3 py-2 rounded-medium text-sm relative transition-all duration-200 hover:shadow-paper ${
+      className={`max-w-[80%] px-3 py-2 rounded-medium text-sm transition-all duration-200 ${
         isUser ? 'ml-auto' : 'mr-auto'
       }`}
       style={{
@@ -88,21 +118,14 @@ function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
         ...(isUser ? {
           background: 'linear-gradient(135deg, #b8860b 0%, #d4a012 100%)',
           color: '#fffef9',
-          boxShadow: '0 2px 8px rgba(184, 134, 11, 0.2)',
+          boxShadow: '0 2px 8px rgba(184, 134, 11, 0.15)',
         } : {
           background: 'rgba(245, 240, 232, 0.9)',
-          border: '1px solid rgba(184, 134, 11, 0.12)',
+          border: '1px solid rgba(184, 134, 11, 0.1)',
           color: '#2c1810',
         })
       }}
     >
-      {/* 装饰性角标 */}
-      {!isUser && (
-        <div
-          className="absolute -left-1 top-3 w-2 h-2 rotate-45"
-          style={{ background: 'rgba(245, 240, 232, 0.9)', borderLeft: '1px solid rgba(184, 134, 11, 0.12)', borderBottom: '1px solid rgba(184, 134, 11, 0.12)' }}
-        />
-      )}
       <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
     </div>
   )
@@ -121,34 +144,18 @@ function MessageList({ messages, onResearchComplete }: { messages: Message[]; on
   return (
     <div
       ref={listRef}
-      className="flex-1 overflow-y-auto p-4 space-y-3"
+      className="flex-1 overflow-y-auto p-3 space-y-2.5"
       style={{
         background: 'linear-gradient(180deg, rgba(250, 248, 245, 0.95) 0%, rgba(245, 240, 232, 0.98) 100%)',
-        backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23b8860b\' fill-opacity=\'0.02\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")',
       }}
     >
       {messages.length === 0 && (
-        <div className="text-center py-8 animate-fade-in">
-          <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-medium mb-4"
-            style={{
-              background: 'rgba(184, 134, 11, 0.08)',
-              border: '1px solid rgba(184, 134, 11, 0.15)',
-            }}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-academic-amber animate-pulse" />
-            <span className="text-xs font-mono text-academic-sepia">READY</span>
-          </div>
-          <p className="text-sm text-academic-ink font-medium mb-1">研究助手已就绪</p>
-          <p className="text-xs text-academic-muted mb-4">支持以下研究功能</p>
-          <div className="flex flex-col gap-2 text-xs text-academic-muted">
-            {['分析论文引用关系', '发现概念研究点', '深入研究主题'].map((item, i) => (
-              <div
-                key={i}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-soft mx-auto hover:bg-academic-amber/5 hover:text-academic-sepia transition-all cursor-pointer"
-              >
-                <span className="text-academic-gold">→</span>
-                <span>{item}</span>
+        <div className="text-center py-6 animate-fade-in">
+          <p className="text-sm text-academic-ink font-medium mb-3">研究助手已就绪</p>
+          <div className="flex flex-col gap-1.5 text-xs text-academic-muted">
+            {['分析论文引用', '发现研究点', '深入研究主题'].map((item, i) => (
+              <div key={i} className="py-1 hover:text-academic-sepia transition-colors">
+                → {item}
               </div>
             ))}
           </div>
@@ -158,9 +165,8 @@ function MessageList({ messages, onResearchComplete }: { messages: Message[]; on
       {messages.map((msg) => (
         <div key={msg.id} className="animate-slide-up">
           <MessageBubble msg={msg} isUser={msg.role === 'user'} />
-
           {msg.role === 'assistant' && msg.agent === 'deep_research' && msg.researchSessionId && (
-            <div className="mt-2 max-w-[85%]">
+            <div className="mt-2 max-w-[80%]">
               <DeepResearchProgress
                 sessionId={msg.researchSessionId}
                 onComplete={(report) => onResearchComplete(msg.researchSessionId!, report)}
@@ -174,13 +180,7 @@ function MessageList({ messages, onResearchComplete }: { messages: Message[]; on
 }
 
 // 输入区域
-function ChatInput({
-  onSend,
-  isLoading,
-}: {
-  onSend: (message: string) => void
-  isLoading: boolean
-}) {
+function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; isLoading: boolean }) {
   const [input, setInput] = useState('')
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -194,57 +194,43 @@ function ChatInput({
   return (
     <form
       onSubmit={handleSubmit}
-      className="p-3 relative"
+      className="p-3"
       style={{
         background: 'rgba(250, 248, 245, 0.98)',
-        borderTop: '1px solid rgba(184, 134, 11, 0.1)',
+        borderTop: '1px solid rgba(184, 134, 11, 0.08)',
       }}
     >
       <div className="flex items-center gap-2">
-        <div className="flex-1 relative">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="输入研究问题..."
-            className="w-full px-3 py-2 rounded-medium text-sm outline-none transition-all focus:ring-2 focus:ring-academic-amber/30"
-            style={{
-              fontFamily: '"Source Sans 3", system-ui, sans-serif',
-              background: 'rgba(245, 240, 232, 0.8)',
-              border: '1px solid rgba(184, 134, 11, 0.15)',
-              color: '#2c1810',
-            }}
-            disabled={isLoading}
-          />
-          {/* 输入框装饰线 */}
-          <div
-            className="absolute bottom-0 left-3 right-3 h-px opacity-50"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(184, 134, 11, 0.3), transparent)' }}
-          />
-        </div>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="输入问题..."
+          className="flex-1 px-3 py-2 rounded-medium text-sm outline-none transition-all focus:ring-2 focus:ring-academic-amber/20"
+          style={{
+            background: 'rgba(245, 240, 232, 0.8)',
+            border: '1px solid rgba(184, 134, 11, 0.12)',
+            color: '#2c1810',
+          }}
+          disabled={isLoading}
+        />
         <button
           type="submit"
           disabled={!input.trim() || isLoading}
-          className="px-3 py-2 rounded-medium text-sm font-medium transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 py-2 rounded-medium text-sm transition-all disabled:opacity-40"
           style={{
-            fontFamily: '"Source Sans 3", system-ui, sans-serif',
             background: 'linear-gradient(135deg, #b8860b 0%, #d4a012 100%)',
             color: '#fffef9',
-            boxShadow: input.trim() ? '0 2px 8px rgba(184, 134, 11, 0.25)' : 'none',
           }}
         >
-          {isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <Send className="w-4 h-4" />
-          )}
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </button>
       </div>
     </form>
   )
 }
 
-// 主组件 - 学术科技感浮框
+// 主组件
 export default function ResearchAgentBubble() {
   const {
     isOpen,
@@ -252,7 +238,6 @@ export default function ResearchAgentBubble() {
     messages,
     isLoading,
     contextSummary,
-    setOpen,
     setPosition,
     addMessage,
     setLoading,
@@ -260,17 +245,17 @@ export default function ResearchAgentBubble() {
     setCurrentAgent,
   } = useAgentStore()
 
+  const [isExpanded, setIsExpanded] = useState(false)
   const [dragging, setDragging] = useState(false)
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
-  const [isExpanded, setIsExpanded] = useState(false)
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // 初始化位置
   useEffect(() => {
     if (!position.x && !position.y) {
       setPosition({
-        x: window.innerWidth / 2 - 200,
-        y: window.innerHeight - 380,
+        x: window.innerWidth / 2 - 180,
+        y: window.innerHeight - 480,
       })
     }
   }, [])
@@ -293,7 +278,7 @@ export default function ResearchAgentBubble() {
 
     const handleMouseMove = (e: MouseEvent) => {
       setPosition({
-        x: Math.max(0, Math.min(e.clientX - dragOffset.x, window.innerWidth - 350)),
+        x: Math.max(0, Math.min(e.clientX - dragOffset.x, window.innerWidth - 360)),
         y: Math.max(0, Math.min(e.clientY - dragOffset.y, window.innerHeight - 200)),
       })
     }
@@ -335,7 +320,7 @@ export default function ResearchAgentBubble() {
 
       if (response.contextUpdate) updateContext(response.contextUpdate)
     } catch {
-      addMessage({ role: 'assistant', content: '抱歉，处理请求时遇到问题，请稍后重试。' })
+      addMessage({ role: 'assistant', content: '处理请求时遇到问题，请重试。' })
     } finally {
       setLoading(false)
     }
@@ -347,43 +332,45 @@ export default function ResearchAgentBubble() {
 
   if (!isOpen) return null
 
-  const dialogWidth = isExpanded ? 520 : 400
-  const dialogHeight = isExpanded ? 580 : 340
+  // 静默状态 - 窄条
+  if (!isExpanded) {
+    return <CollapsedBar onExpand={() => setIsExpanded(true)} messageCount={messages.length} />
+  }
 
+  // 展开状态 - 宽对话框
   return (
     <div
       ref={dialogRef}
-      className="fixed rounded-large flex flex-col z-50 overflow-hidden animate-fade-in"
+      className="fixed z-50 flex flex-col overflow-hidden animate-fade-in"
       style={{
-        width: dialogWidth,
-        height: dialogHeight,
-        left: position.x || window.innerWidth / 2 - 200,
-        top: position.y || window.innerHeight - 380,
-        background: 'rgba(250, 248, 245, 0.92)',
-        backdropFilter: 'blur(12px)',
-        boxShadow: '0 8px 32px rgba(44, 24, 16, 0.12), 0 2px 8px rgba(44, 24, 16, 0.08)',
-        border: '1px solid rgba(184, 134, 11, 0.12)',
+        width: '360px',
+        height: '520px',
+        left: position.x || window.innerWidth / 2 - 180,
+        top: position.y || window.innerHeight - 560,
+        background: 'rgba(250, 248, 245, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderRadius: '16px',
+        border: '1px solid rgba(184, 134, 11, 0.1)',
+        boxShadow: '0 8px 32px rgba(44, 24, 16, 0.1)',
+        // 边缘透明渐变
+        maskImage: 'linear-gradient(white, white)',
+        WebkitMaskImage: 'linear-gradient(white, white)',
       }}
     >
-      {/* 装饰性角标 */}
-      <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-academic-amber/30 rounded-tl-large pointer-events-none" />
-      <div className="absolute top-0 right-0 w-4 h-4 border-t-2 border-r-2 border-academic-amber/30 rounded-tr-large pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-4 h-4 border-b-2 border-l-2 border-academic-amber/30 rounded-bl-large pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-4 h-4 border-b-2 border-r-2 border-academic-amber/30 rounded-br-large pointer-events-none" />
-
-      {/* 发光边缘效果 */}
+      {/* 边缘透明效果 */}
       <div
-        className="absolute inset-0 rounded-large pointer-events-none"
+        className="absolute inset-0 rounded-2xl pointer-events-none"
         style={{
-          background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.05) 0%, transparent 50%, rgba(212, 160, 18, 0.03) 100%)',
+          background: `
+            linear-gradient(180deg, rgba(184, 134, 11, 0.03) 0%, transparent 20%, transparent 80%, rgba(184, 134, 11, 0.02) 100%),
+            linear-gradient(90deg, rgba(184, 134, 11, 0.02) 0%, transparent 15%, transparent 85%, rgba(184, 134, 11, 0.02) 100%)
+          `,
         }}
       />
 
       <DialogHeader
         onMouseDown={handleMouseDown}
-        isExpanded={isExpanded}
-        onToggleExpand={() => setIsExpanded(!isExpanded)}
-        onClose={() => setOpen(false)}
+        onCollapse={() => setIsExpanded(false)}
       />
       <MessageList messages={messages} onResearchComplete={handleResearchComplete} />
       <ChatInput onSend={handleSend} isLoading={isLoading} />
