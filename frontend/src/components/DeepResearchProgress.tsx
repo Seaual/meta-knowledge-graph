@@ -40,25 +40,25 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
 
   return (
     <div
-      className="p-3 rounded-medium animate-fade-in"
+      className="p-4 rounded-medium animate-fade-in"
       style={{
-        fontFamily: '"Source Sans 3", system-ui, sans-serif',
-        background: 'rgba(245, 240, 232, 0.8)',
-        border: '1px solid rgba(184, 134, 11, 0.15)',
+        fontFamily: 'var(--font-body)',
+        background: 'rgba(245, 240, 232, 0.7)',
+        border: '1px solid rgba(184, 134, 11, 0.12)',
       }}
     >
       {/* 进度标题 */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <span className="w-1.5 h-1.5 rounded-full bg-academic-amber animate-pulse" />
-          <span className="text-xs font-medium text-academic-sepia">深入研究进度</span>
+          <span className="w-2 h-2 rounded-full bg-academic-amber animate-pulse" />
+          <span className="text-sm font-medium" style={{ color: 'var(--color-sepia)' }}>深入研究进度</span>
         </div>
-        <span className="text-xs font-mono text-academic-muted">{progress}%</span>
+        <span className="text-sm font-mono" style={{ color: 'var(--color-muted)' }}>{progress}%</span>
       </div>
 
       {/* 进度条 */}
       <div
-        className="w-full h-1.5 rounded-full overflow-hidden"
+        className="w-full h-2 rounded-full overflow-hidden"
         style={{ background: 'rgba(184, 134, 11, 0.1)' }}
       >
         <div
@@ -66,34 +66,32 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
           style={{
             width: `${progress}%`,
             background: 'linear-gradient(90deg, #b8860b 0%, #d4a012 100%)',
-            boxShadow: progress > 0 ? '0 0 8px rgba(184, 134, 11, 0.4)' : 'none',
+            boxShadow: progress > 0 ? '0 0 12px rgba(184, 134, 11, 0.3)' : 'none',
           }}
         />
       </div>
 
       {/* 维度列表 */}
-      <div className="mt-3 space-y-1.5">
+      <div className="mt-4 space-y-2">
         {dimensions.map((dim, i) => (
           <div
             key={dim}
-            className="flex items-center gap-2 text-xs py-1 px-2 rounded-soft transition-all"
+            className="flex items-center gap-2.5 text-sm py-1.5 px-2.5 rounded-soft transition-all"
             style={{
               animationDelay: `${i * 100}ms`,
-              background: completed.includes(dim) ? 'rgba(45, 90, 39, 0.05)' : 'transparent',
+              background: completed.includes(dim) ? 'rgba(45, 90, 39, 0.06)' : 'transparent',
             }}
           >
             {completed.includes(dim) ? (
-              <CheckCircle className="w-3.5 h-3.5 text-status-success" />
+              <CheckCircle className="w-4 h-4" style={{ color: '#2d5a27' }} />
             ) : (
-              <Loader2 className="w-3.5 h-3.5 text-academic-amber animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-amber)' }} />
             )}
-            <span
-              className={completed.includes(dim) ? 'text-academic-ink' : 'text-academic-muted'}
-            >
+            <span style={{ color: completed.includes(dim) ? 'var(--color-ink)' : 'var(--color-muted)' }}>
               {dim}
             </span>
             {completed.includes(dim) && (
-              <span className="ml-auto text-[10px] font-mono text-status-success">✓</span>
+              <span className="ml-auto text-xs font-mono" style={{ color: '#2d5a27' }}>✓</span>
             )}
           </div>
         ))}
@@ -102,13 +100,13 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
       {/* 完成状态 */}
       {status === 'completed' && (
         <div
-          className="flex items-center gap-2 text-xs pt-2 mt-2"
+          className="flex items-center gap-2 text-sm pt-3 mt-3"
           style={{
             borderTop: '1px solid rgba(184, 134, 11, 0.1)',
             color: '#2d5a27',
           }}
         >
-          <FileText className="w-3.5 h-3.5" />
+          <FileText className="w-4 h-4" />
           <span className="font-medium">研究完成，报告已生成</span>
         </div>
       )}
