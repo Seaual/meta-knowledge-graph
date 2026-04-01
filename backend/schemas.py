@@ -289,3 +289,42 @@ class S2ReferencesResponse(BaseModel):
     """S2 参考文献 列表响应"""
     references: List[S2Reference]
     total: int
+
+
+# Agent schemas
+class ContextSummary(BaseModel):
+    """Agent context summary for chat requests"""
+    currentTarget: Optional[dict] = None
+    contextTags: List[str] = []
+    keyFindings: List[str] = []
+    intentHistory: List[str] = []
+    lastActiveAgent: str = 'lead'
+
+
+class AgentChatRequest(BaseModel):
+    """Request for agent chat endpoint"""
+    message: str
+    context: ContextSummary
+
+
+class AgentChatResponse(BaseModel):
+    """Response from agent chat endpoint"""
+    message: str
+    agent: str
+    contextUpdate: Optional[dict] = None
+    researchSessionId: Optional[str] = None
+
+
+class DeepResearchStartRequest(BaseModel):
+    """Request to start deep research on a target"""
+    targetId: str
+    targetType: str  # 'concept' | 'paper'
+    query: str
+
+
+class DeepResearchStatusResponse(BaseModel):
+    """Response for deep research status"""
+    status: str
+    progress: int
+    dimensions: List[str]
+    completedDimensions: List[str]
