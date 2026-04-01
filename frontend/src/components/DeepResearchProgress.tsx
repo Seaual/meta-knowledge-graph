@@ -43,14 +43,14 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
       className="p-4 rounded-medium animate-fade-in"
       style={{
         fontFamily: 'var(--font-body)',
-        background: 'rgba(245, 240, 232, 0.7)',
-        border: '1px solid rgba(184, 134, 11, 0.12)',
+        background: 'rgba(245, 240, 232, 0.08)',
+        border: '1px solid rgba(184, 134, 11, 0.1)',
       }}
     >
       {/* 进度标题 */}
       <div className="flex items-center justify-between mb-2.5">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-academic-amber animate-pulse" />
+          <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: 'var(--color-amber)' }} />
           <span className="text-sm font-medium" style={{ color: 'var(--color-sepia)' }}>深入研究进度</span>
         </div>
         <span className="text-sm font-mono" style={{ color: 'var(--color-muted)' }}>{progress}%</span>
@@ -59,14 +59,14 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
       {/* 进度条 */}
       <div
         className="w-full h-2 rounded-full overflow-hidden"
-        style={{ background: 'rgba(184, 134, 11, 0.1)' }}
+        style={{ background: 'rgba(184, 134, 11, 0.08)' }}
       >
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{
             width: `${progress}%`,
             background: 'linear-gradient(90deg, #b8860b 0%, #d4a012 100%)',
-            boxShadow: progress > 0 ? '0 0 12px rgba(184, 134, 11, 0.3)' : 'none',
+            boxShadow: progress > 0 ? '0 0 12px rgba(184, 134, 11, 0.25)' : 'none',
           }}
         />
       </div>
@@ -79,7 +79,7 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
             className="flex items-center gap-2.5 text-sm py-1.5 px-2.5 rounded-soft transition-all"
             style={{
               animationDelay: `${i * 100}ms`,
-              background: completed.includes(dim) ? 'rgba(45, 90, 39, 0.06)' : 'transparent',
+              background: completed.includes(dim) ? 'rgba(45, 90, 39, 0.08)' : 'transparent',
             }}
           >
             {completed.includes(dim) ? (
@@ -102,7 +102,7 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
         <div
           className="flex items-center gap-2 text-sm pt-3 mt-3"
           style={{
-            borderTop: '1px solid rgba(184, 134, 11, 0.1)',
+            borderTop: '1px solid rgba(184, 134, 11, 0.08)',
             color: '#2d5a27',
           }}
         >
