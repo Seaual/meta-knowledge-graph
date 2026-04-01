@@ -1,74 +1,82 @@
 // frontend/src/components/ResearchAgentBubble.tsx
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Loader2, ChevronUp, ChevronDown, Sparkles } from 'lucide-react'
+import { Send, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useAgentStore, Message } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
 import { DeepResearchProgress } from './DeepResearchProgress'
 
-// 静默状态 - 底部长条
+// 静默状态 - 右侧垂直窄条
 function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messageCount: number }) {
   return (
     <div
       onClick={onExpand}
       className="fixed z-50 cursor-pointer group"
       style={{
-        left: '50%',
-        transform: 'translateX(-50%)',
-        bottom: '16px',
-        width: '800px',
-        height: '52px',
+        right: 0,
+        top: '50%',
+        transform: 'translateY(-50%)',
+        width: '48px',
+        height: '200px',
         background: 'rgba(250, 248, 245, 0.01)',
         backdropFilter: 'blur(2px)',
         WebkitBackdropFilter: 'blur(2px)',
         border: '1px solid rgba(184, 134, 11, 0.08)',
-        borderRadius: '26px',
-        boxShadow: '0 2px 16px rgba(44, 24, 16, 0.01)',
-        transition: 'all 0.25s ease-out',
+        borderRight: 'none',
+        borderRadius: '20px 0 0 20px',
+        boxShadow: '-2px 0 16px rgba(44, 24, 16, 0.02)',
+        transition: 'all 0.3s ease-out',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.02)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.15)'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.03)'
+        e.currentTarget.style.width = '56px'
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'rgba(250, 248, 245, 0.01)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.08)'
+        e.currentTarget.style.width = '48px'
       }}
     >
-      <div className="flex items-center justify-between h-full px-6">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center"
-            style={{
-              background: 'linear-gradient(135deg, var(--color-amber) 0%, var(--color-gold) 100%)',
-            }}
-          >
-            <Sparkles className="w-4 h-4 text-white" />
-          </div>
-          <div className="flex items-baseline gap-3">
-            <span className="font-display text-base font-medium" style={{ color: 'var(--color-sepia)' }}>
-              Research Assistant
-            </span>
-            <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
-              点击展开对话
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {messageCount > 0 && (
-            <span
-              className="px-3 py-1 rounded-full text-xs font-mono"
-              style={{
-                background: 'rgba(184, 134, 11, 0.1)',
-                color: 'var(--color-amber)',
-              }}
-            >
-              {messageCount} 条消息
-            </span>
-          )}
-          <ChevronUp className="w-5 h-5 group-hover:translate-y-[-2px] transition-transform" style={{ color: 'var(--color-muted)' }} />
-        </div>
+      {/* 图标 */}
+      <div
+        className="w-9 h-9 rounded-full flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, var(--color-amber) 0%, var(--color-gold) 100%)',
+        }}
+      >
+        <Sparkles className="w-4 h-4 text-white" />
       </div>
+
+      {/* 垂直文字 */}
+      <div
+        className="font-display text-xs font-medium writing-vertical"
+        style={{
+          color: 'var(--color-sepia)',
+          writingMode: 'vertical-rl',
+          textOrientation: 'mixed',
+        }}
+      >
+        Research
+      </div>
+
+      {/* 消息数 */}
+      {messageCount > 0 && (
+        <span
+          className="px-1.5 py-0.5 rounded-full text-[10px] font-mono"
+          style={{
+            background: 'rgba(184, 134, 11, 0.1)',
+            color: 'var(--color-amber)',
+          }}
+        >
+          {messageCount}
+        </span>
+      )}
+
+      {/* 展开箭头 */}
+      <ChevronLeft className="w-4 h-4 group-hover:translate-x-[-2px] transition-transform" style={{ color: 'var(--color-muted)' }} />
     </div>
   )
 }
@@ -83,10 +91,10 @@ function DialogHeader({
 }) {
   return (
     <div
-      className="flex items-center justify-between px-6 py-3 cursor-move select-none"
+      className="flex items-center justify-between px-5 py-3 cursor-move select-none"
       style={{
         background: 'transparent',
-        borderBottom: '1px solid rgba(184, 134, 11, 0.08)',
+        borderBottom: '1px solid rgba(184, 134, 11, 0.06)',
       }}
       onMouseDown={onMouseDown}
     >
@@ -109,7 +117,7 @@ function DialogHeader({
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-medium transition-all"
         style={{ color: 'var(--color-muted)' }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(184, 134, 11, 0.08)'
+          e.currentTarget.style.background = 'rgba(184, 134, 11, 0.06)'
           e.currentTarget.style.color = 'var(--color-sepia)'
         }}
         onMouseLeave={(e) => {
@@ -118,7 +126,7 @@ function DialogHeader({
         }}
       >
         <span className="text-sm">收起</span>
-        <ChevronDown className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4" />
       </button>
     </div>
   )
@@ -163,12 +171,12 @@ function MessageList({ messages, onResearchComplete }: { messages: Message[]; on
     <div
       ref={listRef}
       className="flex-1 overflow-y-auto p-4 space-y-3"
-      style={{ background: 'transparent', minHeight: '250px' }}
+      style={{ background: 'transparent', minHeight: '200px' }}
     >
       {messages.length === 0 && (
-        <div className="text-center py-10">
+        <div className="text-center py-8">
           <p className="text-base font-medium" style={{ color: 'var(--color-sepia)' }}>研究助手已就绪</p>
-          <div className="flex flex-col gap-2 text-sm mt-6" style={{ color: 'var(--color-muted)' }}>
+          <div className="flex flex-col gap-2 text-sm mt-5" style={{ color: 'var(--color-muted)' }}>
             {['分析论文引用关系', '发现概念研究点', '深入研究主题'].map((item, i) => (
               <div key={i} className="py-1.5 hover:text-sepia transition-colors cursor-pointer">
                 → {item}
@@ -262,17 +270,16 @@ export default function ResearchAgentBubble() {
   } = useAgentStore()
 
   const [isExpanded, setIsExpanded] = useState(false)
-  const [dialogPosition, setDialogPosition] = useState({ x: 0, y: 0 })
+  const [dialogPosition, setDialogPosition] = useState({ y: 0 })
   const dragging = useRef(false)
-  const dragOffset = useRef({ x: 0, y: 0 })
+  const dragOffset = useRef({ y: 0 })
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  // 初始化位置 - 底部居中
+  // 初始化位置 - 垂直居中
   useEffect(() => {
-    const x = (window.innerWidth - 800) / 2
-    const y = window.innerHeight - 650
-    setDialogPosition({ x, y })
-    setPosition({ x, y })
+    const y = (window.innerHeight - 550) / 2
+    setDialogPosition({ y })
+    setPosition({ x: window.innerWidth - 400, y })
   }, [setPosition])
 
   // Handle drag
@@ -281,7 +288,6 @@ export default function ResearchAgentBubble() {
     if (dialogRef.current && isExpanded) {
       const rect = dialogRef.current.getBoundingClientRect()
       dragOffset.current = {
-        x: e.clientX - rect.left,
         y: e.clientY - rect.top,
       }
       dragging.current = true
@@ -292,10 +298,9 @@ export default function ResearchAgentBubble() {
     if (!dragging.current) return
 
     const handleMouseMove = (e: MouseEvent) => {
-      const newX = Math.max(0, Math.min(e.clientX - dragOffset.current.x, window.innerWidth - 800))
-      const newY = Math.max(0, Math.min(e.clientY - dragOffset.current.y, window.innerHeight - 600))
-      setDialogPosition({ x: newX, y: newY })
-      setPosition({ x: newX, y: newY })
+      const newY = Math.max(20, Math.min(e.clientY - dragOffset.current.y, window.innerHeight - 580))
+      setDialogPosition({ y: newY })
+      setPosition({ x: window.innerWidth - 400, y: newY })
     }
 
     const handleMouseUp = () => {
@@ -349,39 +354,40 @@ export default function ResearchAgentBubble() {
 
   if (!isOpen) return null
 
-  // 静默状态 - 长条
+  // 静默状态 - 右侧窄条
   if (!isExpanded) {
     return <CollapsedBar onExpand={() => setIsExpanded(true)} messageCount={messages.length} />
   }
 
-  // 展开状态
+  // 展开状态 - 从右侧滑出
   return (
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col overflow-hidden"
       style={{
-        width: '800px',
-        height: '600px',
-        left: dialogPosition.x,
+        width: '380px',
+        height: '550px',
+        right: 0,
         top: dialogPosition.y,
         background: 'rgba(250, 248, 245, 0.01)',
         backdropFilter: 'blur(2px)',
         WebkitBackdropFilter: 'blur(2px)',
         border: '1px solid rgba(184, 134, 11, 0.08)',
-        borderRadius: '20px',
-        boxShadow: '0 4px 24px rgba(44, 24, 16, 0.02)',
-        animation: 'expandUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
+        borderRight: 'none',
+        borderRadius: '20px 0 0 20px',
+        boxShadow: '-4px 0 32px rgba(44, 24, 16, 0.03)',
+        animation: 'slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
       <style>{`
-        @keyframes expandUp {
+        @keyframes slideInRight {
           0% {
             opacity: 0;
-            transform: translateY(20px) scale(0.98);
+            transform: translateX(20px);
           }
           100% {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateX(0);
           }
         }
       `}</style>

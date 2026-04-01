@@ -107,7 +107,7 @@ export function DeepResearchProgress({ sessionId, onComplete }: ProgressProps) {
           }}
         >
           <FileText className="w-3 h-3" />
-          <span className="font-medium">研究完成，报告已生成</span>
+          <span className="font-medium">研究完成</span>
         </div>
       )}
     </div>
