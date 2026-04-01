@@ -51,7 +51,7 @@ def get_lead_agent():
                 )
 
         if llm_client:
-            _lead_agent = LeadAgent(llm_client)
+            _lead_agent = LeadAgent(llm_client, db)
 
     return _lead_agent
 
@@ -90,6 +90,15 @@ def chat(request: AgentChatRequest):
                 message=citation_result['message'],
                 agent=citation_result['agent'],
                 contextUpdate=citation_result.get('contextUpdate')
+            )
+
+        # 分发到 Research Agent
+        if intent == 'research' and target_name:
+            research_result = lead_agent.dispatch_to_research_agent(target_name, context_dict)
+            return AgentChatResponse(
+                message=research_result['message'],
+                agent=research_result['agent'],
+                contextUpdate=research_result.get('contextUpdate')
             )
 
         # 其他 Agent 待实现
