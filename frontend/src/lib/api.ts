@@ -442,6 +442,8 @@ export const foldersApi = {
 }
 
 // Agent API types
+type AgentType = 'lead' | 'citation' | 'research' | 'deep_research'
+
 interface AgentContextSummary {
   currentTarget?: {
     type: 'concept' | 'paper'
@@ -451,7 +453,7 @@ interface AgentContextSummary {
   contextTags: string[]
   keyFindings: string[]
   intentHistory: string[]
-  lastActiveAgent: string
+  lastActiveAgent: AgentType
 }
 
 interface AgentChatResponse {

@@ -1,7 +1,7 @@
 // frontend/src/components/ResearchAgentBubble.tsx
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { MessageCircle, X, Minus, Send, Loader2 } from 'lucide-react'
-import { useAgentStore } from '../stores/agentStore'
+import { useAgentStore, Message } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
 
 // Bubble button (minimized state)
@@ -57,7 +57,7 @@ function DialogHeader({
 }
 
 // Message list
-function MessageList({ messages }: { messages: ReturnType<typeof useAgentStore>['messages'] }) {
+function MessageList({ messages }: { messages: Message[] }) {
   const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
