@@ -3,7 +3,7 @@ Agent API routes
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any
+from typing import Dict, Any, Optional, List
 from pydantic import BaseModel
 import sys
 from pathlib import Path
@@ -13,6 +13,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.schemas import AgentChatRequest, AgentChatResponse
 from mkg.database import Database
 from mkg.agent.lead_agent import LeadAgent
+from mkg.agent.deep_research_agent import DeepResearchAgent
+from mkg.semantic_scholar import S2Client
 from mkg.pdf_parser import LiteLLMClient
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -20,6 +22,22 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 # Singleton instances
 _db = None
 _lead_agent = None
+_deep_research_agent = None
+
+
+class DeepResearchStartRequest(BaseModel):
+    targetId: str
+    targetType: str
+    targetName: str
+    query: str
+    dimensions: Optional[List[str]] = None
+
+
+class DeepResearchStatusResponse(BaseModel):
+    status: str
+    progress: int
+    dimensions: List[str]
+    completedDimensions: List[str]
 
 
 def get_db():
@@ -54,6 +72,34 @@ def get_lead_agent():
             _lead_agent = LeadAgent(llm_client, db)
 
     return _lead_agent
+
+
+def get_deep_research_agent():
+    global _deep_research_agent
+    if _deep_research_agent is None:
+        db = get_db()
+        config = db.get_llm_config()
+
+        llm_client = None
+        if config and config.get('providers'):
+            provider_config = db.get_active_llm_provider()
+            if not provider_config:
+                provider_config = config['providers'][0]
+
+            if provider_config:
+                llm_client = LiteLLMClient(
+                    provider=provider_config.get('provider'),
+                    api_key=provider_config.get('api_key'),
+                    model=provider_config.get('model'),
+                    base_url=provider_config.get('base_url')
+                )
+
+        s2_client = S2Client()
+
+        if llm_client:
+            _deep_research_agent = DeepResearchAgent(llm_client, db, s2_client)
+
+    return _deep_research_agent
 
 
 @router.post("/chat", response_model=AgentChatResponse)
@@ -116,23 +162,54 @@ def chat(request: AgentChatRequest):
 
 
 @router.post("/deep-research/start")
-def start_deep_research(request: BaseModel):
-    """启动深入研究任务 - Phase 4 实现"""
-    return {"sessionId": "pending", "status": "not_implemented"}
+def start_deep_research(request: DeepResearchStartRequest):
+    """启动深入研究任务"""
+    agent = get_deep_research_agent()
+
+    if not agent:
+        raise HTTPException(
+            status_code=500,
+            detail="LLM 未配置，请先在设置中配置 API Key"
+        )
+
+    session_id = agent.start_research(
+        target_type=request.targetType,
+        target_id=request.targetId,
+        target_name=request.targetName,
+        query=request.query,
+        dimensions=request.dimensions,
+    )
+
+    return {"sessionId": session_id, "status": "started"}
 
 
 @router.get("/deep-research/{session_id}/status")
 def get_research_status(session_id: str):
-    """获取研究进度 - Phase 4 实现"""
-    return {
-        "status": "not_implemented",
-        "progress": 0,
-        "dimensions": [],
-        "completedDimensions": []
-    }
+    """获取研究进度"""
+    agent = get_deep_research_agent()
+
+    if not agent:
+        raise HTTPException(status_code=500, detail="Agent 未初始化")
+
+    status = agent.get_status(session_id)
+
+    if 'error' in status:
+        raise HTTPException(status_code=404, detail=status['error'])
+
+    return DeepResearchStatusResponse(**status)
 
 
 @router.get("/deep-research/{session_id}/report")
 def get_research_report(session_id: str):
-    """获取研究报告 - Phase 4 实现"""
-    return {"report": "", "format": "html"}
+    """获取研究报告"""
+    agent = get_deep_research_agent()
+
+    if not agent:
+        raise HTTPException(status_code=500, detail="Agent 未初始化")
+
+    report = agent.get_report(session_id)
+
+    if 'error' in report:
+        raise HTTPException(status_code=404, detail=report['error'])
+
+    return report
