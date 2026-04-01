@@ -552,6 +552,11 @@ class Database:
                     paper['contributions'] = json.loads(paper['contributions'])
                 except:
                     paper['contributions'] = []
+            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                try:
+                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                except:
+                    paper['s2_fields_of_study'] = []
             return paper
         return None
 
