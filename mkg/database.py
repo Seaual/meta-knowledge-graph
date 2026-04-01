@@ -427,6 +427,45 @@ class Database:
         except:
             pass  # 字段已存在
 
+        # Research sessions table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS research_sessions (
+                id TEXT PRIMARY KEY,
+                user_query TEXT NOT NULL,
+                target_type TEXT,
+                target_id TEXT,
+                status TEXT DEFAULT 'running',
+                dimensions TEXT,
+                progress INTEGER DEFAULT 0,
+                started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                completed_at TIMESTAMP,
+                report_path TEXT
+            )
+        """)
+
+        # Research findings table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS research_findings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                dimension TEXT,
+                finding TEXT,
+                sources TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES research_sessions(id)
+            )
+        """)
+
+        # Agent context table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS agent_context (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                session_id TEXT,
+                context_json TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
         self.conn.commit()
 
     def add_paper(self, paper_data: dict) -> str:
