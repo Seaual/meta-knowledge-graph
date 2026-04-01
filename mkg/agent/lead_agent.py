@@ -145,3 +145,40 @@ class LeadAgent:
             return self.llm_client.generate(prompt)
         except Exception:
             return "抱歉，我遇到了一些问题。请稍后重试。"
+
+    def dispatch_to_citation_agent(self, target_name: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """分发到 Citation Agent"""
+        from .citation_agent import CitationAgent
+        from mkg.semantic_scholar import S2Client
+
+        # 创建 S2 客户端
+        s2_client = S2Client()
+
+        # 创建 Citation Agent
+        citation_agent = CitationAgent(self.llm_client, s2_client)
+
+        # 执行分析
+        result = citation_agent.analyze(target_name, identifier_type='title')
+
+        # 格式化响应
+        if 'error' in result:
+            return {
+                'message': result['error'],
+                'agent': 'citation',
+                'contextUpdate': None
+            }
+
+        formatted = citation_agent.format_response(result)
+
+        return {
+            'message': formatted,
+            'agent': 'citation',
+            'contextUpdate': {
+                'currentTarget': {
+                    'type': 'paper',
+                    'id': result.get('paper', {}).get('title', ''),
+                    'name': result.get('paper', {}).get('title', ''),
+                },
+                'keyFindings': [result.get('analysis', {}).get('summary', '')],
+            }
+        }
