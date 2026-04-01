@@ -80,9 +80,19 @@ def chat(request: AgentChatRequest):
     # 如果有意图结果，表示需要分发到专业 Agent
     if 'intent_result' in result:
         intent_result = result['intent_result']
+        intent = intent_result['intent']
+        target_name = intent_result.get('target_name')
 
-        # TODO: Phase 2-4 实现各专业 Agent
-        # 目前返回提示信息
+        # 分发到 Citation Agent
+        if intent == 'citation' and target_name:
+            citation_result = lead_agent.dispatch_to_citation_agent(target_name, context_dict)
+            return AgentChatResponse(
+                message=citation_result['message'],
+                agent=citation_result['agent'],
+                contextUpdate=citation_result.get('contextUpdate')
+            )
+
+        # 其他 Agent 待实现
         return AgentChatResponse(
             message=f"我理解您想要{intent_result['reasoning']}。该功能即将上线！",
             agent=intent_result['intent'],
