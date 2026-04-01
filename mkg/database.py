@@ -466,6 +466,42 @@ class Database:
             )
         """)
 
+        # 迁移：为 research_sessions 添加缺失字段
+        try:
+            cursor.execute("ALTER TABLE research_sessions ADD COLUMN target_name TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_sessions ADD COLUMN query TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_sessions ADD COLUMN completed_dimensions TEXT DEFAULT '[]'")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_sessions ADD COLUMN report TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_sessions ADD COLUMN updated_at TIMESTAMP")
+        except sqlite3.OperationalError:
+            pass
+
+        # 迁移：为 research_findings 添加缺失字段
+        try:
+            cursor.execute("ALTER TABLE research_findings ADD COLUMN finding_type TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_findings ADD COLUMN content TEXT")
+        except sqlite3.OperationalError:
+            pass
+        try:
+            cursor.execute("ALTER TABLE research_findings ADD COLUMN confidence REAL")
+        except sqlite3.OperationalError:
+            pass
+
         self.conn.commit()
 
     def add_paper(self, paper_data: dict) -> str:
@@ -1906,6 +1942,59 @@ class Database:
             metadata.get('s2_matched_at'),
             doi
         ))
+
+    # ========== Research Session Methods ==========
+
+    def create_research_session(self, session_id: str, target_type: str, target_id: str,
+                                 target_name: str, query: str, dimensions: List[str]) -> None:
+        """创建新的研究会话"""
+        self.execute_write("""
+            INSERT INTO research_sessions (id, target_type, target_id, target_name, query, dimensions, status, progress)
+            VALUES (?, ?, ?, ?, ?, ?, 'running', 0)
+        """, (session_id, target_type, target_id, target_name, query, json.dumps(dimensions)))
+
+    def get_research_session(self, session_id: str) -> Optional[Dict]:
+        """获取研究会话"""
+        row = self.execute_read(
+            "SELECT * FROM research_sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        if row:
+            return dict(row)
+        return None
+
+    def update_research_progress(self, session_id: str, progress: int,
+                                  completed_dimensions: List[str]) -> None:
+        """更新研究进度"""
+        self.execute_write("""
+            UPDATE research_sessions
+            SET progress = ?, completed_dimensions = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (progress, json.dumps(completed_dimensions), session_id))
+
+    def save_research_finding(self, session_id: str, dimension: str,
+                              finding_type: str, content: str, sources: List[str],
+                              confidence: float) -> None:
+        """保存研究发现"""
+        self.execute_write("""
+            INSERT INTO research_findings (session_id, dimension, finding_type, content, sources, confidence)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (session_id, dimension, finding_type, content, json.dumps(sources), confidence))
+
+    def get_research_findings(self, session_id: str) -> List[Dict]:
+        """获取会话的所有发现"""
+        rows = self.execute_read(
+            "SELECT * FROM research_findings WHERE session_id = ? ORDER BY created_at",
+            (session_id,)
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def save_research_report(self, session_id: str, report: str) -> None:
+        """保存研究报告"""
+        self.execute_write("""
+            UPDATE research_sessions
+            SET report = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        """, (report, session_id))
 
     # ========== 上下文管理器 ==========
 
