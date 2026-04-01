@@ -147,6 +147,21 @@ def chat(request: AgentChatRequest):
                 contextUpdate=research_result.get('contextUpdate')
             )
 
+        # 分发到 Deep Research Agent
+        if intent == 'deep_research' and target_name:
+            target_type = intent_result.get('target_type', 'concept')
+            target_id = target_name  # 简化处理
+
+            deep_result = lead_agent.dispatch_to_deep_research(
+                target_name, target_type, target_id, request.message, context_dict
+            )
+            return AgentChatResponse(
+                message=deep_result['message'],
+                agent=deep_result['agent'],
+                contextUpdate=deep_result.get('contextUpdate'),
+                researchSessionId=deep_result.get('researchSessionId')
+            )
+
         # 其他 Agent 待实现
         return AgentChatResponse(
             message=f"我理解您想要{intent_result['reasoning']}。该功能即将上线！",

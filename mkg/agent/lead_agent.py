@@ -220,3 +220,37 @@ class LeadAgent:
                 },
             }
         }
+
+    def dispatch_to_deep_research(self, target_name: str, target_type: str,
+                                   target_id: str, query: str,
+                                   context: Dict[str, Any]) -> Dict[str, Any]:
+        """分发到 Deep Research Agent"""
+        from .deep_research_agent import DeepResearchAgent
+        from mkg.semantic_scholar import S2Client
+
+        # 创建 S2 客户端
+        s2_client = S2Client()
+
+        # 创建 Deep Research Agent
+        deep_agent = DeepResearchAgent(self.llm_client, self.db, s2_client)
+
+        # 启动研究
+        session_id = deep_agent.start_research(
+            target_type=target_type,
+            target_id=target_id,
+            target_name=target_name,
+            query=query,
+        )
+
+        return {
+            'message': f'已启动「{target_name}」的深入研究，预计需要 1-2 分钟...',
+            'agent': 'deep_research',
+            'researchSessionId': session_id,
+            'contextUpdate': {
+                'currentTarget': {
+                    'type': target_type,
+                    'id': target_id,
+                    'name': target_name,
+                },
+            }
+        }
