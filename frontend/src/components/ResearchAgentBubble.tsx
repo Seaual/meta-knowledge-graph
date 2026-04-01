@@ -17,21 +17,21 @@ function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messag
         bottom: '16px',
         width: '800px',
         height: '52px',
-        background: 'rgba(250, 248, 245, 0.12)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        border: '1px solid rgba(184, 134, 11, 0.2)',
+        background: 'rgba(250, 248, 245, 0.06)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        border: '1px solid rgba(184, 134, 11, 0.12)',
         borderRadius: '26px',
-        boxShadow: '0 4px 24px rgba(44, 24, 16, 0.04)',
-        transition: 'all 0.3s ease-out',
+        boxShadow: '0 2px 16px rgba(44, 24, 16, 0.02)',
+        transition: 'all 0.25s ease-out',
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.18)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.35)'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.1)'
+        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.2)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.12)'
-        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.2)'
+        e.currentTarget.style.background = 'rgba(250, 248, 245, 0.06)'
+        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.12)'
       }}
     >
       <div className="flex items-center justify-between h-full px-6">
@@ -59,7 +59,7 @@ function CollapsedBar({ onExpand, messageCount }: { onExpand: () => void; messag
             <span
               className="px-3 py-1 rounded-full text-xs font-mono"
               style={{
-                background: 'rgba(184, 134, 11, 0.15)',
+                background: 'rgba(184, 134, 11, 0.1)',
                 color: 'var(--color-amber)',
               }}
             >
@@ -85,8 +85,8 @@ function DialogHeader({
     <div
       className="flex items-center justify-between px-6 py-3 cursor-move select-none"
       style={{
-        background: 'rgba(250, 248, 245, 0.08)',
-        borderBottom: '1px solid rgba(184, 134, 11, 0.1)',
+        background: 'transparent',
+        borderBottom: '1px solid rgba(184, 134, 11, 0.08)',
       }}
       onMouseDown={onMouseDown}
     >
@@ -109,7 +109,7 @@ function DialogHeader({
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-medium transition-all"
         style={{ color: 'var(--color-muted)' }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = 'rgba(184, 134, 11, 0.1)'
+          e.currentTarget.style.background = 'rgba(184, 134, 11, 0.08)'
           e.currentTarget.style.color = 'var(--color-sepia)'
         }}
         onMouseLeave={(e) => {
@@ -136,10 +136,10 @@ function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
         ...(isUser ? {
           background: 'linear-gradient(135deg, var(--color-amber) 0%, var(--color-gold) 100%)',
           color: 'var(--color-vellum)',
-          boxShadow: '0 2px 12px rgba(184, 134, 11, 0.15)',
+          boxShadow: '0 2px 10px rgba(184, 134, 11, 0.12)',
         } : {
-          background: 'rgba(245, 240, 232, 0.15)',
-          border: '1px solid rgba(184, 134, 11, 0.08)',
+          background: 'rgba(245, 240, 232, 0.08)',
+          border: '1px solid rgba(184, 134, 11, 0.06)',
           color: 'var(--color-ink)',
         })
       }}
@@ -212,8 +212,8 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
       onSubmit={handleSubmit}
       className="p-4 flex-shrink-0"
       style={{
-        background: 'rgba(250, 248, 245, 0.08)',
-        borderTop: '1px solid rgba(184, 134, 11, 0.1)',
+        background: 'transparent',
+        borderTop: '1px solid rgba(184, 134, 11, 0.08)',
       }}
     >
       <div className="flex items-center gap-3">
@@ -225,8 +225,8 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
           style={{
             flex: 1,
             padding: '0.75rem 1rem',
-            background: 'rgba(245, 240, 232, 0.12)',
-            border: '1px solid rgba(184, 134, 11, 0.15)',
+            background: 'rgba(245, 240, 232, 0.06)',
+            border: '1px solid rgba(184, 134, 11, 0.1)',
             borderRadius: '8px',
             color: 'var(--color-ink)',
             fontFamily: 'var(--font-body)',
@@ -262,36 +262,18 @@ export default function ResearchAgentBubble() {
   } = useAgentStore()
 
   const [isExpanded, setIsExpanded] = useState(false)
-  const [animating, setAnimating] = useState(false)
-  const [dialogPosition, setDialogPosition] = useState({ x: 0, y: 0, width: 800, height: 600 })
+  const [dialogPosition, setDialogPosition] = useState({ x: 0, y: 0 })
   const dragging = useRef(false)
   const dragOffset = useRef({ x: 0, y: 0 })
   const dialogRef = useRef<HTMLDivElement>(null)
 
-  // 展开/收起动画
-  const handleExpand = useCallback(() => {
-    setAnimating(true)
-    // 飞到页面中间
-    const targetX = (window.innerWidth - 800) / 2
-    const targetY = (window.innerHeight - 600) / 2
-
-    setDialogPosition({
-      x: targetX,
-      y: targetY,
-      width: 800,
-      height: 600,
-    })
-
-    setTimeout(() => {
-      setAnimating(false)
-      setIsExpanded(true)
-      setPosition({ x: targetX, y: targetY })
-    }, 400)
+  // 初始化位置 - 底部居中
+  useEffect(() => {
+    const x = (window.innerWidth - 800) / 2
+    const y = window.innerHeight - 650
+    setDialogPosition({ x, y })
+    setPosition({ x, y })
   }, [setPosition])
-
-  const handleCollapse = useCallback(() => {
-    setIsExpanded(false)
-  }, [])
 
   // Handle drag
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -312,7 +294,7 @@ export default function ResearchAgentBubble() {
     const handleMouseMove = (e: MouseEvent) => {
       const newX = Math.max(0, Math.min(e.clientX - dragOffset.current.x, window.innerWidth - 800))
       const newY = Math.max(0, Math.min(e.clientY - dragOffset.current.y, window.innerHeight - 600))
-      setDialogPosition(prev => ({ ...prev, x: newX, y: newY }))
+      setDialogPosition({ x: newX, y: newY })
       setPosition({ x: newX, y: newY })
     }
 
@@ -368,32 +350,45 @@ export default function ResearchAgentBubble() {
   if (!isOpen) return null
 
   // 静默状态 - 长条
-  if (!isExpanded && !animating) {
-    return <CollapsedBar onExpand={handleExpand} messageCount={messages.length} />
+  if (!isExpanded) {
+    return <CollapsedBar onExpand={() => setIsExpanded(true)} messageCount={messages.length} />
   }
 
-  // 展开状态或动画中
+  // 展开状态
   return (
     <div
       ref={dialogRef}
       className="fixed z-50 flex flex-col overflow-hidden"
       style={{
-        width: dialogPosition.width,
-        height: dialogPosition.height,
+        width: '800px',
+        height: '600px',
         left: dialogPosition.x,
         top: dialogPosition.y,
-        background: 'rgba(250, 248, 245, 0.12)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(184, 134, 11, 0.15)',
+        background: 'rgba(250, 248, 245, 0.06)',
+        backdropFilter: 'blur(6px)',
+        WebkitBackdropFilter: 'blur(6px)',
+        border: '1px solid rgba(184, 134, 11, 0.1)',
         borderRadius: '20px',
-        boxShadow: '0 8px 40px rgba(44, 24, 16, 0.06)',
-        transition: animating ? 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)' : 'none',
+        boxShadow: '0 4px 32px rgba(44, 24, 16, 0.04)',
+        animation: 'expandUp 0.35s cubic-bezier(0.16, 1, 0.3, 1)',
       }}
     >
+      <style>{`
+        @keyframes expandUp {
+          0% {
+            opacity: 0;
+            transform: translateY(20px) scale(0.98);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
+
       <DialogHeader
         onMouseDown={handleMouseDown}
-        onCollapse={handleCollapse}
+        onCollapse={() => setIsExpanded(false)}
       />
       <MessageList messages={messages} onResearchComplete={handleResearchComplete} />
       <ChatInput onSend={handleSend} isLoading={isLoading} />
