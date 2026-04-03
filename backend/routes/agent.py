@@ -10,18 +10,24 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.schemas import AgentChatRequest, AgentChatResponse
+from backend.schemas import AgentChatRequest, AgentChatResponse, AgentMessage
 from mkg.database import Database
-from mkg.agent.lead_agent import LeadAgent
-from mkg.agent.deep_research_agent import DeepResearchAgent
 from mkg.semantic_scholar import S2Client
-from mkg.pdf_parser import LiteLLMClient
+from mkg.pdf_parser import PDFParser, LiteLLMClient
+
+# LangGraph imports
+from langchain_core.messages import HumanMessage, AIMessage
+
+from mkg.agent.graph import get_agent_graph, reset_graph
+from mkg.agent.routing import route_intent
+from mkg.agent.state import AgentState
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
 # Singleton instances
 _db = None
-_lead_agent = None
+_s2_client = None
+_pdf_parser = None
 _deep_research_agent = None
 
 
@@ -43,38 +49,29 @@ class DeepResearchStatusResponse(BaseModel):
 def get_db():
     global _db
     if _db is None:
-        _db = Database("mkg.db")
+        # 使用相对于项目根目录的路径
+        db_path = Path(__file__).parent.parent.parent / "mkg.db"
+        _db = Database(str(db_path))
         _db.connect()
     return _db
 
 
-def get_lead_agent():
-    global _lead_agent
-    if _lead_agent is None:
-        db = get_db()
-        config = db.get_llm_config()
+def get_s2_client():
+    global _s2_client
+    if _s2_client is None:
+        _s2_client = S2Client()
+    return _s2_client
 
-        llm_client = None
-        if config and config.get('providers'):
-            provider_config = db.get_active_llm_provider()
-            if not provider_config:
-                provider_config = config['providers'][0]
 
-            if provider_config:
-                llm_client = LiteLLMClient(
-                    provider=provider_config.get('provider'),
-                    api_key=provider_config.get('api_key'),
-                    model=provider_config.get('model'),
-                    base_url=provider_config.get('base_url')
-                )
-
-        if llm_client:
-            _lead_agent = LeadAgent(llm_client, db)
-
-    return _lead_agent
+def get_pdf_parser():
+    global _pdf_parser
+    if _pdf_parser is None:
+        _pdf_parser = PDFParser()
+    return _pdf_parser
 
 
 def get_deep_research_agent():
+    """获取 Deep Research Agent（保留原有实现）"""
     global _deep_research_agent
     if _deep_research_agent is None:
         db = get_db()
@@ -94,9 +91,10 @@ def get_deep_research_agent():
                     base_url=provider_config.get('base_url')
                 )
 
-        s2_client = S2Client()
+        s2_client = get_s2_client()
 
         if llm_client:
+            from mkg.agent.deep_research_agent import DeepResearchAgent
             _deep_research_agent = DeepResearchAgent(llm_client, db, s2_client)
 
     return _deep_research_agent
@@ -105,74 +103,74 @@ def get_deep_research_agent():
 @router.post("/chat", response_model=AgentChatResponse)
 def chat(request: AgentChatRequest):
     """
-    处理用户对话
+    处理用户对话 - 使用 LangGraph Agent
 
-    1. Lead Agent 识别意图
-    2. 根据意图分发到专业 Agent
+    1. 规则路由识别意图
+    2. 执行 LangGraph 图
     3. 返回响应
     """
-    lead_agent = get_lead_agent()
-
-    if not lead_agent:
+    # 检查 LLM 配置
+    db = get_db()
+    config = db.get_llm_config()
+    if not config or not config.get('providers'):
         raise HTTPException(
             status_code=500,
             detail="LLM 未配置，请先在设置中配置 API Key"
         )
 
-    # 识别意图并生成响应
-    context_dict = request.context.model_dump()
-    result = lead_agent.generate_response(request.message, context_dict)
+    # 获取 LangGraph Agent
+    graph = get_agent_graph(
+        db=get_db(),
+        s2_client=get_s2_client(),
+        pdf_parser=get_pdf_parser()
+    )
 
-    # 如果有意图结果，表示需要分发到专业 Agent
-    if 'intent_result' in result:
-        intent_result = result['intent_result']
-        intent = intent_result['intent']
-        target_name = intent_result.get('target_name')
+    # 构建消息历史
+    messages = []
+    for m in request.history:
+        if m.role == "user":
+            messages.append(HumanMessage(content=m.content))
+        else:
+            messages.append(AIMessage(content=m.content))
 
-        # 分发到 Citation Agent
-        if intent == 'citation' and target_name:
-            citation_result = lead_agent.dispatch_to_citation_agent(target_name, context_dict)
-            return AgentChatResponse(
-                message=citation_result['message'],
-                agent=citation_result['agent'],
-                contextUpdate=citation_result.get('contextUpdate')
-            )
+    # 添加当前消息
+    messages.append(HumanMessage(content=request.message))
 
-        # 分发到 Research Agent
-        if intent == 'research' and target_name:
-            research_result = lead_agent.dispatch_to_research_agent(target_name, context_dict)
-            return AgentChatResponse(
-                message=research_result['message'],
-                agent=research_result['agent'],
-                contextUpdate=research_result.get('contextUpdate')
-            )
+    # 构建上下文
+    context = request.context.model_dump()
 
-        # 分发到 Deep Research Agent
-        if intent == 'deep_research' and target_name:
-            target_type = intent_result.get('target_type', 'concept')
-            target_id = target_name  # 简化处理
+    # 规则路由识别意图
+    intent, target_name = route_intent(request.message, context)
 
-            deep_result = lead_agent.dispatch_to_deep_research(
-                target_name, target_type, target_id, request.message, context_dict
-            )
-            return AgentChatResponse(
-                message=deep_result['message'],
-                agent=deep_result['agent'],
-                contextUpdate=deep_result.get('contextUpdate'),
-                researchSessionId=deep_result.get('researchSessionId')
-            )
+    # 构建初始状态
+    initial_state: AgentState = {
+        "messages": messages,
+        "current_target": context.get("currentTarget"),
+        "uploaded_papers": context.get("uploadedPapers", []),
+        "intent": intent,
+        "target_name": target_name,
+        "response": "",
+        "agent_used": "lead",
+        "needs_summary": False,
+    }
 
-        # 其他 Agent 待实现
-        return AgentChatResponse(
-            message=f"我理解您想要{intent_result['reasoning']}。该功能即将上线！",
-            agent=intent_result['intent'],
-            contextUpdate=None
-        )
+    # 执行图
+    config = {"configurable": {"thread_id": "default"}}
+    result = graph.invoke(initial_state, config)
+
+    # 构建响应
+    context_update = None
+    if result.get("current_target"):
+        context_update = {"currentTarget": result["current_target"]}
+
+    # 提取概念数据
+    concept_data = result.get("concept_data")
 
     return AgentChatResponse(
-        message=result['message'],
-        agent=result['agent'],
-        contextUpdate=result.get('contextUpdate')
+        message=result.get("response", "抱歉，处理请求时遇到问题。"),
+        agent=result.get("agent_used", "lead"),
+        contextUpdate=context_update,
+        conceptData=concept_data,
     )
 
 
@@ -228,3 +226,10 @@ def get_research_report(session_id: str):
         raise HTTPException(status_code=404, detail=report['error'])
 
     return report
+
+
+@router.post("/reset")
+def reset_agent():
+    """重置 Agent 图（用于重新加载配置）"""
+    reset_graph()
+    return {"status": "ok"}

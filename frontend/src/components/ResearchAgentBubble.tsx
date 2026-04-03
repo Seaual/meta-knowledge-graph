@@ -1,5 +1,6 @@
 // frontend/src/components/ResearchAgentBubble.tsx
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Send, Loader2, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
 import { useAgentStore, Message } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
@@ -133,6 +134,40 @@ function DialogHeader({
   )
 }
 
+// 上下文指示器
+function ContextIndicator({ target, onClear }: { target?: { type: 'concept' | 'paper'; id: string; name: string }; onClear: () => void }) {
+  if (!target) return null
+
+  const icon = target.type === 'paper' ? '📄' : '💡'
+
+  return (
+    <div
+      className="flex items-center justify-between px-4 py-2 mx-4 mt-2 rounded-medium"
+      style={{
+        background: 'rgba(184, 134, 11, 0.04)',
+        border: '1px solid rgba(184, 134, 11, 0.08)',
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{icon}</span>
+        <span className="text-xs font-medium truncate max-w-[200px]" style={{ color: 'var(--color-sepia)' }}>
+          {target.name}
+        </span>
+        <span className="text-[10px] px-1.5 py-0.5 rounded-soft" style={{ background: 'rgba(184, 134, 11, 0.08)', color: 'var(--color-muted)' }}>
+          {target.type === 'paper' ? '论文' : '概念'}
+        </span>
+      </div>
+      <button
+        onClick={onClear}
+        className="w-5 h-5 rounded-full flex items-center justify-center text-xs hover:bg-amber/10 transition-colors"
+        style={{ color: 'var(--color-muted)' }}
+      >
+        ×
+      </button>
+    </div>
+  )
+}
+
 // 消息气泡
 function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
   return (
@@ -258,6 +293,13 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
 
 // 主组件
 export default function ResearchAgentBubble() {
+  const location = useLocation()
+
+  // 在 Chat 页面不显示这个浮框
+  if (location.pathname === '/chat') {
+    return null
+  }
+
   const {
     isOpen,
     messages,
@@ -269,6 +311,11 @@ export default function ResearchAgentBubble() {
     updateContext,
     setCurrentAgent,
   } = useAgentStore()
+
+  // 清除当前上下文
+  const handleClearContext = () => {
+    updateContext({ currentTarget: undefined })
+  }
 
   const [isExpanded, setIsExpanded] = useState(false)
   const [dialogPosition, setDialogPosition] = useState({ y: 0 })
@@ -323,7 +370,7 @@ export default function ResearchAgentBubble() {
     setLoading(true)
 
     try {
-      const response = await agentApi.chat(message, contextSummary)
+      const response = await agentApi.chat(message, contextSummary, [])
       if (response.agent) setCurrentAgent(response.agent as any)
 
       if (response.researchSessionId) {
@@ -338,10 +385,11 @@ export default function ResearchAgentBubble() {
           role: 'assistant',
           content: response.message,
           agent: response.agent as any,
+          conceptData: response.conceptData,
         })
       }
 
-      if (response.contextUpdate) updateContext(response.contextUpdate)
+      if (response.contextUpdate) updateContext(response.contextUpdate as any)
     } catch {
       addMessage({ role: 'assistant', content: '处理请求时遇到问题，请重试。' })
     } finally {
@@ -397,6 +445,7 @@ export default function ResearchAgentBubble() {
         onMouseDown={handleMouseDown}
         onCollapse={() => setIsExpanded(false)}
       />
+      <ContextIndicator target={contextSummary.currentTarget} onClear={handleClearContext} />
       <MessageList messages={messages} onResearchComplete={handleResearchComplete} />
       <ChatInput onSend={handleSend} isLoading={isLoading} />
     </div>

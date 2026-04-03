@@ -292,19 +292,38 @@ class S2ReferencesResponse(BaseModel):
 
 
 # Agent schemas
+class AgentMessage(BaseModel):
+    """Single message in conversation history"""
+    role: str  # 'user' | 'assistant'
+    content: str
+    agent: Optional[str] = None
+
+
 class ContextSummary(BaseModel):
     """Agent context summary for chat requests"""
     currentTarget: Optional[dict] = None
+    uploadedPapers: Optional[List[dict]] = None
     contextTags: List[str] = []
     keyFindings: List[str] = []
     intentHistory: List[str] = []
     lastActiveAgent: str = 'lead'
 
 
+class ConceptGraphData(BaseModel):
+    """概念图谱数据 - 用于在聊天中嵌入迷你图谱"""
+    id: str
+    name: str
+    category: Optional[str] = None
+    paper_count: int = 0
+    children: List['ConceptGraphData'] = []
+    parents: List['ConceptGraphData'] = []
+
+
 class AgentChatRequest(BaseModel):
     """Request for agent chat endpoint"""
     message: str
     context: ContextSummary
+    history: List[AgentMessage] = []
 
 
 class AgentChatResponse(BaseModel):
@@ -313,6 +332,7 @@ class AgentChatResponse(BaseModel):
     agent: str
     contextUpdate: Optional[dict] = None
     researchSessionId: Optional[str] = None
+    conceptData: Optional[ConceptGraphData] = None
 
 
 class DeepResearchStartRequest(BaseModel):

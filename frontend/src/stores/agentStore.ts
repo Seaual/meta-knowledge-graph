@@ -7,18 +7,33 @@ export interface ContextSummary {
     id: string
     name: string
   }
+  uploadedPapers?: Array<{
+    doi: string
+    title: string
+  }>
   contextTags: string[]
   keyFindings: string[]
   intentHistory: string[]
-  lastActiveAgent: 'lead' | 'citation' | 'research' | 'deep_research'
+  lastActiveAgent: 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa'
+}
+
+// 概念图谱节点数据
+export interface ConceptNode {
+  id: string
+  name: string
+  category?: string
+  paper_count: number
+  children?: ConceptNode[]
+  parents?: ConceptNode[]
 }
 
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
-  agent?: 'lead' | 'citation' | 'research' | 'deep_research'
+  agent?: 'lead' | 'citation' | 'research' | 'deep_research' | 'merge' | 'paper_qa'
   researchSessionId?: string
+  conceptData?: ConceptNode  // 概念图谱数据
   timestamp: number
 }
 
@@ -30,7 +45,7 @@ interface AgentState {
 
   // Conversation State
   messages: Message[]
-  currentAgent: 'lead' | 'citation' | 'research' | 'deep_research'
+  currentAgent: 'lead' | 'citation' | 'research' | 'deep_research' | 'merge' | 'paper_qa'
   contextSummary: ContextSummary
   isLoading: boolean
 
@@ -51,6 +66,9 @@ interface AgentState {
   setCurrentAgent: (agent: AgentState['currentAgent']) => void
   updateContext: (ctx: Partial<ContextSummary>) => void
   setLoading: (loading: boolean) => void
+
+  addUploadedPapers: (papers: Array<{ doi: string; title: string }>) => void
+  clearUploadedPapers: () => void
 
   setResearchSession: (sessionId: string) => void
   setResearchProgress: (progress: number, dimensions: string[]) => void
@@ -108,6 +126,20 @@ export const useAgentStore = create<AgentState>((set) => ({
   })),
 
   setLoading: (loading) => set({ isLoading: loading }),
+
+  addUploadedPapers: (papers) => set((state) => ({
+    contextSummary: {
+      ...state.contextSummary,
+      uploadedPapers: [...(state.contextSummary.uploadedPapers || []), ...papers],
+    },
+  })),
+
+  clearUploadedPapers: () => set((state) => ({
+    contextSummary: {
+      ...state.contextSummary,
+      uploadedPapers: [],
+    },
+  })),
 
   setResearchSession: (sessionId) => set({ researchSessionId: sessionId }),
 

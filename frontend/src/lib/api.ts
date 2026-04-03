@@ -442,7 +442,13 @@ export const foldersApi = {
 }
 
 // Agent API types
-type AgentType = 'lead' | 'citation' | 'research' | 'deep_research'
+type AgentType = 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa' | 'merge'
+
+interface AgentMessage {
+  role: 'user' | 'assistant'
+  content: string
+  agent?: AgentType
+}
 
 interface AgentContextSummary {
   currentTarget?: {
@@ -450,10 +456,24 @@ interface AgentContextSummary {
     id: string
     name: string
   }
+  uploadedPapers?: Array<{
+    doi: string
+    title: string
+  }>
   contextTags: string[]
   keyFindings: string[]
   intentHistory: string[]
   lastActiveAgent: AgentType
+}
+
+// 概念图谱数据
+interface ConceptGraphData {
+  id: string
+  name: string
+  category?: string
+  paper_count: number
+  children?: ConceptGraphData[]
+  parents?: ConceptGraphData[]
 }
 
 interface AgentChatResponse {
@@ -461,14 +481,16 @@ interface AgentChatResponse {
   agent: string
   contextUpdate?: Partial<AgentContextSummary>
   researchSessionId?: string
+  conceptData?: ConceptGraphData  // 概念图谱数据
 }
 
 // Agent API
 export const agentApi = {
-  chat: async (message: string, context: AgentContextSummary): Promise<AgentChatResponse> => {
+  chat: async (message: string, context: AgentContextSummary, history: AgentMessage[]): Promise<AgentChatResponse> => {
     const response = await api.post<AgentChatResponse>('/agent/chat', {
       message,
       context,
+      history,
     })
     return response.data
   },
