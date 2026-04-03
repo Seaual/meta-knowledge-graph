@@ -5,7 +5,6 @@ import { graphApi, llmApi, s2Api } from '../lib/api'
 import LLMConfigModal from '../components/LLMConfigModal'
 import S2ConfigModal from '../components/S2ConfigModal'
 import OnboardingModal from '../components/OnboardingModal'
-import { FadeContent, AnimatedNumber } from '../components/ui/animations'
 import { useTranslation } from '../i18n'
 
 interface Stats {
@@ -13,6 +12,27 @@ interface Stats {
   concepts: { total: number }
   relations: number
   root_concepts: number
+}
+
+// Animated counter component
+function AnimatedNumber({ value, duration = 600 }: { value: number; duration?: number }) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    const startTime = Date.now()
+    const animate = () => {
+      const elapsed = Date.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      setDisplayValue(Math.floor(eased * value))
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    requestAnimationFrame(animate)
+  }, [value, duration])
+
+  return <span>{displayValue.toLocaleString()}</span>
 }
 
 export default function Home() {
@@ -54,7 +74,6 @@ export default function Home() {
     }).catch(() => setS2Status(t.home.notConfigured))
   }, [t.home.enabled, t.home.disabled, t.home.notConfigured])
 
-  // Check first visit for onboarding
   useEffect(() => {
     const dismissed = localStorage.getItem('mkg_onboarding_dismissed')
     if (!dismissed) {
@@ -64,156 +83,132 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="loading-academic">
-          {t.common.loading}
+      <div className="h-full flex items-center justify-center">
+        <div className="flex gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-bounce" style={{ animationDelay: '0ms' }} />
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-bounce" style={{ animationDelay: '150ms' }} />
+          <span className="w-2 h-2 rounded-full bg-[var(--color-accent)] animate-bounce" style={{ animationDelay: '300ms' }} />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto animate-fade-in">
-      {/* Hero Section */}
-      <div className="mb-8">
-        <h1 className="font-display text-3xl text-sepia mb-2">
-          {t.home.title}
-        </h1>
-        <p className="font-quote text-lg text-muted italic">
-          {t.home.subtitle}
-        </p>
-      </div>
+    <div className="h-full overflow-y-auto">
+      <div className="p-8 max-w-5xl mx-auto animate-fade-in">
+        {/* Hero */}
+        <header className="mb-10">
+          <h1 className="font-display text-2xl mb-1" style={{ color: 'var(--color-ink)' }}>
+            {t.home.title}
+          </h1>
+          <p className="text-secondary" style={{ fontSize: '0.9375rem' }}>
+            {t.home.subtitle}
+          </p>
+        </header>
 
-      {/* Stats Grid - Elegant Card Design */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-8">
-        <FadeContent delay={0} direction="up">
-          <div className="card-stat">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
-                <FileText className="w-5 h-5 text-vellum" />
+        {/* Stats */}
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+          {[
+            { icon: FileText, label: t.home.stats.papers, value: stats?.papers?.total || 0 },
+            { icon: GitBranch, label: t.home.stats.concepts, value: stats?.concepts?.total || 0 },
+            { icon: Network, label: t.home.stats.relations, value: stats?.relations || 0 },
+            { icon: TrendingUp, label: t.home.stats.roots, value: stats?.root_concepts || 0 },
+          ].map((stat, i) => (
+            <div
+              key={i}
+              className="card-stat group"
+              style={{ animationDelay: `${i * 50}ms` }}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style={{ background: 'var(--color-overlay)' }}
+                >
+                  <stat.icon className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
+                </div>
+                <span className="font-mono text-xs uppercase tracking-wider text-muted">
+                  {stat.label}
+                </span>
               </div>
-              <div>
-                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.papers}</p>
-                <p className="font-display text-2xl text-sepia font-medium">
-                  <AnimatedNumber value={stats?.papers?.total || 0} />
-                </p>
-              </div>
+              <p className="font-display text-2xl font-medium" style={{ color: 'var(--color-ink)' }}>
+                <AnimatedNumber value={stat.value} />
+              </p>
             </div>
-          </div>
-        </FadeContent>
+          ))}
+        </section>
 
-        <FadeContent delay={0.1} direction="up">
-          <div className="card-stat">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
-                <GitBranch className="w-5 h-5 text-vellum" />
-              </div>
-              <div>
-                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.concepts}</p>
-                <p className="font-display text-2xl text-sepia font-medium">
-                  <AnimatedNumber value={stats?.concepts?.total || 0} />
-                </p>
-              </div>
-            </div>
-          </div>
-        </FadeContent>
-
-        <FadeContent delay={0.2} direction="up">
-          <div className="card-stat">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-medium bg-gradient-sepia flex items-center justify-center shadow-paper">
-                <Network className="w-5 h-5 text-vellum" />
-              </div>
-              <div>
-                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.relations}</p>
-                <p className="font-display text-2xl text-sepia font-medium">
-                  <AnimatedNumber value={stats?.relations || 0} />
-                </p>
-              </div>
-            </div>
-          </div>
-        </FadeContent>
-
-        <FadeContent delay={0.3} direction="up">
-          <div className="card-stat">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-medium bg-gradient-amber flex items-center justify-center shadow-paper">
-                <TrendingUp className="w-5 h-5 text-vellum" />
-              </div>
-              <div>
-                <p className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.home.stats.roots}</p>
-                <p className="font-display text-2xl text-sepia font-medium">
-                  <AnimatedNumber value={stats?.root_concepts || 0} />
-                </p>
-              </div>
-            </div>
-          </div>
-        </FadeContent>
-      </div>
-
-      {/* Quick Actions - Two Column Layout */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
-        {/* Primary Actions */}
-        <FadeContent delay={0.4} direction="up">
+        {/* Actions */}
+        <section className="grid md:grid-cols-2 gap-4 mb-10">
           <Link
             to="/papers"
             className="card-action group block"
           >
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-amber group-hover:border-transparent transition-all duration-300">
-                <BookOpen className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center transition-all"
+                style={{
+                  background: 'var(--color-overlay)',
+                }}
+              >
+                <BookOpen className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.uploadPapers}</h3>
-                <p className="font-body text-sm text-muted">{t.home.actions.uploadDesc}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-body font-medium text-sm mb-0.5" style={{ color: 'var(--color-ink)' }}>
+                  {t.home.actions.uploadPapers}
+                </h3>
+                <p className="text-xs text-muted truncate">{t.home.actions.uploadDesc}</p>
               </div>
-              <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
-                <Layers className="w-4 h-4" />
-              </div>
+              <Layers className="w-4 h-4 text-muted group-hover:text-accent transition-colors" />
             </div>
           </Link>
-        </FadeContent>
 
-        <FadeContent delay={0.5} direction="up">
           <Link
             to="/concepts"
             className="card-action group block"
           >
             <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-large bg-vellum border border-academic flex items-center justify-center group-hover:bg-gradient-sepia group-hover:border-transparent transition-all duration-300">
-                <GitBranch className="w-6 h-6 text-sepia group-hover:text-vellum transition-colors" />
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center"
+                style={{ background: 'var(--color-overlay)' }}
+              >
+                <Network className="w-5 h-5" style={{ color: 'var(--color-accent)' }} />
               </div>
-              <div className="flex-1">
-                <h3 className="font-display text-lg text-sepia mb-1">{t.home.actions.exploreConcepts}</h3>
-                <p className="font-body text-sm text-muted">{t.home.actions.exploreDesc}</p>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-body font-medium text-sm mb-0.5" style={{ color: 'var(--color-ink)' }}>
+                  {t.home.actions.exploreConcepts}
+                </h3>
+                <p className="text-xs text-muted truncate">{t.home.actions.exploreDesc}</p>
               </div>
-              <div className="w-8 h-8 rounded-soft bg-paper flex items-center justify-center text-muted group-hover:bg-amber group-hover:text-vellum transition-all">
-                <Network className="w-4 h-4" />
-              </div>
+              <GitBranch className="w-4 h-4 text-muted group-hover:text-accent transition-colors" />
             </div>
           </Link>
-        </FadeContent>
-      </div>
+        </section>
 
-      {/* Configuration Section */}
-      <FadeContent delay={0.6} direction="up">
-        <div className="section-academic">
-          <div className="flex items-center gap-3 mb-5">
-            <Settings className="w-5 h-5 text-muted" />
-            <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.config}</h2>
+        {/* Configuration */}
+        <section className="section mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Settings className="w-4 h-4 text-muted" />
+            <h2 className="font-mono text-xs uppercase tracking-wider text-muted">
+              {t.home.config}
+            </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid md:grid-cols-2 gap-3">
             <button
               onClick={() => setShowLLMModal(true)}
               className="card-action text-left"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
-                  <Settings className="w-5 h-5 text-muted" />
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ background: 'var(--color-overlay)' }}
+                >
+                  <Settings className="w-4 h-4 text-muted" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-body font-medium text-sepia">{t.home.llmProvider}</p>
+                <div>
+                  <p className="font-body font-medium text-sm" style={{ color: 'var(--color-ink)' }}>
+                    {t.home.llmProvider}
+                  </p>
                   <p className="font-mono text-xs text-muted">{llmStatus}</p>
                 </div>
               </div>
@@ -223,51 +218,62 @@ export default function Home() {
               onClick={() => setShowS2Modal(true)}
               className="card-action text-left"
             >
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-soft bg-paper flex items-center justify-center">
-                  <Database className="w-5 h-5 text-muted" />
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center"
+                  style={{ background: 'var(--color-overlay)' }}
+                >
+                  <Database className="w-4 h-4 text-muted" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-body font-medium text-sepia">{t.home.semanticScholar}</p>
+                <div>
+                  <p className="font-body font-medium text-sm" style={{ color: 'var(--color-ink)' }}>
+                    {t.home.semanticScholar}
+                  </p>
                   <p className="font-mono text-xs text-muted">{s2Status}</p>
                 </div>
               </div>
             </button>
           </div>
-        </div>
-      </FadeContent>
+        </section>
 
-      {/* Paper Status Section */}
-      {stats?.papers && (
-        <FadeContent delay={0.7} direction="up">
-          <div className="section-academic mt-6">
-            <div className="flex items-center gap-3 mb-5">
-              <FileText className="w-5 h-5 text-muted" />
-              <h2 className="font-mono text-sm text-muted uppercase tracking-wider">{t.home.processingStatus}</h2>
+        {/* Processing Status */}
+        {stats?.papers && (
+          <section className="section">
+            <div className="flex items-center gap-2 mb-4">
+              <FileText className="w-4 h-4 text-muted" />
+              <h2 className="font-mono text-xs uppercase tracking-wider text-muted">
+                {t.home.processingStatus}
+              </h2>
             </div>
 
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-3">
               {Object.entries(stats.papers)
                 .filter(([k]) => k !== 'total')
                 .map(([status, count]) => (
                   <div
                     key={status}
-                    className={`px-5 py-4 rounded-large border border-academic bg-vellum
-                      ${status === 'processed' ? 'border-l-2 border-l-graph-technique' : ''}
-                      ${status === 'pending' ? 'border-l-2 border-l-amber' : ''}
-                      ${status === 'failed' ? 'border-l-2 border-l-status-error' : ''}
-                    `}
+                    className="px-4 py-3 rounded-lg"
+                    style={{
+                      background: 'var(--color-overlay)',
+                      borderLeft: `3px solid ${
+                        status === 'processed' ? 'var(--color-accent)' :
+                        status === 'pending' ? 'var(--color-highlight)' :
+                        '#b43c3c'
+                      }`
+                    }}
                   >
-                    <p className="font-display text-xl text-sepia">
+                    <p className="font-display text-lg font-medium" style={{ color: 'var(--color-ink)' }}>
                       <AnimatedNumber value={count as number} />
                     </p>
-                    <p className="font-mono text-xs text-muted capitalize">{t.papers.status[status as keyof typeof t.papers.status] || status}</p>
+                    <p className="font-mono text-xs text-muted capitalize">
+                      {t.papers.status[status as keyof typeof t.papers.status] || status}
+                    </p>
                   </div>
                 ))}
             </div>
-          </div>
-        </FadeContent>
-      )}
+          </section>
+        )}
+      </div>
 
       {/* Modals */}
       {showLLMModal && (
