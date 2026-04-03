@@ -299,13 +299,13 @@ export default function Chat() {
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-${msg.role === 'user' ? 'right' : 'left'}`}
               >
                 <div
                   className={`max-w-[80%] ${msg.role === 'user' ? 'order-1' : ''}`}
                 >
                   {msg.role === 'assistant' && msg.agent && (
-                    <div className="flex items-center gap-2 mb-1.5">
+                    <div className="flex items-center gap-2 mb-1.5 animate-fade-in">
                       <span
                         className="px-2 py-0.5 rounded-md text-xs font-mono"
                         style={{
@@ -318,16 +318,16 @@ export default function Chat() {
                     </div>
                   )}
                   <div
-                    className="px-4 py-3 rounded-2xl"
+                    className="px-4 py-3 rounded-2xl transition-colors-smooth"
                     style={{
                       backgroundColor: msg.role === 'user'
-                        ? 'var(--color-sepia)'
-                        : 'var(--color-vellum)',
+                        ? 'var(--color-accent)'
+                        : 'var(--color-surface)',
                       color: msg.role === 'user'
-                        ? 'var(--color-vellum)'
+                        ? 'white'
                         : 'var(--color-ink)',
                       border: msg.role === 'assistant'
-                        ? '1px solid rgba(184, 134, 11, 0.08)'
+                        ? '1px solid var(--color-border-subtle)'
                         : 'none',
                       borderRadius: msg.role === 'user'
                         ? '18px 18px 4px 18px'
@@ -355,19 +355,18 @@ export default function Chat() {
 
           {/* Loading indicator */}
           {isLoading && (
-            <div className="flex justify-start">
+            <div className="flex justify-start animate-fade-in">
               <div
                 className="px-4 py-3 rounded-2xl"
                 style={{
-                  background: 'var(--color-vellum)',
-                  border: '1px solid rgba(184, 134, 11, 0.08)',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border-subtle)',
                 }}
               >
-                <div className="flex items-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-amber)' }} />
-                  <span className="font-body text-sm" style={{ color: 'var(--color-muted)' }}>
-                    思考中...
-                  </span>
+                <div className="typing-indicator">
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </div>
               </div>
             </div>

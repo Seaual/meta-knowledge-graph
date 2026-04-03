@@ -98,16 +98,16 @@ export default function Home() {
       <div className="p-8 max-w-5xl mx-auto animate-fade-in">
         {/* Hero */}
         <header className="mb-10">
-          <h1 className="font-display text-2xl mb-1" style={{ color: 'var(--color-ink)' }}>
+          <h1 className="font-display text-2xl mb-1 animate-number" style={{ color: 'var(--color-ink)' }}>
             {t.home.title}
           </h1>
-          <p className="text-secondary" style={{ fontSize: '0.9375rem' }}>
+          <p className="text-secondary animate-slide-right" style={{ fontSize: '0.9375rem', animationDelay: '100ms' }}>
             {t.home.subtitle}
           </p>
         </header>
 
         {/* Stats */}
-        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10 stagger-children">
           {[
             { icon: FileText, label: t.home.stats.papers, value: stats?.papers?.total || 0 },
             { icon: GitBranch, label: t.home.stats.concepts, value: stats?.concepts?.total || 0 },
