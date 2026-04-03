@@ -295,8 +295,8 @@ function ChatInput({ onSend, isLoading }: { onSend: (message: string) => void; i
 export default function ResearchAgentBubble() {
   const location = useLocation()
 
-  // 在 Chat 页面不显示这个浮框
-  if (location.pathname === '/chat') {
+  // 在 Chat 页面和 Concepts 页面不显示这个浮框
+  if (location.pathname === '/chat' || location.pathname === '/concepts') {
     return null
   }
 
