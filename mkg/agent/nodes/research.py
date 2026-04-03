@@ -20,6 +20,7 @@ RESEARCH_PROMPT = """分析概念「{target_name}」的研究机会。
 
 然后生成研究点分析，包括：
 - 当前研究现状
+- 概念的层级关系（父概念和子概念）
 - 潜在研究方向（3-5个）
 - 每个方向的研究价值和方法论建议
 - 相关高引用论文推荐
@@ -40,7 +41,30 @@ def research_node(state: AgentState) -> Dict[str, Any]:
     llm = get_llm_or_raise()
     llm_with_tools = llm.bind_tools(RESEARCH_TOOLS)
 
-    target_name = state.get("target_name", "未知概念")
+    # 优先从 target_name 获取，其次从 current_target 获取
+    target_name = state.get("target_name")
+    current_target = state.get("current_target")
+
+    if not target_name and current_target:
+        # 从上下文目标获取
+        if current_target.get("type") == "concept":
+            target_name = current_target.get("name")
+        elif current_target.get("type") == "paper":
+            # 如果目标是论文，尝试获取论文的核心概念
+            if _db:
+                paper_doi = current_target.get("id")
+                concepts = _db.get_concepts_by_paper(paper_doi) if paper_doi else []
+                if concepts:
+                    # 获取根概念或最相关的概念
+                    target_name = concepts[0].get('text')
+
+    # 如果还是没有目标，尝试获取数据库中的根概念
+    if not target_name and _db:
+        root_concepts = _db.get_root_concepts()
+        if root_concepts:
+            target_name = root_concepts[0].get('text')
+
+    target_name = target_name or "未知概念"
     prompt = RESEARCH_PROMPT.format(target_name=target_name)
 
     # 构建消息
@@ -86,11 +110,10 @@ def research_node(state: AgentState) -> Dict[str, Any]:
     # 最终响应
     response_content = response.content
 
-    # 获取概念图谱数据
+    # 获取概念图谱数据（使用之前确定的 target_name）
     concept_data = None
-    target_name = state.get("target_name")
 
-    if target_name and _db:
+    if target_name and target_name != "未知概念" and _db:
         # 尝试根据名称查找概念
         concept = _db.get_concept_by_text(target_name)
         if not concept:

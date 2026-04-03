@@ -231,5 +231,11 @@ def get_research_report(session_id: str):
 @router.post("/reset")
 def reset_agent():
     """重置 Agent 图（用于重新加载配置）"""
-    reset_graph()
+    # 强制重新加载所有 agent 模块
+    import importlib
+    from mkg.agent import routing, graph
+    importlib.reload(routing)
+    importlib.reload(graph)
+
+    graph.reset_graph()
     return {"status": "ok"}
