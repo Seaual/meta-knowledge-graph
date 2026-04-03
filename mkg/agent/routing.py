@@ -1,13 +1,195 @@
 # mkg/agent/routing.py
 """
-意图路由规则 - 基于关键词的规则路由，无需 LLM 调用
+意图路由 - 使用 LLM 自动理解用户意图并路由到正确的 agent
 """
 
 from typing import Optional, Tuple, Dict, Any
+import json
 
 
 # ============================================================
-# 路由规则定义
+# Agent 类型定义
+# ============================================================
+
+AGENT_TYPES = {
+    "lead": "通用助手 - 处理一般对话、问候、帮助请求",
+    "citation": "引用分析 - 分析论文的引用关系、被引用情况",
+    "research": "研究点分析 - 分析概念的研究方向、研究机会、概念图谱",
+    "deep_research": "深入研究 - 对某个主题进行全面系统的研究",
+    "paper_qa": "论文问答 - 回答关于特定论文内容的问题",
+    "move_paper": "文件管理 - 移动论文到文件夹、创建文件夹",
+}
+
+
+# ============================================================
+# LLM 路由 Prompt
+# ============================================================
+
+ROUTING_PROMPT = """你是一个意图识别系统。分析用户消息，判断用户想要做什么，然后路由到正确的 agent。
+
+## 可用的 Agent 类型：
+{agent_descriptions}
+
+## 当前上下文：
+- 当前目标: {current_target}
+- 上传的论文: {uploaded_papers}
+
+## 用户消息：
+{message}
+
+## 任务：
+1. 分析用户意图
+2. 选择最合适的 agent 类型
+3. 如果用户提到了特定的论文或概念，提取目标名称
+
+请以 JSON 格式返回（只返回 JSON，不要其他内容）：
+{{
+    "intent": "<agent类型>",
+    "target_name": "<目标名称或null>",
+    "reasoning": "<简短的理由>"
+}}
+"""
+
+
+# ============================================================
+# 路由函数
+# ============================================================
+
+def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tuple[str, Optional[str]]:
+    """
+    智能意图路由：关键词优先，LLM 兜底
+
+    Args:
+        message: 用户消息
+        context: 当前上下文（包含 currentTarget 等）
+
+    Returns:
+        (intent, target_name) - 意图和目标名称
+    """
+    if context is None:
+        context = {}
+
+    # 1. 先尝试关键词路由（快速）
+    intent, target_name = keyword_route_intent(message, context)
+
+    # 2. 如果关键词匹配成功，直接返回
+    if intent != "lead":
+        return intent, target_name
+
+    # 3. 关键词无法匹配，尝试 LLM 路由（智能）
+    try:
+        llm_intent, llm_target = llm_route_intent(message, context)
+        if llm_intent != "lead":
+            return llm_intent, llm_target
+    except Exception as e:
+        print(f"LLM routing failed: {e}")
+
+    # 4. 都失败了，返回 lead（通用对话）
+    return "lead", target_name
+
+
+def llm_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Optional[str]]:
+    """
+    使用 LLM 进行智能意图路由
+    """
+    from litellm import completion
+    from mkg.database import Database
+    from pathlib import Path
+
+    # 获取 LLM 配置
+    db_path = Path(__file__).parent.parent.parent / "mkg.db"
+    db = Database(str(db_path))
+    db.connect()
+
+    config = db.get_llm_config()
+    if not config or not config.get('providers'):
+        raise ValueError("LLM 未配置")
+
+    provider_config = db.get_active_llm_provider()
+    if not provider_config:
+        provider_config = config['providers'][0]
+
+    provider = provider_config.get('provider', 'openai')
+    api_key = provider_config.get('api_key')
+    model = provider_config.get('model', 'gpt-4o-mini')
+    base_url = provider_config.get('base_url')
+
+    # 构建 model 字符串 - 对于自定义 provider 使用 openai 兼容格式
+    if provider == 'custom' or provider == 'openrouter':
+        litellm_model = f"openai/{model}"
+    elif '/' in model:
+        litellm_model = model
+    elif provider in ['openai', 'anthropic', 'dashscope']:
+        litellm_model = f"{provider}/{model}"
+    else:
+        litellm_model = f"openai/{model}"
+
+    # 构建 agent 描述
+    agent_descriptions = "\n".join([
+        f"- {name}: {desc}" for name, desc in AGENT_TYPES.items()
+    ])
+
+    # 构建上下文信息
+    current_target = context.get("currentTarget")
+    target_info = "无"
+    if current_target:
+        target_info = f"{current_target.get('type')}: {current_target.get('name')}"
+
+    uploaded_papers = context.get("uploadedPapers", [])
+    papers_info = "无"
+    if uploaded_papers:
+        papers_info = ", ".join([p.get("title", "") for p in uploaded_papers[-3:]])
+
+    # 构建 prompt
+    prompt = ROUTING_PROMPT.format(
+        agent_descriptions=agent_descriptions,
+        current_target=target_info,
+        uploaded_papers=papers_info,
+        message=message
+    )
+
+    # 调用 LLM
+    kwargs = {
+        "model": litellm_model,
+        "messages": [
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 200,
+    }
+
+    if api_key:
+        kwargs["api_key"] = api_key
+    if base_url:
+        kwargs["api_base"] = base_url
+
+    response = completion(**kwargs)
+    content = response.choices[0].message.content
+
+    # 解析响应
+    try:
+        # 尝试找到 JSON 块
+        if "```json" in content:
+            content = content.split("```json")[1].split("```")[0]
+        elif "```" in content:
+            content = content.split("```")[1].split("```")[0]
+
+        result = json.loads(content.strip())
+        intent = result.get("intent", "lead")
+        target_name = result.get("target_name")
+
+        # 验证 intent 是否有效
+        if intent not in AGENT_TYPES:
+            intent = "lead"
+
+        return intent, target_name
+
+    except json.JSONDecodeError:
+        # JSON 解析失败，返回默认
+        return "lead", None
+
+
+# ============================================================
+# 关键词路由（作为后备）
 # ============================================================
 
 ROUTING_RULES: Dict[str, list] = {
@@ -21,7 +203,6 @@ ROUTING_RULES: Dict[str, list] = {
         "研究热点", "领域热点", "可以研究的", "研究什么",
         "深入分析", "分析概念", "概念的研究",
         "研究建议", "拓展研究", "拓展", "研究拓展", "未来研究",
-        # 概念图谱查询
         "看下我的图谱", "我的图谱", "图谱", "概念图谱",
         "概念图", "知识图谱", "查看图谱", "显示图谱",
         "这个概念", "关于概念", "概念是什么", "概念的",
@@ -47,10 +228,8 @@ ROUTING_RULES: Dict[str, list] = {
     ],
 }
 
-# 意图优先级（按顺序匹配）
 INTENT_PRIORITY = ["citation", "research", "deep_research", "paper_qa", "move_paper"]
 
-# 代词模式
 PRONOUN_PATTERNS = [
     "这篇论文", "这篇文章", "这个论文", "这篇",
     "这个概念", "这个节点", "这个主题",
@@ -58,24 +237,10 @@ PRONOUN_PATTERNS = [
 ]
 
 
-# ============================================================
-# 路由函数
-# ============================================================
-
-def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tuple[str, Optional[str]]:
+def keyword_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Optional[str]]:
     """
-    基于规则的意图路由
-
-    Args:
-        message: 用户消息
-        context: 当前上下文（包含 currentTarget 等）
-
-    Returns:
-        (intent, target_name) - 意图和目标名称
+    基于关键词的后备路由
     """
-    if context is None:
-        context = {}
-
     message_lower = message.lower()
 
     # 按优先级匹配关键词
@@ -85,66 +250,33 @@ def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tupl
             target_name = extract_target(message, context)
             return intent, target_name
 
-    # 默认为 lead（通用对话）
     return "lead", None
 
 
 def extract_target(message: str, context: Dict[str, Any]) -> Optional[str]:
-    """
-    从消息或上下文提取目标名称
-
-    Args:
-        message: 用户消息
-        context: 当前上下文
-
-    Returns:
-        目标名称（论文标题或概念名称）
-    """
-    # 检查是否使用了代词
+    """从消息或上下文提取目标名称"""
     has_pronoun = any(p in message for p in PRONOUN_PATTERNS)
 
     if has_pronoun:
-        # 从上下文获取当前目标
         current_target = context.get("currentTarget")
         if current_target:
             return current_target.get("name")
 
-    # 检查上传的论文
     uploaded_papers = context.get("uploadedPapers", [])
     if uploaded_papers and any(p in message for p in ["刚才上传", "上传的论文"]):
         return uploaded_papers[-1].get("title")
 
-    # TODO: 可后续用 NER 或正则提取论文/概念名称
-    # 目前返回 None，让 LLM 从上下文推断
     return None
 
 
 def needs_summary(intent: str, response_length: int = 0) -> bool:
-    """
-    判断是否需要 Lead Agent 汇总
-
-    Args:
-        intent: 意图类型
-        response_length: 响应内容长度
-
-    Returns:
-        是否需要汇总
-    """
-    # deep_research 总是需要汇总
+    """判断是否需要 Lead Agent 汇总"""
     if intent == "deep_research":
         return True
-
-    # 其他意图根据响应长度判断
-    # 超过 1000 字符认为需要汇总
     if response_length > 1000:
         return True
-
     return False
 
-
-# ============================================================
-# 辅助函数
-# ============================================================
 
 def get_intent_keywords(intent: str) -> list:
     """获取某个意图的触发关键词"""

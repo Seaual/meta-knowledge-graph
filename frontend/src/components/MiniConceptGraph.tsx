@@ -107,10 +107,12 @@ export default function MiniConceptGraph({
       .linkColor(() => 'rgba(184, 134, 11, 0.25)')
       .linkWidth(1)
       .cooldownTicks(50)
-      .d3AlphaDecay(0.1)
+      .d3AlphaDecay(0.05)
       .d3VelocityDecay(0.4)
-      .enableZoomInteraction(false)
-      .enableNodeDrag(false)
+      .enableZoomInteraction(true)   // 启用缩放
+      .enableNodeDrag(true)          // 启用节点拖拽
+      .minZoom(0.5)
+      .maxZoom(3)
       .onNodeClick((node: any) => {
         if (onNodeClick && node) {
           onNodeClick({

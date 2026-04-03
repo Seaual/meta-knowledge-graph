@@ -8,6 +8,7 @@ import DedupPanel from '../components/DedupPanel'
 import FilterPanel from '../components/FilterPanel'
 import RecommendationPanel from '../components/RecommendationPanel'
 import { useTranslation } from '../i18n'
+import { useAgentStore } from '../stores/agentStore'
 
 // Types
 interface Concept {
@@ -110,6 +111,9 @@ export default function ConceptsGraph() {
   const { t, language } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
+
+  // Agent store for context
+  const { updateContext } = useAgentStore()
 
   const [loading, setLoading] = useState(true)
   const [concepts, setConcepts] = useState<Concept[]>([])
@@ -297,10 +301,19 @@ export default function ConceptsGraph() {
       setSelectedConcept(res.data)
       setShowConceptActions(true)
       setShowResearchPanel(false)
+
+      // 更新 AI Agent 上下文
+      updateContext({
+        currentTarget: {
+          type: 'concept',
+          id: res.data.id,
+          name: res.data.text,
+        }
+      })
     } catch (err) {
       console.error('Failed to get concept:', err)
     }
-  }, [])
+  }, [updateContext])
 
   // Enter paper view
   const handleViewPapers = useCallback(async () => {
@@ -343,10 +356,19 @@ export default function ConceptsGraph() {
     try {
       const res = await papersApi.get(node.doi)
       setSelectedPaper(res.data)
+
+      // 更新 AI Agent 上下文
+      updateContext({
+        currentTarget: {
+          type: 'paper',
+          id: node.doi,
+          name: res.data.title,
+        }
+      })
     } catch (err) {
       console.error('Failed to get paper:', err)
     }
-  }, [])
+  }, [updateContext])
 
   // Discover research points
   const handleDiscoverResearchPoints = useCallback(async () => {
@@ -732,7 +754,13 @@ export default function ConceptsGraph() {
       <div className="absolute top-4 right-4 z-10 flex gap-2">
         {/* Filter Button */}
         <button
-          onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+          onClick={() => {
+            setFilterPanelOpen(!filterPanelOpen)
+            if (!filterPanelOpen) {
+              setShowFolderMenu(false)
+              setShowExportMenu(false)
+            }
+          }}
           className={`btn-secondary flex items-center gap-2 ${filterPanelOpen ? 'border-sepia text-sepia' : ''}`}
         >
           <Search className="w-4 h-4" />
@@ -742,7 +770,13 @@ export default function ConceptsGraph() {
         {/* Folder Selector */}
         <div className="relative">
           <button
-            onClick={() => setShowFolderMenu(!showFolderMenu)}
+            onClick={() => {
+              setShowFolderMenu(!showFolderMenu)
+              if (!showFolderMenu) {
+                setFilterPanelOpen(false)
+                setShowExportMenu(false)
+              }
+            }}
             className="btn-secondary flex items-center gap-2"
           >
             <Folder className="w-4 h-4" />
@@ -776,7 +810,13 @@ export default function ConceptsGraph() {
         {viewMode === 'all' && (
           <div className="relative">
             <button
-              onClick={() => setShowExportMenu(!showExportMenu)}
+              onClick={() => {
+                setShowExportMenu(!showExportMenu)
+                if (!showExportMenu) {
+                  setFilterPanelOpen(false)
+                  setShowFolderMenu(false)
+                }
+              }}
               className="btn-secondary flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
@@ -863,55 +903,125 @@ export default function ConceptsGraph() {
         </div>
       </div>
 
-      {/* Concept Action Panel */}
+      {/* Concept Action Panel - Redesigned */}
       {showConceptActions && selectedConcept && (
-        <div className="absolute top-4 right-4 card-academic p-4 z-20 w-72 animate-slide-down">
-          <div className="flex items-start justify-between mb-3">
-            <div>
-              <h3 className="font-display font-medium text-sepia text-sm">{selectedConcept.text}</h3>
-              <div className="flex items-center gap-2 mt-1">
-                {selectedConcept.category && (
-                  <span
-                    className="badge-academic"
-                    style={{
-                      backgroundColor: CATEGORY_COLORS[selectedConcept.category] + '15',
-                      color: CATEGORY_COLORS[selectedConcept.category],
-                      borderColor: CATEGORY_COLORS[selectedConcept.category] + '30',
-                    }}
-                  >
-                    {selectedConcept.category}
+        <div
+          className="absolute top-4 right-4 z-20 w-80 animate-slide-down"
+          style={{
+            background: 'linear-gradient(135deg, rgba(250, 248, 245, 0.98) 0%, rgba(245, 240, 232, 0.98) 100%)',
+            border: '1px solid rgba(184, 134, 11, 0.12)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(44, 24, 16, 0.08), 0 2px 8px rgba(44, 24, 16, 0.04)',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Header with decorative accent */}
+          <div
+            className="px-5 py-4"
+            style={{
+              borderBottom: '1px solid rgba(184, 134, 11, 0.08)',
+              background: 'linear-gradient(180deg, rgba(184, 134, 11, 0.03) 0%, transparent 100%)',
+            }}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex-1 pr-3">
+                <h3
+                  className="font-display text-lg leading-tight"
+                  style={{ color: 'var(--color-sepia)', fontWeight: 500 }}
+                >
+                  {selectedConcept.text}
+                </h3>
+                <div className="flex items-center gap-3 mt-2">
+                  {selectedConcept.category && (
+                    <span
+                      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono"
+                      style={{
+                        backgroundColor: CATEGORY_COLORS[selectedConcept.category] + '12',
+                        color: CATEGORY_COLORS[selectedConcept.category],
+                        border: `1px solid ${CATEGORY_COLORS[selectedConcept.category]}25`,
+                      }}
+                    >
+                      {selectedConcept.category}
+                    </span>
+                  )}
+                  <span className="font-mono text-xs" style={{ color: 'var(--color-muted)' }}>
+                    {selectedConcept.paper_count || 0} 篇论文
                   </span>
-                )}
-                <span className="font-mono text-xs text-muted">{selectedConcept.paper_count || 0} {t.concepts.paper}</span>
+                </div>
               </div>
+              <button
+                onClick={() => { setShowConceptActions(false); setSelectedConcept(null) }}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{
+                  color: 'var(--color-muted)',
+                  background: 'transparent',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(184, 134, 11, 0.08)'
+                  e.currentTarget.style.color = 'var(--color-sepia)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-muted)'
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => { setShowConceptActions(false); setSelectedConcept(null) }}
-              className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
           </div>
 
-          <div className="space-y-2">
+          {/* Action buttons - cleaner design */}
+          <div className="p-4 space-y-2">
             <button
               onClick={handleDiscoverResearchPoints}
-              className="btn-primary w-full flex items-center justify-center gap-2"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+              style={{
+                background: 'linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%)',
+                color: 'var(--color-vellum)',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
+                fontSize: '0.875rem',
+              }}
             >
-              🔍 {t.concepts.discoverResearch}
+              <span className="text-lg">🔍</span>
+              <span>发现研究点</span>
             </button>
             <button
               onClick={handleStartRecommendationSelection}
-              className="btn-secondary w-full flex items-center justify-center gap-2"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+              style={{
+                background: 'var(--color-paper)',
+                color: 'var(--color-sepia)',
+                border: '1px solid rgba(184, 134, 11, 0.15)',
+                fontFamily: 'var(--font-body)',
+                fontWeight: 500,
+                fontSize: '0.875rem',
+              }}
             >
-              📚 {t.concepts.recommendation.searchPapers}
+              <span className="text-lg">📚</span>
+              <span>推荐相关论文</span>
             </button>
             {selectedConcept.papers && selectedConcept.papers.length > 0 && (
               <button
                 onClick={handleViewPapers}
-                className="btn-secondary w-full flex items-center justify-center gap-2"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all"
+                style={{
+                  background: 'var(--color-paper)',
+                  color: 'var(--color-sepia)',
+                  border: '1px solid rgba(184, 134, 11, 0.15)',
+                  fontFamily: 'var(--font-body)',
+                  fontWeight: 500,
+                  fontSize: '0.875rem',
+                }}
               >
-                📄 {t.concepts.viewPapers} ({selectedConcept.papers.length})
+                <span className="text-lg">📄</span>
+                <span>查看关联论文</span>
+                <span
+                  className="ml-auto px-2 py-0.5 rounded-full text-xs font-mono"
+                  style={{ background: 'rgba(184, 134, 11, 0.1)', color: 'var(--color-sepia)' }}
+                >
+                  {selectedConcept.papers.length}
+                </span>
               </button>
             )}
           </div>
@@ -958,65 +1068,97 @@ export default function ConceptsGraph() {
         </div>
       )}
 
-      {/* Paper Detail Panel */}
+      {/* Paper Detail Panel - Redesigned */}
       {selectedPaper && (
-        <div className="absolute bottom-20 right-4 w-96 card-academic z-20 max-h-[70vh] overflow-y-auto animate-slide-up">
-          <div className="p-4 border-b border-academic sticky top-0 bg-vellum">
+        <div
+          className="absolute bottom-20 right-4 z-20 max-h-[75vh] overflow-hidden animate-slide-up"
+          style={{
+            width: '420px',
+            background: 'linear-gradient(135deg, rgba(250, 248, 245, 0.98) 0%, rgba(245, 240, 232, 0.98) 100%)',
+            border: '1px solid rgba(184, 134, 11, 0.12)',
+            borderRadius: '16px',
+            boxShadow: '0 12px 48px rgba(44, 24, 16, 0.1), 0 4px 16px rgba(44, 24, 16, 0.05)',
+          }}
+        >
+          {/* Header */}
+          <div
+            className="px-5 py-4 sticky top-0"
+            style={{
+              borderBottom: '1px solid rgba(184, 134, 11, 0.08)',
+              background: 'linear-gradient(180deg, rgba(184, 134, 11, 0.04) 0%, transparent 100%)',
+            }}
+          >
             <div className="flex items-start justify-between">
-              <h3 className="font-display font-medium text-sepia text-sm leading-tight pr-2">
+              <h3
+                className="font-display text-base leading-snug pr-3"
+                style={{ color: 'var(--color-sepia)', fontWeight: 500 }}
+              >
                 {selectedPaper.title}
               </h3>
               <button
                 onClick={() => setSelectedPaper(null)}
-                className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all"
+                style={{ color: 'var(--color-muted)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(184, 134, 11, 0.08)'
+                  e.currentTarget.style.color = 'var(--color-sepia)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-muted)'
+                }}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
-          </div>
 
-          <div className="p-4 space-y-4">
-            {/* DOI */}
-            <div>
-              <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.doi}</div>
-              {selectedPaper.s2_doi ? (
-                <a
-                  href={`https://doi.org/${selectedPaper.s2_doi}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-mono text-xs text-status-info hover:text-sepia hover:underline break-all"
-                >
-                  {selectedPaper.s2_doi}
-                </a>
-              ) : (
-                <div className="font-mono text-xs text-muted break-all">{selectedPaper.doi}</div>
+            {/* Quick stats row */}
+            <div className="flex items-center gap-4 mt-3">
+              {selectedPaper.year && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">📅</span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--color-muted)' }}>
+                    {selectedPaper.year}
+                  </span>
+                </div>
+              )}
+              {selectedPaper.citation_count !== undefined && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">📊</span>
+                  <span className="font-mono text-xs" style={{ color: 'var(--color-muted)' }}>
+                    {selectedPaper.citation_count} 引用
+                  </span>
+                </div>
+              )}
+              {selectedPaper.venue && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-sm">📖</span>
+                  <span className="font-body text-xs truncate max-w-[120px]" style={{ color: 'var(--color-muted)' }}>
+                    {selectedPaper.venue}
+                  </span>
+                </div>
               )}
             </div>
+          </div>
 
-            {/* Venue & Year */}
-            {(selectedPaper.venue || selectedPaper.year) && (
-              <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.venue}</div>
-                <div className="font-body text-sm text-sepia">
-                  {selectedPaper.venue}
-                  {selectedPaper.year && <span className="text-muted">, {selectedPaper.year}</span>}
-                </div>
-              </div>
-            )}
-
-            {/* Citation Count */}
-            {selectedPaper.citation_count !== undefined && (
-              <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.citations}</div>
-                <div className="font-display text-lg text-sepia">{selectedPaper.citation_count}</div>
-              </div>
-            )}
-
-            {/* TLDR */}
+          {/* Scrollable content */}
+          <div className="overflow-y-auto max-h-[calc(75vh-100px)] p-5 space-y-5">
+            {/* TLDR - Highlighted */}
             {selectedPaper.tldr && (
-              <div>
-                <div className="font-mono text-xs text-status-success uppercase tracking-wider mb-1">{t.concepts.paperDetail.tldr}</div>
-                <div className="font-quote text-sm text-status-success italic bg-status-success/5 p-3 rounded-medium">
+              <div
+                className="p-4 rounded-xl"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(45, 90, 39, 0.06) 0%, rgba(45, 90, 39, 0.02) 100%)',
+                  border: '1px solid rgba(45, 90, 39, 0.1)',
+                }}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm">💡</span>
+                  <span className="font-mono text-xs uppercase tracking-wider" style={{ color: '#2d5a27' }}>
+                    TL;DR
+                  </span>
+                </div>
+                <div className="font-quote text-sm leading-relaxed" style={{ color: '#2d5a27' }}>
                   {selectedPaper.tldr}
                 </div>
               </div>
@@ -1025,26 +1167,34 @@ export default function ConceptsGraph() {
             {/* Authors */}
             {selectedPaper.authors && selectedPaper.authors.length > 0 && (
               <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.authors}</div>
-                <div className="font-body text-sm text-sepia">
-                  {selectedPaper.authors.slice(0, 5).join(', ')}
-                  {selectedPaper.authors.length > 5 && (
-                    <span className="text-muted"> +{selectedPaper.authors.length - 5} {t.concepts.paperDetail.more}</span>
+                <div className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--color-muted)' }}>
+                  作者
+                </div>
+                <div className="font-body text-sm leading-relaxed" style={{ color: 'var(--color-sepia)' }}>
+                  {selectedPaper.authors.slice(0, 4).join(', ')}
+                  {selectedPaper.authors.length > 4 && (
+                    <span style={{ color: 'var(--color-muted)' }}> +{selectedPaper.authors.length - 4} 位</span>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Keywords */}
+            {/* Keywords - pill design */}
             {selectedPaper.keywords && selectedPaper.keywords.length > 0 && (
               <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-2">{t.concepts.paperDetail.keywords}</div>
-                <div className="flex flex-wrap gap-1">
-                  {selectedPaper.keywords.map((kw, i) => (
+                <div className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--color-muted)' }}>
+                  关键词
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedPaper.keywords.slice(0, 8).map((kw, i) => (
                     <span
                       key={i}
-                      className="badge-academic"
-                      style={{ backgroundColor: '#f5f0e8', color: '#6b4423', borderColor: '#e8dfd0' }}
+                      className="px-2.5 py-1 rounded-full text-xs font-mono"
+                      style={{
+                        backgroundColor: 'rgba(184, 134, 11, 0.06)',
+                        color: 'var(--color-sepia)',
+                        border: '1px solid rgba(184, 134, 11, 0.1)',
+                      }}
                     >
                       {kw}
                     </span>
@@ -1056,8 +1206,10 @@ export default function ConceptsGraph() {
             {/* Abstract */}
             {selectedPaper.abstract && (
               <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-1">{t.concepts.paperDetail.abstract}</div>
-                <div className="font-body text-sm text-sepia leading-relaxed">
+                <div className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--color-muted)' }}>
+                  摘要
+                </div>
+                <div className="font-body text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
                   {selectedPaper.abstract}
                 </div>
               </div>
@@ -1066,155 +1218,271 @@ export default function ConceptsGraph() {
             {/* Contributions */}
             {selectedPaper.contributions && selectedPaper.contributions.length > 0 && (
               <div>
-                <div className="font-mono text-xs text-muted uppercase tracking-wider mb-2">{t.concepts.paperDetail.keyContributions}</div>
-                <ul className="font-body text-sm text-sepia space-y-1">
+                <div className="font-mono text-xs uppercase tracking-wider mb-3" style={{ color: 'var(--color-muted)' }}>
+                  核心贡献
+                </div>
+                <div className="space-y-2">
                   {selectedPaper.contributions.slice(0, 3).map((c, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="text-amber mt-1">•</span>
-                      <span>{c}</span>
-                    </li>
+                    <div key={i} className="flex items-start gap-3">
+                      <span
+                        className="w-5 h-5 rounded-full flex items-center justify-center text-xs font-mono flex-shrink-0 mt-0.5"
+                        style={{
+                          background: 'linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%)',
+                          color: 'var(--color-vellum)',
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="font-body text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+                        {c}
+                      </span>
+                    </div>
                   ))}
-                </ul>
+                </div>
               </div>
             )}
+
+            {/* DOI Link */}
+            <div
+              className="pt-4"
+              style={{ borderTop: '1px solid rgba(184, 134, 11, 0.08)' }}
+            >
+              <div className="font-mono text-xs uppercase tracking-wider mb-2" style={{ color: 'var(--color-muted)' }}>
+                DOI
+              </div>
+              {selectedPaper.s2_doi ? (
+                <a
+                  href={`https://doi.org/${selectedPaper.s2_doi}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-mono text-xs break-all transition-colors"
+                  style={{ color: '#4a6b8a' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-sepia)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#4a6b8a'}
+                >
+                  {selectedPaper.s2_doi} →
+                </a>
+              ) : (
+                <div className="font-mono text-xs break-all" style={{ color: 'var(--color-muted)' }}>
+                  {selectedPaper.doi}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Research Points Panel */}
+      {/* Research Points Panel - Redesigned */}
       {showResearchPanel && (
-        <div className="absolute top-20 left-4 w-[480px] card-academic z-20 max-h-[75vh] overflow-y-auto animate-slide-up">
-          <div className="p-4 border-b border-academic sticky top-0 bg-vellum">
+        <div
+          className="absolute top-20 left-4 z-20 max-h-[80vh] overflow-hidden animate-slide-up"
+          style={{
+            width: '520px',
+            background: 'linear-gradient(135deg, rgba(250, 248, 245, 0.98) 0%, rgba(245, 240, 232, 0.98) 100%)',
+            border: '1px solid rgba(184, 134, 11, 0.12)',
+            borderRadius: '16px',
+            boxShadow: '0 12px 48px rgba(44, 24, 16, 0.1), 0 4px 16px rgba(44, 24, 16, 0.05)',
+          }}
+        >
+          {/* Header */}
+          <div
+            className="px-5 py-4 sticky top-0"
+            style={{
+              borderBottom: '1px solid rgba(184, 134, 11, 0.08)',
+              background: 'linear-gradient(180deg, rgba(184, 134, 11, 0.04) 0%, transparent 100%)',
+            }}
+          >
             <div className="flex items-start justify-between">
               <div>
-                <h3 className="font-display font-medium text-sepia text-base">🔍 {t.concepts.researchPoints.title}</h3>
-                <p className="font-body text-xs text-muted mt-1">
-                  {t.concepts.researchPoints.basedOn} "{researchPoints?.concept_name || selectedConcept?.text}"
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🔍</span>
+                  <h3 className="font-display text-base" style={{ color: 'var(--color-sepia)', fontWeight: 500 }}>
+                    研究点发现
+                  </h3>
+                </div>
+                <p className="font-body text-xs mt-1.5" style={{ color: 'var(--color-muted)' }}>
+                  基于「{researchPoints?.concept_name || selectedConcept?.text}」的图谱分析
                 </p>
               </div>
               <button
                 onClick={() => setShowResearchPanel(false)}
-                className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-all"
+                style={{ color: 'var(--color-muted)' }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(184, 134, 11, 0.08)'
+                  e.currentTarget.style.color = 'var(--color-sepia)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'transparent'
+                  e.currentTarget.style.color = 'var(--color-muted)'
+                }}
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          <div className="p-4 space-y-4">
+          {/* Scrollable content */}
+          <div className="overflow-y-auto max-h-[calc(80vh-90px)] p-5 space-y-5">
             {loadingResearchPoints ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-12">
                 <div className="text-center">
                   <div className="loading-academic" style={{ minHeight: '100px' }}>
-                    {t.concepts.researchPoints.analyzing}
+                    正在分析图谱结构...
                   </div>
-                  <p className="font-body text-xs text-muted mt-1">{t.concepts.researchPoints.traversing}</p>
+                  <p className="font-body text-xs mt-2" style={{ color: 'var(--color-muted)' }}>
+                    遍历祖先节点、后代节点和边缘节点
+                  </p>
                 </div>
               </div>
             ) : researchPoints ? (
               <>
-                {/* Analysis Context Summary */}
-                <div className="bg-paper rounded-large p-3">
-                  <div className="font-mono text-xs text-sepia uppercase tracking-wider mb-2">{t.concepts.researchPoints.analysisContext}</div>
-                  <div className="grid grid-cols-3 gap-2 text-center">
+                {/* Analysis Context - Compact Stats */}
+                <div
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl"
+                  style={{
+                    background: 'rgba(184, 134, 11, 0.04)',
+                    border: '1px solid rgba(184, 134, 11, 0.08)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">⬆️</span>
                     <div>
-                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.ancestors.length}</div>
-                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.ancestors}</div>
+                      <div className="font-display text-base" style={{ color: 'var(--color-sepia)' }}>
+                        {researchPoints.analysis_context.ancestors.length}
+                      </div>
+                      <div className="font-mono text-[10px]" style={{ color: 'var(--color-muted)' }}>祖先</div>
                     </div>
+                  </div>
+                  <div className="w-px h-8" style={{ background: 'rgba(184, 134, 11, 0.1)' }} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">⬇️</span>
                     <div>
-                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.descendants.length}</div>
-                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.descendants}</div>
+                      <div className="font-display text-base" style={{ color: 'var(--color-sepia)' }}>
+                        {researchPoints.analysis_context.descendants.length}
+                      </div>
+                      <div className="font-mono text-[10px]" style={{ color: 'var(--color-muted)' }}>后代</div>
                     </div>
+                  </div>
+                  <div className="w-px h-8" style={{ background: 'rgba(184, 134, 11, 0.1)' }} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">🍃</span>
                     <div>
-                      <div className="font-display text-lg text-sepia font-medium">{researchPoints.analysis_context.edge_nodes.length}</div>
-                      <div className="font-mono text-xs text-muted">{t.concepts.researchPoints.edgeNodes}</div>
+                      <div className="font-display text-base" style={{ color: 'var(--color-sepia)' }}>
+                        {researchPoints.analysis_context.edge_nodes.length}
+                      </div>
+                      <div className="font-mono text-[10px]" style={{ color: 'var(--color-muted)' }}>边缘</div>
                     </div>
                   </div>
                 </div>
 
-                {/* Research Points */}
-                <div className="space-y-3">
+                {/* Research Points Cards */}
+                <div className="space-y-4">
                   {researchPoints.research_points.map((point, i) => (
                     <div
                       key={i}
-                      className="border border-academic rounded-large p-3 hover:border-sepia hover:bg-vellum/50 transition-colors"
+                      className="group rounded-xl overflow-hidden transition-all"
+                      style={{
+                        border: '1px solid rgba(184, 134, 11, 0.1)',
+                        background: 'transparent',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.2)'
+                        e.currentTarget.style.background = 'rgba(184, 134, 11, 0.02)'
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.1)'
+                        e.currentTarget.style.background = 'transparent'
+                      }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <h4 className="font-display font-medium text-sepia text-sm">{point.title}</h4>
+                      {/* Card Header */}
+                      <div className="px-4 py-3 flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3 flex-1">
+                          <span
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-mono flex-shrink-0 mt-0.5"
+                            style={{
+                              background: 'linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%)',
+                              color: 'var(--color-vellum)',
+                            }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div>
+                            <h4 className="font-display text-sm leading-snug" style={{ color: 'var(--color-sepia)', fontWeight: 500 }}>
+                              {point.title}
+                            </h4>
+                            {point.hypothesis && (
+                              <p className="font-body text-xs mt-1 italic" style={{ color: '#4a6b8a' }}>
+                                {point.hypothesis}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Compact tags */}
                         <div className="flex gap-1 flex-shrink-0">
                           <span
-                            className="badge-academic"
+                            className="w-2 h-2 rounded-full"
                             style={{
-                              backgroundColor: point.difficulty === 'low' ? '#2d5a2715' : point.difficulty === 'medium' ? '#b8860b15' : '#a33b3b15',
-                              color: point.difficulty === 'low' ? '#2d5a27' : point.difficulty === 'medium' ? '#b8860b' : '#a33b3b',
-                              borderColor: point.difficulty === 'low' ? '#2d5a2730' : point.difficulty === 'medium' ? '#b8860b30' : '#a33b3b30',
+                              backgroundColor: point.difficulty === 'low' ? '#2d5a27' : point.difficulty === 'medium' ? '#b8860b' : '#a33b3b',
                             }}
-                          >
-                            {t.concepts.researchPoints.difficultyLabel[point.difficulty as 'low' | 'medium' | 'high']}
-                          </span>
+                            title={`难度: ${point.difficulty}`}
+                          />
                           <span
-                            className="badge-academic"
+                            className="w-2 h-2 rounded-full"
                             style={{
-                              backgroundColor: point.novelty === 'high' ? '#c2410c15' : point.novelty === 'moderate' ? '#4a6b8a15' : '#a89a8a15',
-                              color: point.novelty === 'high' ? '#c2410c' : point.novelty === 'moderate' ? '#4a6b8a' : '#a89a8a',
-                              borderColor: point.novelty === 'high' ? '#c2410c30' : point.novelty === 'moderate' ? '#4a6b8a30' : '#a89a8a30',
+                              backgroundColor: point.novelty === 'high' ? '#c2410c' : point.novelty === 'moderate' ? '#4a6b8a' : '#a89a8a',
                             }}
-                          >
-                            {t.concepts.researchPoints.noveltyLabel[point.novelty as 'high' | 'moderate' | 'incremental']}
-                          </span>
+                            title={`创新性: ${point.novelty}`}
+                          />
                           <span
-                            className="badge-academic"
+                            className="w-2 h-2 rounded-full"
                             style={{
-                              backgroundColor: point.potential_impact === 'transformative' ? '#d4a01215' : point.potential_impact === 'broad' ? '#4a6b8a15' : '#a89a8a15',
-                              color: point.potential_impact === 'transformative' ? '#d4a012' : point.potential_impact === 'broad' ? '#4a6b8a' : '#a89a8a',
-                              borderColor: point.potential_impact === 'transformative' ? '#d4a01230' : point.potential_impact === 'broad' ? '#4a6b8a30' : '#a89a8a30',
+                              backgroundColor: point.potential_impact === 'transformative' ? '#d4a012' : point.potential_impact === 'broad' ? '#4a6b8a' : '#a89a8a',
                             }}
-                          >
-                            {t.concepts.researchPoints.impactLabel[point.potential_impact as 'transformative' | 'broad' | 'niche']}
-                          </span>
+                            title={`影响力: ${point.potential_impact}`}
+                          />
                         </div>
                       </div>
 
-                      {point.hypothesis && (
-                        <div className="mt-2 p-2 bg-status-info/5 rounded-soft font-quote text-xs text-status-info italic">
-                          💡 {point.hypothesis}
-                        </div>
-                      )}
-
-                      <p className="font-body text-sm text-sepia mt-2 leading-relaxed">{point.description}</p>
-
-                      <div className="mt-2">
-                        <div className="font-mono text-xs text-faint mb-1">{t.concepts.researchPoints.discoveryMethod} · {t.concepts.researchPoints.researchValue}</div>
-                        <p className="font-body text-xs text-muted">
-                          {point.discovery_method === 'gap_filling' ? '🔍 ' + t.concepts.researchPoints.method.gap_filling :
-                           point.discovery_method === 'leaf_extension' ? '🌱 ' + t.concepts.researchPoints.method.leaf_extension :
-                           point.discovery_method === 'bottleneck' ? '🔥 ' + t.concepts.researchPoints.method.bottleneck :
-                           point.discovery_method === 'transfer' ? '🔄 ' + t.concepts.researchPoints.method.transfer : ''} · {point.rationale}
+                      {/* Card Body */}
+                      <div className="px-4 pb-4 pl-13">
+                        <p className="font-body text-sm leading-relaxed" style={{ color: 'var(--color-ink)' }}>
+                          {point.description}
                         </p>
-                      </div>
 
-                      {point.difficulty_reason && (
-                        <div className="mt-1 font-mono text-xs text-faint">
-                          {t.concepts.researchPoints.difficulty}: {point.difficulty_reason}
+                        {/* Method & Rationale */}
+                        <div
+                          className="mt-3 px-3 py-2 rounded-lg text-xs"
+                          style={{ background: 'rgba(184, 134, 11, 0.04)' }}
+                        >
+                          <span style={{ color: 'var(--color-muted)' }}>
+                            {point.discovery_method === 'gap_filling' ? '🔍 空白地带法' :
+                             point.discovery_method === 'leaf_extension' ? '🌱 末端延伸法' :
+                             point.discovery_method === 'bottleneck' ? '🔥 瓶颈识别法' :
+                             point.discovery_method === 'transfer' ? '🔄 迁移应用法' : ''}
+                          </span>
+                          <span className="mx-2" style={{ color: 'rgba(184, 134, 11, 0.2)' }}>·</span>
+                          <span style={{ color: 'var(--color-sepia)' }}>{point.rationale}</span>
                         </div>
-                      )}
 
-                      {point.related_concepts && point.related_concepts.length > 0 && (
-                        <div className="mt-2">
-                          <div className="font-mono text-xs text-faint mb-1">{t.concepts.researchPoints.relatedConcepts}</div>
-                          <div className="flex flex-wrap gap-1">
-                            {point.related_concepts.slice(0, 5).map((c, j) => (
+                        {/* Related Concepts */}
+                        {point.related_concepts && point.related_concepts.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {point.related_concepts.slice(0, 4).map((c, j) => (
                               <span
                                 key={j}
-                                className="badge-academic"
-                                style={{ backgroundColor: '#f5f0e8', color: '#6b4423', borderColor: '#e8dfd0' }}
+                                className="px-2 py-0.5 rounded-full text-xs font-mono"
+                                style={{
+                                  backgroundColor: 'rgba(184, 134, 11, 0.06)',
+                                  color: 'var(--color-sepia)',
+                                }}
                               >
                                 {c}
                               </span>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>

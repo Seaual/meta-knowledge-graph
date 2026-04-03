@@ -65,18 +65,20 @@ class CitationAnalysisResult:
 class CitationAgent:
     """引用分析 Agent"""
 
-    def __init__(self, llm_client, s2_client):
+    def __init__(self, llm_client, s2_client, db=None):
         """
         初始化 Citation Agent
 
         Args:
             llm_client: LLM 客户端
             s2_client: S2 API 客户端
+            db: Database 实例（可选，用于查询本地论文）
         """
         self.llm_client = llm_client
         self.s2_client = s2_client
+        self.db = db
 
-    def analyze(self, paper_identifier: str, identifier_type: str = 'doi') -> Dict[str, Any]:
+    def analyze(self, paper_identifier: str, identifier_type: str = 'title') -> Dict[str, Any]:
         """
         分析论文引用
 
@@ -87,8 +89,30 @@ class CitationAgent:
         Returns:
             分析结果字典
         """
-        # 1. 获取论文详情
-        paper = self._get_paper(paper_identifier, identifier_type)
+        # 1. 先从本地数据库查找论文
+        paper = None
+        local_paper = None
+
+        if self.db and identifier_type == 'title':
+            local_paper = self._find_local_paper(paper_identifier)
+            if local_paper:
+                # 使用本地论文的 S2 Paper ID 或 DOI 查询
+                if local_paper.get('s2_paper_id'):
+                    paper = self.s2_client.get_paper_details(local_paper['s2_paper_id'])
+                elif local_paper.get('s2_doi'):
+                    paper = self._get_paper(local_paper['s2_doi'], 'doi')
+                else:
+                    # 本地没有 S2 ID，用本地论文的完整标题去匹配
+                    paper = self._get_paper(local_paper.get('title', paper_identifier), 'title')
+
+                if paper:
+                    # 补充本地信息
+                    paper['local_doi'] = local_paper.get('doi')
+
+        # 2. 如果本地没找到，直接查询 S2
+        if not paper:
+            paper = self._get_paper(paper_identifier, identifier_type)
+
         if not paper:
             return {'error': f'无法找到论文: {paper_identifier}'}
 
@@ -113,6 +137,43 @@ class CitationAgent:
             'raw_citations_count': len(citations),
             'raw_references_count': len(references),
         }
+
+    def _find_local_paper(self, title_query: str) -> Optional[Dict]:
+        """
+        从本地数据库查找论文（模糊匹配标题）
+
+        Args:
+            title_query: 标题查询字符串
+
+        Returns:
+            本地论文信息，如果没找到返回 None
+        """
+        if not self.db:
+            return None
+
+        try:
+            cursor = self.db.conn.cursor()
+            # 模糊匹配：标题包含查询词
+            cursor.execute(
+                "SELECT doi, title, s2_doi, s2_paper_id FROM papers WHERE title LIKE ? LIMIT 5",
+                (f"%{title_query}%",)
+            )
+            rows = cursor.fetchall()
+
+            if not rows:
+                return None
+
+            # 返回第一个匹配结果
+            row = rows[0]
+            return {
+                'doi': row[0],
+                'title': row[1],
+                's2_doi': row[2],
+                's2_paper_id': row[3],
+            }
+        except Exception as e:
+            print(f"Error finding local paper: {e}")
+            return None
 
     def _get_paper(self, identifier: str, identifier_type: str) -> Optional[Dict]:
         """获取论文信息"""
@@ -146,8 +207,8 @@ class CitationAgent:
         # 统计年份分布
         year_dist = {}
         for c in citations:
-            year = c.get('year', 0)
-            if year > 0:
+            year = c.get('year')
+            if year and year > 0:
                 year_dist[year] = year_dist.get(year, 0) + 1
 
         # 统计领域分布（基于引用者的 venue）

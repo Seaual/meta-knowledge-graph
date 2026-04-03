@@ -159,15 +159,31 @@ Final_Answer: 该维度的最终发现
             return f"搜索失败: {str(e)}"
 
     async def _analyze(self, target_name: str) -> str:
-        """分析概念或论文"""
-        # 尝试从数据库获取概念
+        """分析概念或论文（模糊匹配）"""
+        # 尝试从数据库获取概念（模糊匹配）
         concepts = self.db.get_all_concepts()
+        target_lower = target_name.lower()
+
+        matched = None
+        # 精确匹配
         for c in concepts:
-            if c['text'].lower() == target_name.lower():
-                # 获取结构信息
-                ancestors = self.db.get_concept_parents(c['id'])
-                children = self.db.get_concept_children(c['id'])
-                return f"概念: {c['text']}\n上级: {len(ancestors)} 个\n下级: {len(children)} 个\n论文数: {c.get('paper_count', 0)}"
+            if c['text'].lower() == target_lower:
+                matched = c
+                break
+
+        # 模糊匹配
+        if not matched:
+            for c in concepts:
+                if target_lower in c['text'].lower() or c['text'].lower() in target_lower:
+                    matched = c
+                    break
+
+        if matched:
+            # 获取结构信息
+            ancestors = self.db.get_concept_parents(matched['id'])
+            children = self.db.get_concept_children(matched['id'])
+            papers = self.db.get_papers_by_concept(matched['id'])
+            return f"概念: {matched['text']}\n上级: {len(ancestors)} 个\n下级: {len(children)} 个\n论文数: {matched.get('paper_count', 0)}\n相关论文: {len(papers)} 篇"
 
         return f"未找到概念: {target_name}"
 
