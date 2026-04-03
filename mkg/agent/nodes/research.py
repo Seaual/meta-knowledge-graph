@@ -7,7 +7,7 @@ from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from typing import Dict, Any, Optional
 
 from ..state import AgentState
-from ..tools import RESEARCH_TOOLS, _db
+from .. import tools  # 导入模块而不是变量
 from ..llm_config import get_llm_or_raise
 
 
@@ -39,7 +39,7 @@ def research_node(state: AgentState) -> Dict[str, Any]:
         状态更新
     """
     llm = get_llm_or_raise()
-    llm_with_tools = llm.bind_tools(RESEARCH_TOOLS)
+    llm_with_tools = llm.bind_tools(tools.RESEARCH_TOOLS)
 
     # 优先从 target_name 获取，其次从 current_target 获取
     target_name = state.get("target_name")
@@ -51,16 +51,16 @@ def research_node(state: AgentState) -> Dict[str, Any]:
             target_name = current_target.get("name")
         elif current_target.get("type") == "paper":
             # 如果目标是论文，尝试获取论文的核心概念
-            if _db:
+            if tools._db:
                 paper_doi = current_target.get("id")
-                concepts = _db.get_concepts_by_paper(paper_doi) if paper_doi else []
+                concepts = tools._db.get_concepts_by_paper(paper_doi) if paper_doi else []
                 if concepts:
                     # 获取根概念或最相关的概念
                     target_name = concepts[0].get('text')
 
     # 如果还是没有目标，尝试获取数据库中的根概念
-    if not target_name and _db:
-        root_concepts = _db.get_root_concepts()
+    if not target_name and tools._db:
+        root_concepts = tools._db.get_root_concepts()
         if root_concepts:
             target_name = root_concepts[0].get('text')
 
@@ -87,10 +87,10 @@ def research_node(state: AgentState) -> Dict[str, Any]:
             tool_args = tool_call["args"]
 
             # 执行工具
-            for tool in RESEARCH_TOOLS:
-                if tool.name == tool_name:
+            for tool_item in tools.RESEARCH_TOOLS:
+                if tool_item.name == tool_name:
                     try:
-                        result = tool.invoke(tool_args)
+                        result = tool_item.invoke(tool_args)
                         tool_messages.append(ToolMessage(
                             content=str(result),
                             tool_call_id=tool_call["id"]
@@ -113,12 +113,12 @@ def research_node(state: AgentState) -> Dict[str, Any]:
     # 获取概念图谱数据（使用之前确定的 target_name）
     concept_data = None
 
-    if target_name and target_name != "未知概念" and _db:
+    if target_name and target_name != "未知概念" and tools._db:
         # 尝试根据名称查找概念
-        concept = _db.get_concept_by_text(target_name)
+        concept = tools._db.get_concept_by_text(target_name)
         if not concept:
             # 尝试模糊匹配
-            all_concepts = _db.get_all_concepts()
+            all_concepts = tools._db.get_all_concepts()
             for c in all_concepts:
                 if target_name.lower() in (c.get('text') or '').lower():
                     concept = c
@@ -126,8 +126,8 @@ def research_node(state: AgentState) -> Dict[str, Any]:
 
         if concept:
             concept_id = concept['id']
-            children = _db.get_concept_children(concept_id) or []
-            parents = _db.get_concept_parents(concept_id) or []
+            children = tools._db.get_concept_children(concept_id) or []
+            parents = tools._db.get_concept_parents(concept_id) or []
 
             concept_data = {
                 "id": concept_id,
