@@ -4,7 +4,7 @@ import { useAgentStore } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
 import { Send, X, Loader2, FileText } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
-import MiniConceptGraph from '../components/MiniConceptGraph'
+import ConceptGraphInChat from '../components/ConceptGraphInChat'
 
 // Agent badge colors
 const AGENT_COLORS: Record<string, string> = {
@@ -336,13 +336,9 @@ export default function Chat() {
                   >
                     {/* 概念图谱 */}
                     {msg.role === 'assistant' && msg.conceptData && (
-                      <div className="mb-3">
-                        <MiniConceptGraph
-                          data={msg.conceptData}
-                          width={300}
-                          height={160}
-                        />
-                      </div>
+                      <ConceptGraphInChat
+                        data={msg.conceptData}
+                      />
                     )}
                     <div className="font-body text-sm leading-relaxed whitespace-pre-wrap">
                       {msg.content}
