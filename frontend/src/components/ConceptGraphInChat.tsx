@@ -198,6 +198,7 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
       .d3Force('collide', forceCollide().radius((node: any) => (node.val || 1) * 15))
       .enableZoomInteraction(true)
       .enableNodeDrag(true)
+      .enablePanInteraction(true)   // 启用画布拖动
       .minZoom(0.3)
       .maxZoom(4)
       .onNodeClick((node: any) => {
