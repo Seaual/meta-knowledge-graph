@@ -1,9 +1,9 @@
 // frontend/src/components/ConceptGraphInChat.tsx
 // 聊天中嵌入的完整概念图谱组件
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
 import ForceGraph from 'force-graph'
-import { forceManyBody, forceLink, forceCollide } from 'd3-force'
+import { forceManyBody, forceCollide } from 'd3-force'
 import { ConceptNode } from '../stores/agentStore'
 
 interface Props {
@@ -254,10 +254,11 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
         <div
           ref={containerRef}
           style={{
-            width: dimensions.width,
-            height: dimensions.height,
+            width: '100%',
+            height: 380,
             cursor: 'grab',
-            pointerEvents: 'auto'
+            pointerEvents: 'auto',
+            minWidth: 400
           }}
         />
 
