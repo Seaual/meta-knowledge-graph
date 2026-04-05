@@ -1,7 +1,7 @@
 // frontend/src/components/ConceptGraphInChat.tsx
 // 聊天中嵌入的完整概念图谱组件
 
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceCollide } from 'd3-force'
 import { ConceptNode } from '../stores/agentStore'
@@ -21,12 +21,8 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
 
-  // 初始化图谱
-  const initGraph = useCallback(() => {
+  useEffect(() => {
     if (!containerRef.current || !data) return
-
-    const width = containerRef.current.clientWidth || 600
-    const height = 380
 
     // 构建节点和边
     const nodes: any[] = [
@@ -84,8 +80,6 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
     // 创建完整概念图谱
     const graph = new ForceGraph(containerRef.current)
       .graphData({ nodes, links })
-      .width(width)
-      .height(height)
       .backgroundColor(BG_COLOR)
       .nodeId('id')
       .nodeVal('val')
@@ -186,12 +180,6 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
       .d3VelocityDecay(0.3)
       .d3Force('charge', forceManyBody().strength(-200))
       .d3Force('collide', forceCollide().radius((node: any) => (node.val || 1) * 15))
-      // 交互设置
-      .enableZoomInteraction(true)      // 启用缩放
-      .enableNodeDrag(true)             // 启用节点拖拽
-      .enablePanInteraction(true)       // 启用画布拖动
-      .minZoom(0.3)
-      .maxZoom(4)
       .onNodeClick((node: any) => {
         if (onNodeClick && node) {
           onNodeClick({
@@ -221,10 +209,6 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
     }
   }, [data, onNodeClick])
 
-  useEffect(() => {
-    initGraph()
-  }, [initGraph])
-
   return (
     <div className="concept-graph-in-chat my-3">
       <div
@@ -250,15 +234,14 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
           </span>
         </div>
 
-        {/* 图谱容器 - 确保 pointer-events 正常 */}
+        {/* 图谱容器 */}
         <div
           ref={containerRef}
           style={{
             width: '100%',
             height: 380,
-            cursor: 'grab',
-            pointerEvents: 'auto',
-            minWidth: 400
+            minWidth: 400,
+            cursor: 'grab'
           }}
         />
 
