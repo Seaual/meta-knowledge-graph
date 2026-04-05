@@ -57,7 +57,7 @@ ROUTING_PROMPT = """你是一个意图识别系统。分析用户消息，判断
 
 def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tuple[str, Optional[str]]:
     """
-    智能意图路由：关键词优先，LLM 兜底
+    智能意图路由：LLM 优先，关键词兜底
 
     Args:
         message: 用户消息
@@ -69,14 +69,7 @@ def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tupl
     if context is None:
         context = {}
 
-    # 1. 先尝试关键词路由（快速）
-    intent, target_name = keyword_route_intent(message, context)
-
-    # 2. 如果关键词匹配成功，直接返回
-    if intent != "lead":
-        return intent, target_name
-
-    # 3. 关键词无法匹配，尝试 LLM 路由（智能）
+    # 1. 先尝试 LLM 路由（智能）
     try:
         llm_intent, llm_target = llm_route_intent(message, context)
         if llm_intent != "lead":
@@ -84,15 +77,19 @@ def route_intent(message: str, context: Optional[Dict[str, Any]] = None) -> Tupl
     except Exception as e:
         print(f"LLM routing failed: {e}")
 
-    # 4. 都失败了，返回 lead（通用对话）
-    return "lead", target_name
+    # 2. LLM 路由失败或返回 lead，尝试关键词路由
+    intent, target_name = keyword_route_intent(message, context)
+
+    # 3. 返回结果
+    return intent, target_name
 
 
 def llm_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Optional[str]]:
     """
     使用 LLM 进行智能意图路由
     """
-    from litellm import completion
+    import requests
+    import json
     from mkg.database import Database
     from pathlib import Path
 
@@ -113,16 +110,6 @@ def llm_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Option
     api_key = provider_config.get('api_key')
     model = provider_config.get('model', 'gpt-4o-mini')
     base_url = provider_config.get('base_url')
-
-    # 构建 model 字符串 - 对于自定义 provider 使用 openai 兼容格式
-    if provider == 'custom' or provider == 'openrouter':
-        litellm_model = f"openai/{model}"
-    elif '/' in model:
-        litellm_model = model
-    elif provider in ['openai', 'anthropic', 'dashscope']:
-        litellm_model = f"{provider}/{model}"
-    else:
-        litellm_model = f"openai/{model}"
 
     # 构建 agent 描述
     agent_descriptions = "\n".join([
@@ -148,24 +135,54 @@ def llm_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Option
         message=message
     )
 
-    # 调用 LLM
-    kwargs = {
-        "model": litellm_model,
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-        "max_tokens": 200,
-    }
+    # 直接使用 HTTP 请求调用 API
+    # 判断是 OpenAI 格式还是 Anthropic 格式
+    if base_url and 'anthropic' in base_url.lower():
+        # Anthropic 格式
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": model,
+            "max_tokens": 200,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        endpoint = base_url.rstrip('/') + "/v1/messages"
+    else:
+        # OpenAI 格式
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        data = {
+            "model": model,
+            "max_tokens": 200,
+            "messages": [{"role": "user", "content": prompt}]
+        }
+        endpoint = base_url.rstrip('/') + "/chat/completions" if base_url else "https://api.openai.com/v1/chat/completions"
 
-    if api_key:
-        kwargs["api_key"] = api_key
-    if base_url:
-        kwargs["api_base"] = base_url
-
-    response = completion(**kwargs)
-    content = response.choices[0].message.content
+    response = requests.post(endpoint, headers=headers, json=data, timeout=60)
+    response.raise_for_status()
+    result = response.json()
 
     # 解析响应
+    if 'content' in result:
+        # Anthropic 格式
+        content_list = result['content']
+        if isinstance(content_list, list) and len(content_list) > 0:
+            content = content_list[0].get('text', '') or content_list[0].get('content', '')
+        else:
+            content = str(content_list)
+    elif 'choices' in result:
+        # OpenAI 格式
+        content = result['choices'][0]['message']['content']
+    else:
+        # 未知格式，尝试提取
+        content = str(result)
+
+    # 解析 JSON
     try:
         # 尝试找到 JSON 块
         if "```json" in content:
@@ -173,9 +190,9 @@ def llm_route_intent(message: str, context: Dict[str, Any]) -> Tuple[str, Option
         elif "```" in content:
             content = content.split("```")[1].split("```")[0]
 
-        result = json.loads(content.strip())
-        intent = result.get("intent", "lead")
-        target_name = result.get("target_name")
+        parsed = json.loads(content.strip())
+        intent = parsed.get("intent", "lead")
+        target_name = parsed.get("target_name")
 
         # 验证 intent 是否有效
         if intent not in AGENT_TYPES:
