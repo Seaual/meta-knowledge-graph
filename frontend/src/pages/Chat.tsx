@@ -317,6 +317,12 @@ export default function Chat() {
                       </span>
                     </div>
                   )}
+                  {/* 概念图谱 - 放在消息气泡外面以避免 CSS 干扰 */}
+                  {msg.role === 'assistant' && msg.conceptData && (
+                    <ConceptGraphInChat
+                      data={msg.conceptData}
+                    />
+                  )}
                   <div
                     className="px-4 py-3 rounded-2xl transition-colors-smooth"
                     style={{
@@ -334,12 +340,6 @@ export default function Chat() {
                         : '18px 18px 18px 4px',
                     }}
                   >
-                    {/* 概念图谱 */}
-                    {msg.role === 'assistant' && msg.conceptData && (
-                      <ConceptGraphInChat
-                        data={msg.conceptData}
-                      />
-                    )}
                     <div className="font-body text-sm leading-relaxed whitespace-pre-wrap">
                       {msg.content}
                     </div>
