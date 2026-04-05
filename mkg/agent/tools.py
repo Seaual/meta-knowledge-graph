@@ -326,11 +326,72 @@ def create_folder(name: str, description: str = "") -> str:
 
 
 # ============================================================
+# 概念图谱 Tools
+# ============================================================
+
+@tool
+def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
+    """
+    获取概念图谱数据，用于可视化展示。
+
+    当用户想查看概念图谱、知识图谱、查看当前图谱时调用此工具。
+
+    Args:
+        concept_name: 概念名称（可选，如果不提供则返回根概念的图谱）
+
+    Returns:
+        概念图谱数据，包含当前概念、父概念、子概念及其论文数量
+    """
+    if not _db:
+        return {"error": "数据库未初始化"}
+
+    concept = None
+
+    # 如果提供了概念名称，尝试查找
+    if concept_name:
+        concept = _db.get_concept_by_text(concept_name)
+        if not concept:
+            # 尝试模糊匹配
+            all_concepts = _db.get_all_concepts()
+            for c in all_concepts:
+                if concept_name.lower() in (c.get('text') or '').lower():
+                    concept = c
+                    break
+
+    # 如果没有找到或没有提供名称，使用根概念
+    if not concept:
+        root_concepts = _db.get_root_concepts()
+        if root_concepts:
+            concept = root_concepts[0]
+        else:
+            return {"error": "没有可用的概念"}
+
+    concept_id = concept['id']
+    children = _db.get_concept_children(concept_id) or []
+    parents = _db.get_concept_parents(concept_id) or []
+
+    return {
+        "id": concept_id,
+        "name": concept.get('text', ''),
+        "category": concept.get('category'),
+        "paper_count": concept.get('paper_count', 0),
+        "children": [
+            {"id": c['id'], "name": c.get('text', ''), "paper_count": c.get('paper_count', 0)}
+            for c in children[:10]
+        ],
+        "parents": [
+            {"id": p['id'], "name": p.get('text', ''), "paper_count": p.get('paper_count', 0)}
+            for p in parents[:5]
+        ],
+    }
+
+
+# ============================================================
 # 工具集合
 # ============================================================
 
 # Lead Node 可用的工具
-LEAD_TOOLS = [search_paper, list_folders, move_paper_to_folder, create_folder]
+LEAD_TOOLS = [search_paper, list_folders, move_paper_to_folder, create_folder, get_concept_graph]
 
 # Citation Node 可用的工具
 CITATION_TOOLS = [get_paper_by_doi, get_paper_by_title, get_paper_citations, search_s2_papers]
