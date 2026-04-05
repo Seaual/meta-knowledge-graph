@@ -1,7 +1,7 @@
 // frontend/src/components/ConceptGraphInChat.tsx
 // 聊天中嵌入的完整概念图谱组件
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceLink, forceCollide } from 'd3-force'
 import { ConceptNode } from '../stores/agentStore'
@@ -20,23 +20,13 @@ const BG_COLOR = '#faf8f5'        // 米白背景
 export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
-  const [dimensions, setDimensions] = useState({ width: 600, height: 400 })
 
-  useEffect(() => {
+  // 初始化图谱
+  const initGraph = useCallback(() => {
     if (!containerRef.current || !data) return
 
-    // 计算尺寸
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        const parentWidth = containerRef.current.parentElement?.clientWidth || 600
-        setDimensions({
-          width: Math.min(parentWidth - 32, 700),
-          height: 380
-        })
-      }
-    }
-    updateDimensions()
-    window.addEventListener('resize', updateDimensions)
+    const width = containerRef.current.clientWidth || 600
+    const height = 380
 
     // 构建节点和边
     const nodes: any[] = [
@@ -53,7 +43,7 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
     const links: any[] = []
 
     // 添加子概念
-    data.children?.forEach((child, index) => {
+    data.children?.forEach((child) => {
       nodes.push({
         id: child.id,
         name: child.name,
@@ -94,8 +84,8 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
     // 创建完整概念图谱
     const graph = new ForceGraph(containerRef.current)
       .graphData({ nodes, links })
-      .width(dimensions.width)
-      .height(dimensions.height)
+      .width(width)
+      .height(height)
       .backgroundColor(BG_COLOR)
       .nodeId('id')
       .nodeVal('val')
@@ -196,9 +186,10 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
       .d3VelocityDecay(0.3)
       .d3Force('charge', forceManyBody().strength(-200))
       .d3Force('collide', forceCollide().radius((node: any) => (node.val || 1) * 15))
-      .enableZoomInteraction(true)
-      .enableNodeDrag(true)
-      .enablePanInteraction(true)   // 启用画布拖动
+      // 交互设置
+      .enableZoomInteraction(true)      // 启用缩放
+      .enableNodeDrag(true)             // 启用节点拖拽
+      .enablePanInteraction(true)       // 启用画布拖动
       .minZoom(0.3)
       .maxZoom(4)
       .onNodeClick((node: any) => {
@@ -214,16 +205,25 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
 
     // 启动动画
     graphRef.current = graph
-    graph.zoomToFit(400, 50)
+
+    // 延迟调整视图
+    setTimeout(() => {
+      if (graphRef.current) {
+        graphRef.current.zoomToFit(400, 50)
+      }
+    }, 100)
 
     return () => {
-      window.removeEventListener('resize', updateDimensions)
       if (graphRef.current) {
         graphRef.current._destructor()
         graphRef.current = null
       }
     }
-  }, [data, dimensions.width, dimensions.height, onNodeClick])
+  }, [data, onNodeClick])
+
+  useEffect(() => {
+    initGraph()
+  }, [initGraph])
 
   return (
     <div className="concept-graph-in-chat my-3">
@@ -250,8 +250,16 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
           </span>
         </div>
 
-        {/* 图谱容器 */}
-        <div ref={containerRef} style={{ width: dimensions.width, height: dimensions.height }} />
+        {/* 图谱容器 - 确保 pointer-events 正常 */}
+        <div
+          ref={containerRef}
+          style={{
+            width: dimensions.width,
+            height: dimensions.height,
+            cursor: 'grab',
+            pointerEvents: 'auto'
+          }}
+        />
 
         {/* 图例 */}
         <div
