@@ -1,6 +1,8 @@
 # mkg/agent/tools.py
 """
 LangChain Tools - Agent 可调用的工具
+
+所有功能都作为 tool，由 lead agent 统一调用
 """
 
 from langchain_core.tools import tool
@@ -14,9 +16,10 @@ from typing import Optional, List, Dict, Any
 _db = None
 _s2_client = None
 _pdf_parser = None
+_llm = None
 
 
-def init_tools(db=None, s2_client=None, pdf_parser=None):
+def init_tools(db=None, s2_client=None, pdf_parser=None, llm=None):
     """
     初始化 Tools 的依赖
 
@@ -24,11 +27,13 @@ def init_tools(db=None, s2_client=None, pdf_parser=None):
         db: Database 实例
         s2_client: Semantic Scholar 客户端
         pdf_parser: PDF 解析器
+        llm: LLM 客户端
     """
-    global _db, _s2_client, _pdf_parser
+    global _db, _s2_client, _pdf_parser, _llm
     _db = db
     _s2_client = s2_client
     _pdf_parser = pdf_parser
+    _llm = llm
 
 
 # ============================================================
@@ -37,11 +42,12 @@ def init_tools(db=None, s2_client=None, pdf_parser=None):
 
 @tool
 def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
-    """
-    在本地数据库搜索论文
+    """搜索论文。
+
+    在本地数据库中搜索论文，支持按标题、作者、摘要搜索。
 
     Args:
-        query: 搜索关键词（标题、作者、摘要）
+        query: 搜索关键词
         limit: 返回数量限制
 
     Returns:
@@ -55,45 +61,23 @@ def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
 
 
 @tool
-def get_paper_by_doi(doi: str) -> Dict[str, Any]:
-    """
-    根据 DOI 获取论文详情
-
-    Args:
-        doi: 论文 DOI
-
-    Returns:
-        论文元数据（标题、作者、摘要、关键词等）
-    """
-    if not _db:
-        return {"error": "数据库未初始化"}
-
-    paper = _db.get_paper(doi)
-    if not paper:
-        return {"error": f"未找到论文: {doi}"}
-
-    return paper
-
-
-@tool
 def get_paper_by_title(title: str) -> Dict[str, Any]:
-    """
-    根据标题模糊匹配论文
+    """根据标题查找论文。
+
+    支持部分匹配，返回最匹配的论文信息。
 
     Args:
-        title: 论文标题（支持部分匹配）
+        title: 论文标题（可以是部分标题）
 
     Returns:
-        匹配的论文信息
+        论文详情，包含标题、作者、摘要、DOI等
     """
     if not _db:
         return {"error": "数据库未初始化"}
 
-    # 获取所有已处理论文
     papers = _db.get_papers_by_status('processed')
     papers.extend(_db.get_papers_by_status('pending'))
 
-    # 模糊匹配
     for paper in papers:
         if title.lower() in (paper.get('title') or '').lower():
             return paper
@@ -102,125 +86,14 @@ def get_paper_by_title(title: str) -> Dict[str, Any]:
 
 
 @tool
-def get_paper_citations(doi: str, include_s2: bool = True) -> Dict[str, Any]:
-    """
-    获取论文的引用关系
+def read_paper_content(title: str, max_chars: int = 10000) -> str:
+    """读取论文 PDF 内容。
+
+    用于回答关于论文内容的问题。返回论文全文文本。
 
     Args:
-        doi: 论文 DOI
-        include_s2: 是否从 Semantic Scholar 补充数据
-
-    Returns:
-        包含论文信息和引用列表的字典
-    """
-    if not _db:
-        return {"error": "数据库未初始化"}
-
-    paper = _db.get_paper(doi)
-    if not paper:
-        return {"error": f"未找到论文: {doi}"}
-
-    # 获取本地引用数据
-    citations = _db.get_citations(doi) if hasattr(_db, 'get_citations') else []
-
-    # 从 S2 补充
-    if include_s2 and _s2_client and paper.get('s2_paper_id'):
-        try:
-            s2_data = _s2_client.get_paper_citations(paper['s2_paper_id'])
-            if s2_data:
-                citations.extend(s2_data.get('citations', []))
-        except Exception as e:
-            print(f"S2 API error: {e}")
-
-    return {
-        "paper": paper,
-        "citations": citations,
-        "citation_count": len(citations)
-    }
-
-
-# ============================================================
-# 概念相关 Tools
-# ============================================================
-
-@tool
-def get_concept_papers(concept_id: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """
-    获取概念关联的论文列表
-
-    Args:
-        concept_id: 概念 ID
-        limit: 返回数量限制
-
-    Returns:
-        论文列表
-    """
-    if not _db:
-        return []
-
-    papers = _db.get_concept_papers(concept_id, limit=limit)
-    return papers
-
-
-@tool
-def get_concept_info(concept_id: str) -> Dict[str, Any]:
-    """
-    获取概念详情
-
-    Args:
-        concept_id: 概念 ID
-
-    Returns:
-        概念信息（文本、层级、关联论文数）
-    """
-    if not _db:
-        return {"error": "数据库未初始化"}
-
-    concept = _db.get_concept(concept_id)
-    if not concept:
-        return {"error": f"未找到概念: {concept_id}"}
-
-    return concept
-
-
-# ============================================================
-# Semantic Scholar Tools
-# ============================================================
-
-@tool
-def search_s2_papers(query: str, limit: int = 10) -> List[Dict[str, Any]]:
-    """
-    在 Semantic Scholar 搜索论文（外部数据源）
-
-    Args:
-        query: 搜索查询
-        limit: 返回数量限制
-
-    Returns:
-        论文列表（包含标题、摘要、引用数等）
-    """
-    if not _s2_client:
-        return [{"error": "Semantic Scholar 客户端未初始化"}]
-
-    try:
-        results = _s2_client.search_paper(query, limit=limit)
-        return results
-    except Exception as e:
-        return [{"error": f"搜索失败: {str(e)}"}]
-
-
-# ============================================================
-# PDF 相关 Tools
-# ============================================================
-
-@tool
-def read_pdf_content(doi: str, max_chars: int = 10000) -> str:
-    """
-    读取论文 PDF 全文
-
-    Args:
-        doi: 论文 DOI
-        max_chars: 最大字符数，超出则截断
+        title: 论文标题
+        max_chars: 最大字符数
 
     Returns:
         论文全文文本
@@ -228,15 +101,23 @@ def read_pdf_content(doi: str, max_chars: int = 10000) -> str:
     if not _db:
         return "错误：数据库未初始化"
 
-    paper = _db.get_paper(doi)
+    # 查找论文
+    papers = _db.get_papers_by_status('processed')
+    papers.extend(_db.get_papers_by_status('pending'))
+
+    paper = None
+    for p in papers:
+        if title.lower() in (p.get('title') or '').lower():
+            paper = p
+            break
+
     if not paper:
-        return f"错误：未找到论文 {doi}"
+        return f"错误：未找到论文「{title}」"
 
     pdf_path = paper.get('pdf_path')
     if not pdf_path:
         return "错误：论文没有关联的 PDF 文件"
 
-    # 懒加载 PDF Parser
     global _pdf_parser
     if not _pdf_parser:
         from mkg.pdf_parser import PDFParser
@@ -252,113 +133,92 @@ def read_pdf_content(doi: str, max_chars: int = 10000) -> str:
 
 
 # ============================================================
-# 文件夹管理 Tools
+# 引用分析 Tools
 # ============================================================
 
 @tool
-def list_folders() -> List[Dict[str, Any]]:
-    """
-    获取所有文件夹列表
+def analyze_citations(paper_title: str) -> Dict[str, Any]:
+    """分析论文的引用关系。
 
-    Returns:
-        文件夹列表（包含 ID、名称、论文数）
-    """
-    if not _db:
-        return []
-
-    folders = _db.get_all_folders()
-    return folders
-
-
-@tool
-def move_paper_to_folder(doi: str, folder_name: str, create_if_not_exist: bool = False) -> str:
-    """
-    移动论文到指定文件夹
+    当用户问"引用关系"、"被谁引用"、"引用了谁"时调用。
+    返回论文的引用和被引用列表。
 
     Args:
-        doi: 论文 DOI
-        folder_name: 目标文件夹名称
-        create_if_not_exist: 文件夹不存在时是否创建
+        paper_title: 论文标题
 
     Returns:
-        操作结果消息
+        引用分析结果，包含引用列表和被引用列表
     """
     if not _db:
-        return "错误：数据库未初始化"
+        return {"error": "数据库未初始化"}
 
     # 查找论文
-    paper = _db.get_paper(doi)
+    papers = _db.get_papers_by_status('processed')
+    paper = None
+    for p in papers:
+        if paper_title.lower() in (p.get('title') or '').lower():
+            paper = p
+            break
+
     if not paper:
-        return f"错误：未找到论文 {doi}"
+        return {"error": f"未找到论文「{paper_title}」"}
 
-    # 查找文件夹
-    folders = _db.get_all_folders()
-    target = next((f for f in folders if f['name'] == folder_name), None)
+    # 获取引用数据
+    citations = []
+    if hasattr(_db, 'get_citations'):
+        citations = _db.get_citations(paper['doi']) or []
 
-    if not target and create_if_not_exist:
-        folder_id = _db.create_folder({'name': folder_name})
-        target = {'id': folder_id, 'name': folder_name}
-    elif not target:
-        return f"错误：文件夹「{folder_name}」不存在。需要我创建吗？"
+    # 从 S2 补充
+    if _s2_client and paper.get('s2_paper_id'):
+        try:
+            s2_data = _s2_client.get_paper_citations(paper['s2_paper_id'])
+            if s2_data:
+                citations.extend(s2_data.get('citations', []))
+        except Exception as e:
+            print(f"S2 API error: {e}")
 
-    # 移动论文
-    _db.move_paper_to_folder(doi, target['id'])
-    return f"已将论文《{paper.get('title', doi)}》移动到文件夹「{folder_name}」"
-
-
-@tool
-def create_folder(name: str, description: str = "") -> str:
-    """
-    创建新文件夹
-
-    Args:
-        name: 文件夹名称
-        description: 文件夹描述
-
-    Returns:
-        操作结果消息
-    """
-    if not _db:
-        return "错误：数据库未初始化"
-
-    folder_id = _db.create_folder({'name': name, 'description': description})
-    return f"已创建文件夹「{name}」(ID: {folder_id})"
+    return {
+        "paper": {
+            "title": paper.get('title'),
+            "doi": paper.get('doi'),
+            "citation_count": paper.get('citation_count', len(citations))
+        },
+        "citations": citations[:20],
+        "citation_count": len(citations)
+    }
 
 
 # ============================================================
-# 概念图谱 Tools
+# 概念相关 Tools
 # ============================================================
 
 @tool
 def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
-    """
-    获取概念图谱数据，用于可视化展示。
+    """获取概念图谱数据。
 
-    当用户想查看概念图谱、知识图谱、查看当前图谱时调用此工具。
+    当用户说"查看图谱"、"我的图谱"、"概念图谱"时调用。
+    返回概念及其父子关系的可视化数据。
 
     Args:
-        concept_name: 概念名称（可选，如果不提供则返回根概念的图谱）
+        concept_name: 概念名称（可选，不提供则返回根概念）
 
     Returns:
-        概念图谱数据，包含当前概念、父概念、子概念及其论文数量
+        概念图谱数据，包含节点和关系
     """
     if not _db:
         return {"error": "数据库未初始化"}
 
     concept = None
 
-    # 如果提供了概念名称，尝试查找
     if concept_name:
         concept = _db.get_concept_by_text(concept_name)
         if not concept:
-            # 尝试模糊匹配
             all_concepts = _db.get_all_concepts()
             for c in all_concepts:
                 if concept_name.lower() in (c.get('text') or '').lower():
                     concept = c
                     break
 
-    # 如果没有找到或没有提供名称，使用根概念
     if not concept:
         root_concepts = _db.get_root_concepts()
         if root_concepts:
@@ -386,25 +246,149 @@ def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
     }
 
 
+@tool
+def analyze_research_points(concept_name: str) -> Dict[str, Any]:
+    """分析概念的研究点和研究方向。
+
+    当用户问"研究点"、"研究方向"、"研究机会"时调用。
+    分析概念的研究现状和潜在研究方向。
+
+    Args:
+        concept_name: 概念名称
+
+    Returns:
+        研究点分析结果
+    """
+    if not _db:
+        return {"error": "数据库未初始化"}
+
+    concept = _db.get_concept_by_text(concept_name)
+    if not concept:
+        all_concepts = _db.get_all_concepts()
+        for c in all_concepts:
+            if concept_name.lower() in (c.get('text') or '').lower():
+                concept = c
+                break
+
+    if not concept:
+        return {"error": f"未找到概念「{concept_name}」"}
+
+    concept_id = concept['id']
+    papers = _db.get_concept_papers(concept_id, limit=10) or []
+    children = _db.get_concept_children(concept_id) or []
+    parents = _db.get_concept_parents(concept_id) or []
+
+    # 搜索相关前沿工作
+    related_papers = []
+    if _s2_client:
+        try:
+            related_papers = _s2_client.search_paper(concept.get('text', ''), limit=5)
+        except:
+            pass
+
+    return {
+        "concept": {
+            "name": concept.get('text'),
+            "paper_count": concept.get('paper_count', 0),
+        },
+        "local_papers": papers,
+        "children_concepts": [c.get('text') for c in children],
+        "parent_concepts": [p.get('text') for p in parents],
+        "related_frontier_papers": related_papers,
+    }
+
+
 # ============================================================
-# 工具集合
+# 文件夹管理 Tools
 # ============================================================
 
-# Lead Node 可用的工具
-LEAD_TOOLS = [search_paper, list_folders, move_paper_to_folder, create_folder, get_concept_graph]
+@tool
+def list_folders() -> List[Dict[str, Any]]:
+    """获取所有文件夹列表。
 
-# Citation Node 可用的工具
-CITATION_TOOLS = [get_paper_by_doi, get_paper_by_title, get_paper_citations, search_s2_papers]
+    Returns:
+        文件夹列表
+    """
+    if not _db:
+        return []
+    return _db.get_all_folders()
 
-# Research Node 可用的工具
-RESEARCH_TOOLS = [get_concept_info, get_concept_papers, search_s2_papers]
 
-# Paper QA Node 可用的工具
-PAPER_QA_TOOLS = [get_paper_by_doi, get_paper_by_title, read_pdf_content]
+@tool
+def move_paper_to_folder(paper_title: str, folder_name: str) -> str:
+    """移动论文到指定文件夹。
 
-# Deep Research Node 可用的工具（全部）
-DEEP_RESEARCH_TOOLS = [
-    search_paper, get_paper_by_doi, get_paper_by_title,
-    get_paper_citations, get_concept_info, get_concept_papers,
-    search_s2_papers, read_pdf_content
+    当用户说"移动到"、"放到"某文件夹时调用。
+
+    Args:
+        paper_title: 论文标题
+        folder_name: 目标文件夹名称
+
+    Returns:
+        操作结果
+    """
+    if not _db:
+        return "错误：数据库未初始化"
+
+    # 查找论文
+    papers = _db.get_papers_by_status('processed')
+    papers.extend(_db.get_papers_by_status('pending'))
+
+    paper = None
+    for p in papers:
+        if paper_title.lower() in (p.get('title') or '').lower():
+            paper = p
+            break
+
+    if not paper:
+        return f"错误：未找到论文「{paper_title}」"
+
+    # 查找或创建文件夹
+    folders = _db.get_all_folders()
+    target = next((f for f in folders if f['name'] == folder_name), None)
+
+    if not target:
+        folder_id = _db.create_folder({'name': folder_name})
+        target = {'id': folder_id, 'name': folder_name}
+
+    _db.move_paper_to_folder(paper['doi'], target['id'])
+    return f"已将论文《{paper.get('title')}》移动到文件夹「{folder_name}」"
+
+
+@tool
+def create_folder(name: str, description: str = "") -> str:
+    """创建新文件夹。
+
+    Args:
+        name: 文件夹名称
+        description: 文件夹描述
+
+    Returns:
+        操作结果
+    """
+    if not _db:
+        return "错误：数据库未初始化"
+
+    folder_id = _db.create_folder({'name': name, 'description': description})
+    return f"已创建文件夹「{name}」"
+
+
+# ============================================================
+# 所有工具集合
+# ============================================================
+
+ALL_TOOLS = [
+    # 论文相关
+    search_paper,
+    get_paper_by_title,
+    read_paper_content,
+    # 引用分析
+    analyze_citations,
+    # 概念相关
+    get_concept_graph,
+    analyze_research_points,
+    # 文件夹管理
+    list_folders,
+    move_paper_to_folder,
+    create_folder,
 ]

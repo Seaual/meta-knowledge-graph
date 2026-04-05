@@ -1,45 +1,55 @@
 # mkg/agent/nodes/lead.py
 """
-Lead Node - 通用对话节点
+Lead Node - 统一对话节点
+
+所有功能都通过 tool 调用实现
 """
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, Any
 
 from ..state import AgentState
-from .. import tools  # 导入模块
+from .. import tools
 from ..llm_config import get_llm_or_raise
 
 
 # Lead Node 系统提示
 LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 
-你可以帮助用户：
-- 查看概念图谱：使用 get_concept_graph 工具获取图谱数据
-- 分析论文引用关系（说"分析XX论文的引用"）
-- 发现概念的研究机会（说"分析XX概念的研究点"）
-- 深入研究主题（说"深入研究XX"）
-- 回答论文内容问题（说"这篇论文讲了什么"）
+你可以使用以下工具帮助用户：
 
-当用户说"查看图谱"、"我的图谱"、"概念图谱"等，请调用 get_concept_graph 工具。
+**论文相关：**
+- search_paper: 搜索论文
+- get_paper_by_title: 根据标题查找论文
+- read_paper_content: 读取论文 PDF 内容（用于回答论文内容问题）
+
+**引用分析：**
+- analyze_citations: 分析论文的引用关系（当用户问引用、被引用时使用）
+
+**概念相关：**
+- get_concept_graph: 获取概念图谱（当用户说查看图谱、概念图谱时使用）
+- analyze_research_points: 分析概念的研究点（当用户问研究点、研究方向时使用）
+
+**文件夹管理：**
+- list_folders: 列出所有文件夹
+- move_paper_to_folder: 移动论文到文件夹
+- create_folder: 创建新文件夹
 
 当前上下文：
 {context_info}
 
-请友好、简洁地回复用户。如果用户想使用特定功能但表述不清，可以引导他们更清楚地说明。"""
+请根据用户的问题选择合适的工具。回复要友好、简洁。"""
 
 
 def build_context_info(state: AgentState) -> str:
     """构建上下文信息"""
     parts = []
 
-    # 当前目标
     current_target = state.get("current_target")
     if current_target:
         type_label = "论文" if current_target.get("type") == "paper" else "概念"
         parts.append(f"正在关注：{type_label}「{current_target.get('name')}」")
 
-    # 上传的论文
     uploaded = state.get("uploaded_papers", [])
     if uploaded:
         titles = [p.get("title", "未知") for p in uploaded[-3:]]
@@ -53,17 +63,12 @@ def build_context_info(state: AgentState) -> str:
 
 def lead_node(state: AgentState) -> Dict[str, Any]:
     """
-    Lead Node - 处理通用对话
+    Lead Node - 统一处理所有对话
 
-    Args:
-        state: 当前状态
-
-    Returns:
-        状态更新
+    通过 tool 调用实现各种功能
     """
-    # 获取 LLM
     llm = get_llm_or_raise()
-    llm_with_tools = llm.bind_tools(tools.LEAD_TOOLS)
+    llm_with_tools = llm.bind_tools(tools.ALL_TOOLS)
 
     # 构建消息
     context_info = build_context_info(state)
@@ -79,18 +84,25 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     concept_data = None
     response_content = response.content
 
-    if response.tool_calls:
+    # 最多处理 5 轮工具调用
+    max_iterations = 5
+    iteration = 0
+
+    while response.tool_calls and iteration < max_iterations:
+        iteration += 1
+
         tool_messages = []
         for tool_call in response.tool_calls:
             tool_name = tool_call["name"]
             tool_args = tool_call["args"]
 
             # 查找并执行工具
-            for tool_item in tools.LEAD_TOOLS:
+            for tool_item in tools.ALL_TOOLS:
                 if tool_item.name == tool_name:
                     try:
                         result = tool_item.invoke(tool_args)
-                        # 如果是 get_concept_graph，保存 concept_data
+
+                        # 特殊处理：get_concept_graph 返回图谱数据
                         if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
                             concept_data = result
                             tool_messages.append(ToolMessage(
@@ -99,7 +111,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
                             ))
                         else:
                             tool_messages.append(ToolMessage(
-                                content=str(result),
+                                content=str(result) if not isinstance(result, str) else result,
                                 tool_call_id=tool_call["id"]
                             ))
                     except Exception as e:
@@ -109,12 +121,11 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
                         ))
                     break
 
-        # 如果有工具调用，继续调用 LLM 生成最终响应
-        if tool_messages:
-            messages.append(response)
-            messages.extend(tool_messages)
-            final_response = llm_with_tools.invoke(messages)
-            response_content = final_response.content
+        # 继续调用 LLM
+        messages.append(response)
+        messages.extend(tool_messages)
+        response = llm_with_tools.invoke(messages)
+        response_content = response.content
 
     return {
         "response": response_content,

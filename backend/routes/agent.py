@@ -103,11 +103,9 @@ def get_deep_research_agent():
 @router.post("/chat", response_model=AgentChatResponse)
 def chat(request: AgentChatRequest):
     """
-    处理用户对话 - 使用 LangGraph Agent
+    处理用户对话 - 简化版
 
-    1. 规则路由识别意图
-    2. 执行 LangGraph 图
-    3. 返回响应
+    所有请求都由 lead agent 处理，通过 tool 调用实现各种功能
     """
     # 检查 LLM 配置
     db = get_db()
@@ -136,19 +134,13 @@ def chat(request: AgentChatRequest):
     # 添加当前消息
     messages.append(HumanMessage(content=request.message))
 
-    # 构建上下文
-    context = request.context.model_dump()
-
-    # 规则路由识别意图
-    intent, target_name = route_intent(request.message, context)
-
     # 构建初始状态
     initial_state: AgentState = {
         "messages": messages,
-        "current_target": context.get("currentTarget"),
-        "uploaded_papers": context.get("uploadedPapers", []),
-        "intent": intent,
-        "target_name": target_name,
+        "current_target": request.context.currentTarget if request.context else None,
+        "uploaded_papers": request.context.uploadedPapers if request.context else [],
+        "intent": "lead",
+        "target_name": None,
         "response": "",
         "agent_used": "lead",
         "needs_summary": False,
@@ -158,18 +150,12 @@ def chat(request: AgentChatRequest):
     config = {"configurable": {"thread_id": "default"}}
     result = graph.invoke(initial_state, config)
 
-    # 构建响应
-    context_update = None
-    if result.get("current_target"):
-        context_update = {"currentTarget": result["current_target"]}
-
     # 提取概念数据
     concept_data = result.get("concept_data")
 
     return AgentChatResponse(
         message=result.get("response", "抱歉，处理请求时遇到问题。"),
         agent=result.get("agent_used", "lead"),
-        contextUpdate=context_update,
         conceptData=concept_data,
     )
 
