@@ -166,15 +166,15 @@ export const batchApi = {
 
 // Export API
 export const exportApi = {
-  obsidian: () => api.get<ExportResponse>('/graph/export/obsidian'),
-  download: () =>
-    api.get('/graph/export/obsidian/download', { responseType: 'blob' }),
-  canvas: () => api.get('/graph/export/obsidian/canvas'),
-  downloadCanvas: () =>
-    api.get('/graph/export/obsidian/canvas/download', { responseType: 'blob' }),
-  html: () => api.get('/graph/export/obsidian/html'),
-  downloadHtml: () =>
-    api.get('/graph/export/obsidian/html/download', { responseType: 'blob' }),
+  obsidian: (folderId?: string) => api.get<ExportResponse>('/graph/export/obsidian', { params: { folder_id: folderId } }),
+  download: (folderId?: string) =>
+    api.get('/graph/export/obsidian/download', { params: { folder_id: folderId }, responseType: 'blob' }),
+  canvas: (folderId?: string) => api.get('/graph/export/obsidian/canvas', { params: { folder_id: folderId } }),
+  downloadCanvas: (folderId?: string) =>
+    api.get('/graph/export/obsidian/canvas/download', { params: { folder_id: folderId }, responseType: 'blob' }),
+  html: (folderId?: string) => api.get('/graph/export/obsidian/html', { params: { folder_id: folderId } }),
+  downloadHtml: (folderId?: string) =>
+    api.get('/graph/export/obsidian/html/download', { params: { folder_id: folderId }, responseType: 'blob' }),
 }
 
 // LLM Configuration types

@@ -61,10 +61,20 @@ class ObsidianExporter:
         print(f"  概念: {self.stats['concepts']} 个")
         print(f"  路径: {self.vault_path.absolute()}")
 
-    def export_overview(self, db, graph) -> str:
-        """导出图谱总览（单个Markdown文件）"""
-        concepts = db.get_all_concepts()
-        papers = db.get_all_papers()
+    def export_overview(self, db, graph, folder_id=None) -> str:
+        """导出图谱总览（单个Markdown文件）
+
+        Args:
+            db: 数据库实例
+            graph: 知识图谱实例
+            folder_id: 可选的文件夹ID，用于导出特定文件夹的内容
+        """
+        if folder_id:
+            concepts = db.get_concepts_by_folder(folder_id)
+            papers = db.get_papers_by_folder(folder_id)
+        else:
+            concepts = db.get_all_concepts()
+            papers = db.get_all_papers()
 
         lines = []
         lines.append("# 知识图谱总览\n")
@@ -132,7 +142,7 @@ class ObsidianExporter:
 
         return "".join(lines)
 
-    def export_canvas(self, db, graph) -> str:
+    def export_canvas(self, db, graph, folder_id=None) -> str:
         """
         导出为 Obsidian Canvas 格式（.canvas 文件）
 
@@ -140,8 +150,16 @@ class ObsidianExporter:
         - 节点颜色（按概念类别）
         - 节点位置（树状布局）
         - 节点连线（父子关系）
+
+        Args:
+            db: 数据库实例
+            graph: 知识图谱实例
+            folder_id: 可选的文件夹ID
         """
-        concepts = db.get_all_concepts()
+        if folder_id:
+            concepts = db.get_concepts_by_folder(folder_id)
+        else:
+            concepts = db.get_all_concepts()
 
         # 类别到颜色的映射
         category_colors = {
@@ -268,7 +286,7 @@ class ObsidianExporter:
 
         return json.dumps(canvas_data, ensure_ascii=False, indent=2)
 
-    def export_html(self, db, graph) -> str:
+    def export_html(self, db, graph, folder_id=None) -> str:
         """
         导出为交互式 HTML 页面
 
@@ -278,9 +296,18 @@ class ObsidianExporter:
         - 缩放平移
         - 节点按类别着色
         - 悬停显示详情
+
+        Args:
+            db: 数据库实例
+            graph: 知识图谱实例
+            folder_id: 可选的文件夹ID
         """
-        concepts = db.get_all_concepts()
-        papers = db.get_all_papers()
+        if folder_id:
+            concepts = db.get_concepts_by_folder(folder_id)
+            papers = db.get_papers_by_folder(folder_id)
+        else:
+            concepts = db.get_all_concepts()
+            papers = db.get_all_papers()
 
         # 类别到颜色的映射
         category_colors = {

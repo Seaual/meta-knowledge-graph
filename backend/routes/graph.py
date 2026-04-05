@@ -141,62 +141,86 @@ def get_tree_data():
 
 
 @router.get("/export/obsidian", response_model=ExportResponse)
-def export_obsidian():
-    """导出知识图谱为 Obsidian 兼容的 Markdown 格式"""
+def export_obsidian(folder_id: Optional[str] = None):
+    """导出知识图谱为 Obsidian 兼容的 Markdown 格式
+
+    Args:
+        folder_id: 可选的文件夹ID，用于导出特定文件夹的内容
+    """
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_overview(db, graph)
+        content = exporter.export_overview(db, graph, folder_id=folder_id)
 
-        stats = db.get_stats()
-
-        return ExportResponse(
-            content=content,
-            stats={
+        if folder_id:
+            papers = db.get_papers_by_folder(folder_id)
+            concepts = db.get_concepts_by_folder(folder_id)
+            stats = {
+                "papers": len(papers),
+                "concepts": len(concepts),
+                "generated_at": datetime.now().isoformat()
+            }
+        else:
+            stats = db.get_stats()
+            stats = {
                 "papers": stats.get('papers', {}).get('total', 0),
                 "concepts": stats.get('concepts', {}).get('total', 0),
                 "generated_at": datetime.now().isoformat()
             }
+
+        return ExportResponse(
+            content=content,
+            stats=stats
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 @router.get("/export/obsidian/canvas")
-def export_obsidian_canvas():
+def export_obsidian_canvas(folder_id: Optional[str] = None):
     """导出知识图谱为 Obsidian Canvas 格式（带颜色和布局）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_canvas(db, graph)
+        content = exporter.export_canvas(db, graph, folder_id=folder_id)
 
-        stats = db.get_stats()
-
-        return {
-            "content": content,
-            "stats": {
+        if folder_id:
+            papers = db.get_papers_by_folder(folder_id)
+            concepts = db.get_concepts_by_folder(folder_id)
+            stats = {
+                "papers": len(papers),
+                "concepts": len(concepts),
+                "generated_at": datetime.now().isoformat()
+            }
+        else:
+            stats = db.get_stats()
+            stats = {
                 "papers": stats.get('papers', {}).get('total', 0),
                 "concepts": stats.get('concepts', {}).get('total', 0),
                 "generated_at": datetime.now().isoformat()
             }
+
+        return {
+            "content": content,
+            "stats": stats
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 @router.get("/export/obsidian/canvas/download")
-def download_obsidian_canvas():
+def download_obsidian_canvas(folder_id: Optional[str] = None):
     """下载 Obsidian Canvas 文件（.canvas 格式）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_canvas(db, graph)
+        content = exporter.export_canvas(db, graph, folder_id=folder_id)
 
         return Response(
             content=content,
@@ -210,14 +234,14 @@ def download_obsidian_canvas():
 
 
 @router.get("/export/obsidian/download")
-def download_obsidian():
+def download_obsidian(folder_id: Optional[str] = None):
     """下载 Obsidian Markdown 文件"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_overview(db, graph)
+        content = exporter.export_overview(db, graph, folder_id=folder_id)
 
         return Response(
             content=content,
@@ -231,38 +255,48 @@ def download_obsidian():
 
 
 @router.get("/export/obsidian/html")
-def export_obsidian_html():
+def export_obsidian_html(folder_id: Optional[str] = None):
     """导出知识图谱为交互式 HTML 页面（D3.js 力导向图）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_html(db, graph)
+        content = exporter.export_html(db, graph, folder_id=folder_id)
 
-        stats = db.get_stats()
-
-        return {
-            "content": content,
-            "stats": {
+        if folder_id:
+            papers = db.get_papers_by_folder(folder_id)
+            concepts = db.get_concepts_by_folder(folder_id)
+            stats = {
+                "papers": len(papers),
+                "concepts": len(concepts),
+                "generated_at": datetime.now().isoformat()
+            }
+        else:
+            stats = db.get_stats()
+            stats = {
                 "papers": stats.get('papers', {}).get('total', 0),
                 "concepts": stats.get('concepts', {}).get('total', 0),
                 "generated_at": datetime.now().isoformat()
             }
+
+        return {
+            "content": content,
+            "stats": stats
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
 
 @router.get("/export/obsidian/html/download")
-def download_obsidian_html():
+def download_obsidian_html(folder_id: Optional[str] = None):
     """下载交互式 HTML 文件（带物理渲染）"""
     try:
         db = get_db()
         graph = get_graph()
 
         exporter = ObsidianExporter()
-        content = exporter.export_html(db, graph)
+        content = exporter.export_html(db, graph, folder_id=folder_id)
 
         return Response(
             content=content,

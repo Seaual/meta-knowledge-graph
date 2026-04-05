@@ -414,7 +414,7 @@ export default function ConceptsGraph() {
 
   const handleExportMarkdown = useCallback(async () => {
     try {
-      const res = await exportApi.download()
+      const res = await exportApi.download(activeFolder || undefined)
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
@@ -427,11 +427,11 @@ export default function ConceptsGraph() {
       console.error('Export failed:', err)
       alert('Export failed')
     }
-  }, [])
+  }, [activeFolder])
 
   const handleExportCanvas = useCallback(async () => {
     try {
-      const res = await exportApi.downloadCanvas()
+      const res = await exportApi.downloadCanvas(activeFolder || undefined)
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
@@ -444,11 +444,11 @@ export default function ConceptsGraph() {
       console.error('Canvas export failed:', err)
       alert('Export failed')
     }
-  }, [])
+  }, [activeFolder])
 
   const handleExportHtml = useCallback(async () => {
     try {
-      const res = await exportApi.downloadHtml()
+      const res = await exportApi.downloadHtml(activeFolder || undefined)
       const url = window.URL.createObjectURL(new Blob([res.data]))
       const link = document.createElement('a')
       link.href = url
@@ -461,7 +461,7 @@ export default function ConceptsGraph() {
       console.error('HTML export failed:', err)
       alert('Export failed')
     }
-  }, [])
+  }, [activeFolder])
 
   // Back to all concepts
   const handleBack = useCallback(() => {

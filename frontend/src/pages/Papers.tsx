@@ -78,6 +78,7 @@ export default function Papers() {
   const [contributions, setContributions] = useState<Record<string, Contribution>>({})
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true)
   const uploadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [totalPaperCount, setTotalPaperCount] = useState(0)
 
   const loadPapers = () => {
     papersApi.list(undefined, activeFolder).then(res => {
@@ -93,6 +94,12 @@ export default function Papers() {
   const loadFolders = () => {
     foldersApi.list().then(res => {
       setFolders(res.data)
+      // 计算总论文数：累加所有文件夹的 paper_count + 无文件夹的论文
+      const folderTotal = res.data.reduce((sum: number, f: FolderItem) => sum + f.paper_count, 0)
+      // 从 graph stats 获取真实的总数
+      papersApi.list().then(papersRes => {
+        setTotalPaperCount(papersRes.data.length)
+      })
     })
   }
 
@@ -386,7 +393,7 @@ export default function Papers() {
                   <span className="font-body text-sm">{t.papers.allPapers}</span>
                 </div>
                 <span className="font-mono text-xs text-faint">
-                  {folders.reduce((sum, f) => sum + f.paper_count, 0)}
+                  {totalPaperCount}
                 </span>
               </div>
 
