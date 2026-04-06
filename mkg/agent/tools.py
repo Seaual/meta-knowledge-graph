@@ -229,18 +229,19 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
 
 @tool
 def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
-    """显示概念图谱可视化。
+    """显示概念图谱的可视化界面。
 
-    仅当用户明确要求「查看图谱」「显示图谱」「概念图谱」时调用。
-    用于可视化展示概念之间的层级关系，返回图谱数据供前端渲染。
+    【重要】仅当用户明确说「查看图谱」「显示图谱」「概念图谱」时才调用此工具！
 
-    注意：如果用户问论文、搜索论文，应该使用 search_paper 工具，而不是这个！
+    不要在以下情况使用：
+    - 用户问研究点、研究方向 → 用 analyze_research_points
+    - 用户问论文 → 用 search_paper
 
     Args:
         concept_name: 概念名称（可选，不提供则返回根概念）
 
     Returns:
-        概念图谱数据，包含节点和关系，用于前端渲染图谱组件
+        概念图谱数据，用于前端渲染图谱组件
     """
     if not _db:
         return {"error": "数据库未初始化"}
@@ -287,14 +288,19 @@ def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
 def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     """分析概念的研究点和研究方向。
 
-    当用户问"研究点"、"研究方向"、"研究机会"时调用。
-    分析概念的研究现状和潜在研究方向。
+    【重要】当用户提到「研究点」「研究方向」「研究机会」「分析...的研究点」时调用此工具！
+
+    这个工具用于分析某个概念的研究现状和潜在研究方向。
+
+    不要与 get_concept_graph 混淆：
+    - 用户说「研究点」→ 用这个工具 analyze_research_points
+    - 用户说「查看图谱」→ 用 get_concept_graph
 
     Args:
         concept_name: 概念名称
 
     Returns:
-        研究点分析结果
+        研究点分析结果，包含相关论文、子概念等
     """
     if not _db:
         return {"error": "数据库未初始化"}
