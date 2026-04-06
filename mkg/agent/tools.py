@@ -311,7 +311,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
         return {"error": f"未找到概念「{concept_name}」"}
 
     concept_id = concept['id']
-    papers = _db.get_concept_papers(concept_id, limit=10) or []
+    papers = _db.get_papers_by_concept(concept_id) or []
     children = _db.get_concept_children(concept_id) or []
     parents = _db.get_concept_parents(concept_id) or []
 
@@ -319,7 +319,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     related_papers = []
     if _s2_client:
         try:
-            related_papers = _s2_client.search_paper(concept.get('text', ''), limit=5)
+            related_papers = _s2_client.search_papers(concept.get('text', ''), limit=5)
         except:
             pass
 

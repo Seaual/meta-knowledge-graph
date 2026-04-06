@@ -428,7 +428,7 @@ export default function Chat() {
               placeholder="输入消息..."
               rows={1}
               className="flex-1 bg-transparent font-body text-sm resize-none outline-none"
-              style={{ color: 'var(--color-ink)', maxHeight: '200px' }}
+              style={{ color: '#1a1a1a', maxHeight: '200px' }}
             />
             <button
               onClick={handleSend}
