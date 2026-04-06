@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 from ..state import AgentState
 from .. import tools
-from mkg.llm import get_llm_or_raise
+from mkg.llm import get_llm_or_raise, extract_text_content
 
 
 # Lead Node 系统提示
@@ -82,7 +82,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
 
     # 处理 tool calls
     concept_data = None
-    response_content = response.content
+    response_content = extract_text_content(response.content)
 
     # 最多处理 5 轮工具调用
     max_iterations = 5
@@ -125,7 +125,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
         messages.append(response)
         messages.extend(tool_messages)
         response = llm_with_tools.invoke(messages)
-        response_content = response.content
+        response_content = extract_text_content(response.content)
 
     return {
         "response": response_content,

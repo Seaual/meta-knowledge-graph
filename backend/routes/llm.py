@@ -11,8 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
-from mkg.pdf_parser import LiteLLMClient, ClaudeCLIClient
-from mkg.llm import reset_llm
+from mkg.llm import init_llm, reset_llm, generate
 from backend.schemas import (
     LLMConfigResponse, LLMConfigRequest, LLMTestRequest, LLMTestResponse, LLMProviderConfig
 )
@@ -94,22 +93,17 @@ def save_config(request: LLMConfigRequest):
 
 @router.post("/test", response_model=LLMTestResponse)
 def test_connection(request: LLMTestRequest):
-    """Test LLM connection using LiteLLM"""
+    """Test LLM connection"""
     try:
-        if request.provider == "claude_cli":
-            # Claude CLI 特殊处理
-            client = ClaudeCLIClient()
-            result = client.extract_concepts("Say 'OK' if you can read this.")
-            return LLMTestResponse(success=True, message="Claude CLI 连接成功", model="claude-code")
-
-        # 所有其他服务商通过 LiteLLM 统一处理
-        client = LiteLLMClient(
+        # 使用统一 LLM 客户端测试
+        init_llm(
             provider=request.provider,
             api_key=request.api_key,
             model=request.model,
-            base_url=request.base_url  # 可选，用于代理或私有部署
+            base_url=request.base_url
         )
-        result = client.extract_concepts("Say 'OK' if you can read this.")
+
+        result = generate("Say 'OK' if you can read this.")
 
         provider_label = next((p["label"] for p in PROVIDERS if p["value"] == request.provider), request.provider)
         return LLMTestResponse(

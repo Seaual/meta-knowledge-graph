@@ -19,7 +19,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
 from mkg.graph import KnowledgeGraph
-from mkg.pdf_parser import LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
+from mkg.pdf_parser import LLMConceptExtractor
+from mkg.llm import init_llm_from_db
 from mkg.dedup import ConceptDeduplicator
 from mkg.semantic_scholar import S2Client
 from backend.schemas import ConceptResponse, ConceptTreeNode, ConceptDetail
@@ -48,76 +49,21 @@ def get_graph():
 
 
 def get_extractor():
+    """获取概念提取器实例"""
     global _extractor
     if _extractor is None:
         db = get_db()
-
-        # Try database config first
-        config = db.get_llm_config()
-        if config and config.get('providers'):
-            provider_config = None
-            if config['mode'] == 'per_function':
-                # For concepts, use concept_analysis or default to first
-                provider_config = db.get_llm_provider_for_function('concept_analysis')
-                if not provider_config:
-                    provider_config = config['providers'][0]
-            else:
-                provider_config = db.get_active_llm_provider()
-                if not provider_config:
-                    provider_config = config['providers'][0]
-
-            if provider_config:
-                _extractor = _create_client_from_config(provider_config)
-                return _extractor
-
-        # Fallback: try Claude CLI first (leverage Claude Code's configured API)
-        try:
-            _extractor = LLMConceptExtractor(ClaudeCLIClient())
-            return _extractor
-        except Exception as e:
-            print(f"Claude CLI not available: {e}")
-
-        # Fallback to environment variables
-        _extractor = _create_client_from_env()
-        return _extractor
+        # 初始化 LLM
+        init_llm_from_db(db)
+        _extractor = LLMConceptExtractor()
     return _extractor
-
-
-def _create_client_from_config(config: dict):
-    """Create LLM client from database config using LiteLLM"""
-    provider = config.get('provider')
-    api_key = config.get('api_key')
-    base_url = config.get('base_url')
-    model = config.get('model')
-
-    if provider == 'claude_cli':
-        return LLMConceptExtractor(ClaudeCLIClient())
-
-    # 所有其他服务商通过 LiteLLM 统一处理
-    return LLMConceptExtractor(LiteLLMClient(
-        provider=provider,
-        api_key=api_key,
-        model=model,
-        base_url=base_url
-    ))
-
-
-def _create_client_from_env():
-    """Create LLM client from environment variables using LiteLLM"""
-    # 检查各种 API Key 环境变量
-    for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
-        api_key = os.getenv(env_key)
-        if api_key:
-            return LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
-    return None
 
 
 def get_deduplicator():
     """获取去重器实例"""
     global _deduplicator
     if _deduplicator is None:
-        extractor = get_extractor()
-        _deduplicator = ConceptDeduplicator(get_db(), extractor.api_client if extractor else None)
+        _deduplicator = ConceptDeduplicator(get_db(), None)
     return _deduplicator
 
 

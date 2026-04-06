@@ -145,6 +145,33 @@ def get_current_config() -> Dict[str, Any]:
     return _current_config.copy()
 
 
+def extract_text_content(content) -> str:
+    """
+    从 LLM 响应内容中提取文本
+
+    处理不同的响应格式：
+    - 字符串：直接返回
+    - 列表：提取文本块并合并
+
+    Args:
+        content: LLM 响应内容
+
+    Returns:
+        文本字符串
+    """
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get('type') == 'text':
+                text_parts.append(block.get('text', ''))
+            elif isinstance(block, str):
+                text_parts.append(block)
+        return ''.join(text_parts)
+    return str(content)
+
+
 def generate(prompt: str, system_prompt: Optional[str] = None) -> str:
     """
     简化的单次生成接口
@@ -166,4 +193,16 @@ def generate(prompt: str, system_prompt: Optional[str] = None) -> str:
     messages.append(HumanMessage(content=prompt))
 
     response = llm.invoke(messages)
-    return response.content
+
+    # 处理不同的响应格式
+    content = response.content
+    if isinstance(content, list):
+        # 某些模型返回内容块列表，提取文本
+        text_parts = []
+        for block in content:
+            if isinstance(block, dict) and block.get('type') == 'text':
+                text_parts.append(block.get('text', ''))
+            elif isinstance(block, str):
+                text_parts.append(block)
+        return ''.join(text_parts)
+    return str(content)
