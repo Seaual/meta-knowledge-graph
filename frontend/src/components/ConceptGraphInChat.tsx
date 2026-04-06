@@ -4,7 +4,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
-import { forceManyBody, forceCollide, forceLink } from 'd3-force'
+import { forceManyBody, forceCollide, forceLink, forceCenter } from 'd3-force'
 import { graphApi, foldersApi } from '../lib/api'
 import { Folder, ChevronDown } from 'lucide-react'
 
@@ -239,13 +239,14 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
       .linkDirectionalParticles(2)
       .linkDirectionalParticleWidth(2)
       .linkDirectionalParticleColor(() => '#b8860b')
-      .d3AlphaDecay(0.005)
-      .d3VelocityDecay(0.4)
+      .d3AlphaDecay(0.02)
+      .d3VelocityDecay(0.3)
       .d3Force('charge', forceManyBody().strength((node: any) => {
-        const depthBonus = -(node.depth || 0) * 30
-        return -150 + depthBonus
+        const depthBonus = -(node.depth || 0) * 20
+        return -80 + depthBonus
       }))
-      .d3Force('link', forceLink().id((d: any) => d.id).distance(60).strength(0.5))
+      .d3Force('center', forceCenter(250, 250))
+      .d3Force('link', forceLink().id((d: any) => d.id).distance(50).strength(0.6))
       .d3Force('collision', forceCollide().radius((node: any) => {
         return CATEGORY_RADII[node.category || 'method'] || 14
       }))

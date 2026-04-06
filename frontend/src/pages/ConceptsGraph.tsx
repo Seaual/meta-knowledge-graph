@@ -1,7 +1,7 @@
 // Knowledge Graph - Academic Style Force Graph with Papers
 import { useEffect, useRef, useState, useCallback } from 'react'
 import ForceGraph from 'force-graph'
-import { forceManyBody, forceLink, forceCollide } from 'd3-force'
+import { forceManyBody, forceLink, forceCollide, forceCenter } from 'd3-force'
 import { conceptsApi, graphApi, papersApi, exportApi, foldersApi } from '../lib/api'
 import { Download, ChevronDown, Folder, Search, X, ArrowLeft } from 'lucide-react'
 import DedupPanel from '../components/DedupPanel'
@@ -663,15 +663,19 @@ export default function ConceptsGraph() {
       })
       .linkDirectionalParticleWidth(2)
       .linkDirectionalParticleColor(() => '#b8860b')
-      .d3AlphaDecay(0.005)
-      .d3VelocityDecay(0.4)
+      .d3AlphaDecay(0.02)
+      .d3VelocityDecay(0.3)
       .d3Force('charge', forceManyBody().strength((node: any) => {
-        if (node.type === 'paper') return -forceStrength * 0.5
-        if (node.type === 'center') return -forceStrength * 2
-        const depthBonus = -(node.depth || 0) * 30
-        return -forceStrength + depthBonus
+        if (node.type === 'paper') return -forceStrength * 0.3
+        if (node.type === 'center') return -forceStrength * 1.5
+        const depthBonus = -(node.depth || 0) * 20
+        return -forceStrength * 0.6 + depthBonus
       }))
-      .d3Force('link', forceLink().id((d: any) => d.id).distance(60).strength(0.5))
+      .d3Force('center', forceCenter(
+        containerRef.current?.clientWidth ? containerRef.current.clientWidth / 2 : 500,
+        containerRef.current?.clientHeight ? containerRef.current.clientHeight / 2 : 400
+      ))
+      .d3Force('link', forceLink().id((d: any) => d.id).distance(50).strength(0.6))
       .d3Force('collision', forceCollide().radius((node: any) => {
         if (node.type === 'paper') return 12
         if (node.type === 'center') return 25
