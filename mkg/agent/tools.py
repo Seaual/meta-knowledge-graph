@@ -196,16 +196,18 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
 
 @tool
 def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
-    """获取概念图谱数据。
+    """显示概念图谱可视化。
 
-    当用户说"查看图谱"、"我的图谱"、"概念图谱"时调用。
-    返回概念及其父子关系的可视化数据。
+    仅当用户明确要求「查看图谱」「显示图谱」「概念图谱」时调用。
+    用于可视化展示概念之间的层级关系，返回图谱数据供前端渲染。
+
+    注意：如果用户问论文、搜索论文，应该使用 search_paper 工具，而不是这个！
 
     Args:
         concept_name: 概念名称（可选，不提供则返回根概念）
 
     Returns:
-        概念图谱数据，包含节点和关系
+        概念图谱数据，包含节点和关系，用于前端渲染图谱组件
     """
     if not _db:
         return {"error": "数据库未初始化"}

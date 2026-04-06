@@ -19,7 +19,7 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 你可以使用以下工具帮助用户：
 
 **论文相关：**
-- search_paper: 搜索论文
+- search_paper: 搜索论文（当用户问论文、找论文、有哪些论文时使用）
 - get_paper_by_title: 根据标题查找论文
 - read_paper_content: 读取论文 PDF 内容（用于回答论文内容问题）
 
@@ -27,7 +27,7 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 - analyze_citations: 分析论文的引用关系（当用户问引用、被引用时使用）
 
 **概念相关：**
-- get_concept_graph: 获取概念图谱（当用户说查看图谱、概念图谱时使用）
+- get_concept_graph: 显示概念图谱可视化（仅当用户明确说「查看图谱」「显示图谱」时调用，问论文不要用这个！）
 - analyze_research_points: 分析概念的研究点（当用户问研究点、研究方向时使用）
 
 **文件夹管理：**
