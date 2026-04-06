@@ -13,13 +13,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from backend.schemas import AgentChatRequest, AgentChatResponse, AgentMessage
 from mkg.database import Database
 from mkg.semantic_scholar import S2Client
-from mkg.pdf_parser import PDFParser, LiteLLMClient
+from mkg.pdf_parser import PDFParser
+from mkg.llm import init_llm_from_db, reset_llm
 
 # LangGraph imports
 from langchain_core.messages import HumanMessage, AIMessage
 
 from mkg.agent.graph import get_agent_graph, reset_graph
-from mkg.agent.routing import route_intent
 from mkg.agent.state import AgentState
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
@@ -28,7 +28,6 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 _db = None
 _s2_client = None
 _pdf_parser = None
-_deep_research_agent = None
 
 
 class DeepResearchStartRequest(BaseModel):
@@ -70,36 +69,6 @@ def get_pdf_parser():
     return _pdf_parser
 
 
-def get_deep_research_agent():
-    """获取 Deep Research Agent（保留原有实现）"""
-    global _deep_research_agent
-    if _deep_research_agent is None:
-        db = get_db()
-        config = db.get_llm_config()
-
-        llm_client = None
-        if config and config.get('providers'):
-            provider_config = db.get_active_llm_provider()
-            if not provider_config:
-                provider_config = config['providers'][0]
-
-            if provider_config:
-                llm_client = LiteLLMClient(
-                    provider=provider_config.get('provider'),
-                    api_key=provider_config.get('api_key'),
-                    model=provider_config.get('model'),
-                    base_url=provider_config.get('base_url')
-                )
-
-        s2_client = get_s2_client()
-
-        if llm_client:
-            from mkg.agent.deep_research_agent import DeepResearchAgent
-            _deep_research_agent = DeepResearchAgent(llm_client, db, s2_client)
-
-    return _deep_research_agent
-
-
 @router.post("/chat", response_model=AgentChatResponse)
 def chat(request: AgentChatRequest):
     """
@@ -107,8 +76,11 @@ def chat(request: AgentChatRequest):
 
     所有请求都由 lead agent 处理，通过 tool 调用实现各种功能
     """
-    # 检查 LLM 配置
+    # 初始化 LLM
     db = get_db()
+    init_llm_from_db(db)
+
+    # 检查 LLM 配置
     config = db.get_llm_config()
     if not config or not config.get('providers'):
         raise HTTPException(
@@ -163,65 +135,31 @@ def chat(request: AgentChatRequest):
 @router.post("/deep-research/start")
 def start_deep_research(request: DeepResearchStartRequest):
     """启动深入研究任务"""
-    agent = get_deep_research_agent()
+    from mkg.agent.tools import deep_research
 
-    if not agent:
-        raise HTTPException(
-            status_code=500,
-            detail="LLM 未配置，请先在设置中配置 API Key"
-        )
+    init_llm_from_db(get_db())
 
-    session_id = agent.start_research(
-        target_type=request.targetType,
-        target_id=request.targetId,
-        target_name=request.targetName,
-        query=request.query,
-        dimensions=request.dimensions,
-    )
+    try:
+        result = deep_research.invoke({
+            "target_name": request.targetName,
+            "target_type": request.targetType,
+            "query": request.query,
+            "dimensions": request.dimensions
+        })
 
-    return {"sessionId": session_id, "status": "started"}
-
-
-@router.get("/deep-research/{session_id}/status")
-def get_research_status(session_id: str):
-    """获取研究进度"""
-    agent = get_deep_research_agent()
-
-    if not agent:
-        raise HTTPException(status_code=500, detail="Agent 未初始化")
-
-    status = agent.get_status(session_id)
-
-    if 'error' in status:
-        raise HTTPException(status_code=404, detail=status['error'])
-
-    return DeepResearchStatusResponse(**status)
-
-
-@router.get("/deep-research/{session_id}/report")
-def get_research_report(session_id: str):
-    """获取研究报告"""
-    agent = get_deep_research_agent()
-
-    if not agent:
-        raise HTTPException(status_code=500, detail="Agent 未初始化")
-
-    report = agent.get_report(session_id)
-
-    if 'error' in report:
-        raise HTTPException(status_code=404, detail=report['error'])
-
-    return report
+        return {
+            "sessionId": "sync",
+            "status": "completed",
+            "report": result.get("report", ""),
+            "dimensions": result.get("dimensions", []),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/reset")
 def reset_agent():
     """重置 Agent 图（用于重新加载配置）"""
-    # 强制重新加载所有 agent 模块
-    import importlib
-    from mkg.agent import routing, graph
-    importlib.reload(routing)
-    importlib.reload(graph)
-
-    graph.reset_graph()
+    reset_llm()
+    reset_graph()
     return {"status": "ok"}

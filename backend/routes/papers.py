@@ -19,7 +19,8 @@ from datetime import datetime
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
-from mkg.pdf_parser import PDFParser, LLMConceptExtractor, ClaudeCLIClient, LiteLLMClient
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor
+from mkg.llm import init_llm_from_db
 from mkg.graph import KnowledgeGraph
 from mkg.semantic_scholar import S2Client
 from backend.schemas import PaperResponse, PaperCreate, ProcessRequest, ProcessResponse, SkillConceptSubmission, BatchProcessRequest
@@ -72,59 +73,9 @@ def get_parser():
 def get_extractor():
     global _extractor
     if _extractor is None:
-        db = get_db()
-
-        # Try database config first
-        config = db.get_llm_config()
-        if config and config.get('providers'):
-            provider_config = None
-            if config['mode'] == 'per_function':
-                # For papers, use paper_parsing or default to first
-                provider_config = db.get_llm_provider_for_function('paper_parsing')
-                if not provider_config:
-                    provider_config = config['providers'][0]
-            else:
-                provider_config = db.get_active_llm_provider()
-                if not provider_config:
-                    provider_config = config['providers'][0]
-
-            if provider_config:
-                _extractor = _create_client_from_config(provider_config)
-                return _extractor
-
-        # Fallback to environment variables
-        _extractor = _create_client_from_env()
-        return _extractor
+        # 使用统一的 mkg.llm 模块
+        _extractor = LLMConceptExtractor()
     return _extractor
-
-
-def _create_client_from_config(config: dict):
-    """Create LLM client from database config using LiteLLM"""
-    provider = config.get('provider')
-    api_key = config.get('api_key')
-    base_url = config.get('base_url')
-    model = config.get('model')
-
-    if provider == 'claude_cli':
-        return LLMConceptExtractor(ClaudeCLIClient())
-
-    # 所有其他服务商通过 LiteLLM 统一处理
-    return LLMConceptExtractor(LiteLLMClient(
-        provider=provider,
-        api_key=api_key,
-        model=model,
-        base_url=base_url
-    ))
-
-
-def _create_client_from_env():
-    """Create LLM client from environment variables using LiteLLM"""
-    # 检查各种 API Key 环境变量
-    for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
-        api_key = os.getenv(env_key)
-        if api_key:
-            return LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
-    return None
 
 
 # Semantic Scholar API Key（硬编码）
@@ -575,6 +526,8 @@ def get_batch_status(job_id: str):
 def process_paper(request: ProcessRequest):
     """Process a paper with LLM extraction, S2 metadata, and citation building"""
     db = get_db()
+    init_llm_from_db(db)
+
     paper = db.get_paper(request.doi)
 
     if not paper:
@@ -729,6 +682,8 @@ async def process_single_paper(request: ProcessRequest):
     start_time = time.time()
 
     db = get_db()
+    init_llm_from_db(db)
+
     paper = db.get_paper(request.doi)
 
     if not paper:
@@ -1112,6 +1067,7 @@ async def download_and_process_paper(request: DownloadAndProcessRequest):
     import requests
 
     db = get_db()
+    init_llm_from_db(db)
     parser = get_parser()
     extractor = get_extractor()
 

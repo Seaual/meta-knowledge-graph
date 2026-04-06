@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mkg.database import Database
 from mkg.pdf_parser import LiteLLMClient, ClaudeCLIClient
+from mkg.llm import reset_llm
 from backend.schemas import (
     LLMConfigResponse, LLMConfigRequest, LLMTestRequest, LLMTestResponse, LLMProviderConfig
 )
@@ -81,6 +82,9 @@ def save_config(request: LLMConfigRequest):
 
     providers_data = [p.model_dump() for p in request.providers]
     config = db.save_llm_config(request.mode, providers_data)
+
+    # 重置 LLM 实例，下次调用时会重新初始化
+    reset_llm()
 
     return LLMConfigResponse(
         mode=config['mode'],

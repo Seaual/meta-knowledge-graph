@@ -13,7 +13,8 @@ from rich.panel import Panel
 from rich.tree import Tree
 
 from mkg.database import Database
-from mkg.pdf_parser import PDFParser, LLMConceptExtractor, LiteLLMClient
+from mkg.pdf_parser import PDFParser, LLMConceptExtractor
+from mkg.llm import init_llm_from_db, generate
 from mkg.graph import KnowledgeGraph
 from mkg.neo4j_graph import Neo4jGraph
 from mkg.obsidian_exporter import ObsidianExporter
@@ -57,18 +58,8 @@ def get_extractor() -> LLMConceptExtractor:
     """获取 LLM 概念提取器"""
     global _extractor
     if _extractor is None:
-        # 检查各种 API Key 环境变量
-        for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
-            api_key = os.getenv(env_key)
-            if api_key:
-                console.print(f"[green]使用 {provider.upper()} API[/green]")
-                _extractor = LLMConceptExtractor(LiteLLMClient(provider=provider, api_key=api_key))
-                return _extractor
-
-        console.print("[red]请配置 API Key:[/red]")
-        for provider, env_key in LiteLLMClient.ENV_KEY_MAP.items():
-            console.print(f"  {env_key}")
-        raise typer.Exit(1)
+        # 使用统一的 mkg.llm 模块
+        _extractor = LLMConceptExtractor()
     return _extractor
 
 
@@ -100,6 +91,7 @@ def process(
         raise typer.Exit(1)
 
     db = get_db()
+    init_llm_from_db(db)
     parser = get_parser()
     extractor = get_extractor()
     graph = get_graph()
