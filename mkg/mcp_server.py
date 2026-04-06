@@ -18,10 +18,12 @@ _db = None
 
 def _get_db():
     """获取数据库连接"""
+    global _db
     if _db is None:
-        from mkg.db import MetaKnowledgeDB
+        from mkg.database import Database
         db_path = os.environ.get("MKG_DB_PATH", "data/mkg.db")
-        _db = MetaKnowledgeDB(db_path)
+        _db = Database(db_path)
+        _db.connect()
     return _db
 
 
@@ -44,8 +46,41 @@ def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
         {"papers": [...], "count": N}
     """
     db = _get_db()
-    papers = db.search_papers(query, limit=limit)
-    return {"papers": papers, "count": len(papers)}
+
+    # 获取所有已处理论文
+    papers = db.get_papers_by_status('processed')
+    papers.extend(db.get_papers_by_status('pending'))
+
+    # 简单的本地搜索：匹配标题、摘要、作者
+    query_lower = query.lower()
+    matched = []
+
+    for paper in papers:
+        title = (paper.get('title') or '').lower()
+        abstract = (paper.get('abstract') or '').lower()
+        authors = (paper.get('authors') or '')
+        if isinstance(authors, list):
+            authors = ' '.join(authors)
+        authors = authors.lower()
+
+        # 计算匹配分数
+        score = 0
+        if query_lower in title:
+            score += 10
+        if query_lower in abstract:
+            score += 5
+        if query_lower in authors:
+            score += 3
+
+        if score > 0:
+            matched.append((score, paper))
+
+    # 按分数排序
+    matched.sort(key=lambda x: x[0], reverse=True)
+
+    # 返回结果
+    result_papers = [p for _, p in matched[:limit]]
+    return {"papers": result_papers, "count": len(result_papers)}
 
 
 @mcp.tool()
@@ -110,19 +145,19 @@ def analyze_citations(doi: str) -> Dict[str, Any]:
         {"cited_by": [...], "references": [...]}
     """
     db = _get_db()
-    paper = db.get_paper_by_doi(doi)
+    paper = db.get_paper(doi)
 
     if not paper:
         return {"error": f"未找到 DOI 为 {doi} 的论文"}
 
-    # 获取被引用和引用的论文
-    cited_by = db.get_papers_citing(doi) or []
-    references = db.get_paper_references(doi) or []
+    # 获取引用关系
+    references = db.get_paper_citations(doi) or []  # 这篇论文引用了谁
+    cited_by = db.get_paper_cited_by(doi) or []  # 谁引用了这篇论文
 
     return {
         "paper": paper.get('title', ''),
-        "cited_by": [{"doi": p.get('doi'), "title": p.get('title')} for p in cited_by[:10]],
-        "references": [{"doi": r.get('doi'), "title": r.get('title')} for r in references[:10]],
+        "cited_by": [{"doi": p.get('cited_paper_doi'), "title": p.get('cited_paper_title')} for p in cited_by[:10]],
+        "references": [{"doi": r.get('cited_paper_doi'), "title": r.get('cited_paper_title')} for r in references[:10]],
         "cited_by_count": len(cited_by),
         "references_count": len(references),
     }
@@ -211,8 +246,19 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     if not concept:
         return {"error": f"未找到概念「{concept_name}」"}
 
-    # 获取相关论文
-    papers = db.search_papers(concept.get('text', ''), limit=20)
+    # 获取相关论文 - 使用本地搜索
+    all_papers = db.get_papers_by_status('processed')
+    all_papers.extend(db.get_papers_by_status('pending'))
+
+    concept_text = concept.get('text', '').lower()
+    related_papers = []
+    for paper in all_papers:
+        title = (paper.get('title') or '').lower()
+        abstract = (paper.get('abstract') or '').lower()
+        if concept_text in title or concept_text in abstract:
+            related_papers.append(paper)
+            if len(related_papers) >= 10:
+                break
 
     return {
         "concept": concept.get('text', ''),
@@ -220,7 +266,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
         "paper_count": concept.get('paper_count', 0),
         "related_papers": [
             {"title": p.get('title'), "doi": p.get('doi')}
-            for p in papers[:10]
+            for p in related_papers[:10]
         ],
         "children": db.get_concept_children(concept['id']),
     }
@@ -254,7 +300,7 @@ def create_folder(name: str, parent_id: Optional[str] = None) -> Dict[str, Any]:
         {"success": true, "folder_id": "..."}
     """
     db = _get_db()
-    folder_id = db.create_folder(name, parent_id)
+    folder_id = db.create_folder({"name": name})
     return {"success": True, "folder_id": folder_id}
 
 
