@@ -20,7 +20,7 @@ async def _load_mcp_tools():
     """加载 MCP tools"""
     global _mcp_tools
     if _mcp_tools is None:
-        from langchain_mcp_adapters import load_mcp_tools
+        from langchain_mcp_adapters.tools import load_mcp_tools
         from langchain_mcp_adapters.sessions import create_session
 
         # 连接到本地 MCP server (stdio)
