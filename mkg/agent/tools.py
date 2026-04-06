@@ -59,8 +59,40 @@ def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
     if not _db:
         return {"error": "数据库未初始化"}
 
-    papers = _db.search_papers(query, limit=limit)
-    return {"papers": papers, "count": len(papers)}
+    # 获取所有已处理论文
+    papers = _db.get_papers_by_status('processed')
+    papers.extend(_db.get_papers_by_status('pending'))
+
+    # 本地搜索：匹配标题、摘要、作者
+    query_lower = query.lower()
+    matched = []
+
+    for paper in papers:
+        title = (paper.get('title') or '').lower()
+        abstract = (paper.get('abstract') or '').lower()
+        authors = (paper.get('authors') or '')
+        if isinstance(authors, list):
+            authors = ' '.join(authors)
+        authors = authors.lower()
+
+        # 计算匹配分数
+        score = 0
+        if query_lower in title:
+            score += 10
+        if query_lower in abstract:
+            score += 5
+        if query_lower in authors:
+            score += 3
+
+        if score > 0:
+            matched.append((score, paper))
+
+    # 按分数排序
+    matched.sort(key=lambda x: x[0], reverse=True)
+
+    # 返回结果
+    result_papers = [p for _, p in matched[:limit]]
+    return {"papers": result_papers, "count": len(result_papers)}
 
 
 @tool

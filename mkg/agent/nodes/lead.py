@@ -2,42 +2,17 @@
 """
 Lead Node - 统一对话节点
 
-使用 MCP tools 与 LLM 交互
+使用 MCP tools 或备用工具与 LLM 交互
 """
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, Any
-import asyncio
 
 from ..state import AgentState
 from mkg.llm import get_llm_or_raise, extract_text_content
+from .. import tools as legacy_tools
 
-# MCP tools 加载
-_mcp_tools = None
-
-
-async def _load_mcp_tools():
-    """加载 MCP tools"""
-    global _mcp_tools
-    if _mcp_tools is None:
-        from langchain_mcp_adapters.tools import load_mcp_tools
-        from langchain_mcp_adapters.sessions import create_session
-
-        # 连接到本地 MCP server (stdio)
-        connection = {
-            "transport": "stdio",
-            "command": "python",
-            "args": ["-m", "mkg.mcp_server"],
-        }
-
-        async with create_session(connection) as session:
-            await session.initialize()
-            _mcp_tools = await load_mcp_tools(session, connection=connection, server_name="mkg")
-
-    return _mcp_tools
-
-
-# Lead Node 系统提示 - 简化，让 MCP 工具描述发挥作用
+# Lead Node 系统提示
 LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 
 你可以使用以下工具：
@@ -80,18 +55,12 @@ def build_context_info(state: AgentState) -> str:
 
 def lead_node(state: AgentState) -> Dict[str, Any]:
     """
-    Lead Node - 使用 MCP tools 处理对话
+    Lead Node - 使用 LangChain tools 处理对话
     """
     llm = get_llm_or_raise()
 
-    # 加载 MCP tools（同步方式）
-    try:
-        tools = asyncio.run(_load_mcp_tools())
-    except Exception as e:
-        # 如果 MCP 加载失败，使用旧的 LangChain tools
-        print(f"MCP tools 加载失败: {e}, 使用备用工具")
-        from .. import tools as legacy_tools
-        tools = legacy_tools.ALL_TOOLS
+    # 使用 LangChain 原生工具（更稳定）
+    tools = legacy_tools.ALL_TOOLS
 
     llm_with_tools = llm.bind_tools(tools)
 
