@@ -2,59 +2,60 @@
 """
 Lead Node - 统一对话节点
 
-所有功能都通过 tool 调用实现
+使用 MCP tools 与 LLM 交互
 """
 
 from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
 from typing import Dict, Any
+import asyncio
 
 from ..state import AgentState
-from .. import tools
 from mkg.llm import get_llm_or_raise, extract_text_content
 
+# MCP tools 加载
+_mcp_tools = None
 
-# Lead Node 系统提示
+
+async def _load_mcp_tools():
+    """加载 MCP tools"""
+    global _mcp_tools
+    if _mcp_tools is None:
+        from langchain_mcp_adapters import load_mcp_tools
+        from langchain_mcp_adapters.sessions import create_session
+
+        # 连接到本地 MCP server (stdio)
+        connection = {
+            "transport": "stdio",
+            "command": "python",
+            "args": ["-m", "mkg.mcp_server"],
+        }
+
+        async with create_session(connection) as session:
+            await session.initialize()
+            _mcp_tools = await load_mcp_tools(session, connection=connection, server_name="mkg")
+
+    return _mcp_tools
+
+
+# Lead Node 系统提示 - 简化，让 MCP 工具描述发挥作用
 LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 
-你可以使用以下工具帮助用户：
-
-**论文相关：**
-- search_paper: 搜索论文
+你可以使用以下工具：
+- search_paper: 搜索论文（当用户问论文、找论文时使用）
 - get_paper_by_title: 根据标题查找论文
-- read_paper_content: 读取论文 PDF 内容
-
-**引用分析：**
-- analyze_citations: 分析论文的引用关系
-
-**概念相关：**
-- get_concept_graph: 显示概念图谱可视化
-- analyze_research_points: 分析概念的研究点
-
-**文件夹管理：**
-- list_folders: 列出所有文件夹
+- read_paper_content: 读取论文内容
+- analyze_citations: 分析引用关系
+- get_concept_graph: 显示概念图谱（仅当用户明确说「查看图谱」时使用）
+- analyze_research_points: 分析研究点
+- list_folders: 列出文件夹
+- create_folder: 创建文件夹
 - move_paper_to_folder: 移动论文到文件夹
-- create_folder: 创建新文件夹
-
----
-
-**工具选择规则（非常重要）：**
-
-用户问「有哪些论文」「搜索论文」「找论文」→ 用 search_paper
-用户问「论文内容」「这篇论文讲什么」→ 用 read_paper_content
-用户问「引用」「被引用」→ 用 analyze_citations
-用户问「研究点」「研究方向」→ 用 analyze_research_points
-用户明确说「查看图谱」「显示图谱」→ 用 get_concept_graph
-
-**禁止使用 get_concept_graph 的场景：**
-- 用户问论文列表、论文搜索 → 用 search_paper，不要用图谱！
-- 用户问概念相关论文 → 用 search_paper，不要用图谱！
-
----
+- deep_research: 深入研究
 
 当前上下文：
 {context_info}
 
-请根据用户的问题选择合适的工具。回复要友好、简洁。"""
+请根据用户问题选择合适的工具。"""
 
 
 def build_context_info(state: AgentState) -> str:
@@ -79,12 +80,20 @@ def build_context_info(state: AgentState) -> str:
 
 def lead_node(state: AgentState) -> Dict[str, Any]:
     """
-    Lead Node - 统一处理所有对话
-
-    通过 tool 调用实现各种功能
+    Lead Node - 使用 MCP tools 处理对话
     """
     llm = get_llm_or_raise()
-    llm_with_tools = llm.bind_tools(tools.ALL_TOOLS)
+
+    # 加载 MCP tools（同步方式）
+    try:
+        tools = asyncio.run(_load_mcp_tools())
+    except Exception as e:
+        # 如果 MCP 加载失败，使用旧的 LangChain tools
+        print(f"MCP tools 加载失败: {e}, 使用备用工具")
+        from .. import tools as legacy_tools
+        tools = legacy_tools.ALL_TOOLS
+
+    llm_with_tools = llm.bind_tools(tools)
 
     # 构建消息
     context_info = build_context_info(state)
@@ -113,7 +122,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
             tool_args = tool_call["args"]
 
             # 查找并执行工具
-            for tool_item in tools.ALL_TOOLS:
+            for tool_item in tools:
                 if tool_item.name == tool_name:
                     try:
                         result = tool_item.invoke(tool_args)

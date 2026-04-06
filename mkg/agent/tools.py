@@ -44,17 +44,17 @@ def init_tools(db=None, s2_client=None, pdf_parser=None, llm=None):
 
 @tool
 def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
-    """搜索论文。
+    """搜索论文。当用户问「有哪些论文」「搜索论文」「找论文」「XX下有什么论文」时使用。
 
-    当用户问「有哪些论文」「搜索论文」「找论文」「XX概念下的论文」时调用此工具。
-    在本地数据库中搜索论文，支持按标题、作者、摘要搜索。
+    在本地数据库中搜索论文，支持按标题、作者、摘要、概念名搜索。
+    返回论文列表，包含标题、作者、摘要等信息。
 
     Args:
-        query: 搜索关键词（可以是概念名、论文标题、作者名等）
-        limit: 返回数量限制
+        query: 搜索关键词（可以是概念名如"多智能体"、论文标题、作者名等）
+        limit: 返回数量限制，默认10
 
     Returns:
-        包含论文列表和数量的字典
+        包含论文列表和数量的字典，如 {"papers": [...], "count": 5}
     """
     if not _db:
         return {"error": "数据库未初始化"}
