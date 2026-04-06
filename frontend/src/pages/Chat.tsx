@@ -5,6 +5,7 @@ import { agentApi } from '../lib/api'
 import { Send, X, Loader2, FileText } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
 import ConceptGraphInChat from '../components/ConceptGraphInChat'
+import ChatAttachments from '../components/ChatAttachments'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
@@ -98,6 +99,18 @@ export default function Chat() {
       setLoading(false)
     }
   }, [input, isLoading, contextSummary, messages, addMessage, setLoading, setCurrentAgent])
+
+  // Handle programmatic send from card actions
+  const handleCardAction = useCallback((text: string) => {
+    setInput(text)
+    // Use setTimeout to let state update, then trigger send
+    setTimeout(() => {
+      const textarea = inputRef.current
+      if (textarea) {
+        textarea.focus()
+      }
+    }, 100)
+  }, [])
 
   // Handle key press
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -320,8 +333,15 @@ export default function Chat() {
                       </span>
                     </div>
                   )}
-                  {/* 概念图谱 - 放在消息气泡外面以避免 CSS 干扰 */}
-                  {msg.role === 'assistant' && msg.conceptData && (
+                  {/* 附件卡片 — 统一渲染 */}
+                  {msg.role === 'assistant' && msg.attachments && msg.attachments.length > 0 && (
+                    <ChatAttachments
+                      attachments={msg.attachments}
+                      onSendMessage={handleCardAction}
+                    />
+                  )}
+                  {/* 向后兼容：旧消息的 conceptData */}
+                  {msg.role === 'assistant' && msg.conceptData && (!msg.attachments || msg.attachments.length === 0) && (
                     <ConceptGraphInChat
                       data={msg.conceptData}
                     />
