@@ -1,0 +1,46 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting langchain-anthropic
+  Downloading langchain_anthropic-1.4.0-py3-none-any.whl.metadata (3.2 kB)
+Collecting anthropic<1.0.0,>=0.85.0 (from langchain-anthropic)
+  Downloading anthropic-0.89.0-py3-none-any.whl.metadata (3.1 kB)
+Requirement already satisfied: langchain-core<2.0.0,>=1.2.19 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-anthropic) (1.2.24)
+Requirement already satisfied: pydantic<3.0.0,>=2.7.4 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-anthropic) (2.12.5)
+Requirement already satisfied: anyio<5,>=3.5.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (4.12.1)
+Requirement already satisfied: distro<2,>=1.7.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (1.9.0)
+Collecting docstring-parser<1,>=0.15 (from anthropic<1.0.0,>=0.85.0->langchain-anthropic)
+  Downloading docstring_parser-0.17.0-py3-none-any.whl.metadata (3.5 kB)
+Requirement already satisfied: httpx<1,>=0.25.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (0.27.0)
+Requirement already satisfied: jiter<1,>=0.4.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (0.13.0)
+Requirement already satisfied: sniffio in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (1.3.1)
+Requirement already satisfied: typing-extensions<5,>=4.14 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anthropic<1.0.0,>=0.85.0->langchain-anthropic) (4.15.0)
+Requirement already satisfied: idna>=2.8 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from anyio<5,>=3.5.0->anthropic<1.0.0,>=0.85.0->langchain-anthropic) (3.11)
+Requirement already satisfied: certifi in c:\users\administrator\appdata\roaming\python\python314\site-packages (from httpx<1,>=0.25.0->anthropic<1.0.0,>=0.85.0->langchain-anthropic) (2026.2.25)
+Requirement already satisfied: httpcore==1.* in c:\users\administrator\appdata\roaming\python\python314\site-packages (from httpx<1,>=0.25.0->anthropic<1.0.0,>=0.85.0->langchain-anthropic) (1.0.9)
+Requirement already satisfied: h11>=0.16 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from httpcore==1.*->httpx<1,>=0.25.0->anthropic<1.0.0,>=0.85.0->langchain-anthropic) (0.16.0)
+Requirement already satisfied: jsonpatch<2.0.0,>=1.33.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (1.33)
+Requirement already satisfied: langsmith<1.0.0,>=0.3.45 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (0.7.24)
+Requirement already satisfied: packaging>=23.2.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (26.0)
+Requirement already satisfied: pyyaml<7.0.0,>=5.3.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (6.0.3)
+Requirement already satisfied: tenacity!=8.4.0,<10.0.0,>=8.1.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (9.1.4)
+Requirement already satisfied: uuid-utils<1.0,>=0.12.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (0.14.1)
+Requirement already satisfied: jsonpointer>=1.9 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from jsonpatch<2.0.0,>=1.33.0->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (3.1.1)
+Requirement already satisfied: orjson>=3.9.14 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (3.11.7)
+Requirement already satisfied: requests-toolbelt>=1.0.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (1.0.0)
+Requirement already satisfied: requests>=2.0.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (2.32.5)
+Requirement already satisfied: xxhash>=3.0.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (3.6.0)
+Requirement already satisfied: zstandard>=0.23.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (0.25.0)
+Requirement already satisfied: annotated-types>=0.6.0 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from pydantic<3.0.0,>=2.7.4->langchain-anthropic) (0.7.0)
+Requirement already satisfied: pydantic-core==2.41.5 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from pydantic<3.0.0,>=2.7.4->langchain-anthropic) (2.41.5)
+Requirement already satisfied: typing-inspection>=0.4.2 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from pydantic<3.0.0,>=2.7.4->langchain-anthropic) (0.4.2)
+Requirement already satisfied: charset_normalizer<4,>=2 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (3.4.5)
+Requirement already satisfied: urllib3<3,>=1.21.1 in c:\users\administrator\appdata\roaming\python\python314\site-packages (from requests>=2.0.0->langsmith<1.0.0,>=0.3.45->langchain-core<2.0.0,>=1.2.19->langchain-anthropic) (2.6.3)
+Downloading langchain_anthropic-1.4.0-py3-none-any.whl (48 kB)
+Downloading anthropic-0.89.0-py3-none-any.whl (478 kB)
+Downloading docstring_parser-0.17.0-py3-none-any.whl (36 kB)
+Installing collected packages: docstring-parser, anthropic, langchain-anthropic
+  Attempting uninstall: anthropic
+    Found existing installation: anthropic 0.40.0
+    Uninstalling anthropic-0.40.0:
+      Successfully uninstalled anthropic-0.40.0
+
+Successfully installed anthropic-0.89.0 docstring-parser-0.17.0 langchain-anthropic-1.4.0
