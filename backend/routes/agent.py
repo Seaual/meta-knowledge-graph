@@ -137,7 +137,7 @@ def chat(request: AgentChatRequest):
         message=result.get("response", "抱歉，处理请求时遇到问题。"),
         agent=result.get("agent_used", "lead"),
         conceptData=concept_data,
-        attachments=attachments if attachments else None,
+        attachments=attachments,
     )
 
 

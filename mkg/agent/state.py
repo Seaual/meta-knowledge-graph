@@ -31,4 +31,4 @@ class AgentState(TypedDict):
     agent_used: str
     needs_summary: bool  # 是否需要 Lead Agent 汇总
     concept_data: Optional[Dict[str, Any]]  # deprecated，向后兼容
-    attachments: List[Dict[str, Any]]  # 新增：[{type: str, data: dict}]
+    attachments: Optional[List[Dict[str, Any]]]  # 新增：[{type: str, data: dict}]
