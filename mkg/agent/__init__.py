@@ -1,7 +1,9 @@
 # mkg/agent/__init__.py
-from .lead_agent import LeadAgent
-from .citation_agent import CitationAgent
-from .research_agent import ResearchPointAgent
-from .deep_research_agent import DeepResearchAgent
+"""
+LangGraph Agent 模块
+"""
 
-__all__ = ['LeadAgent', 'CitationAgent', 'ResearchPointAgent', 'DeepResearchAgent']
+from .graph import get_agent_graph, reset_graph
+from .tools import ALL_TOOLS
+
+__all__ = ["get_agent_graph", "reset_graph", "ALL_TOOLS"]
