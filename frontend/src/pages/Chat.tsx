@@ -5,6 +5,8 @@ import { agentApi } from '../lib/api'
 import { Send, X, Loader2, FileText } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
 import ConceptGraphInChat from '../components/ConceptGraphInChat'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 // Agent badge colors
 const AGENT_COLORS: Record<string, string> = {
@@ -340,8 +342,10 @@ export default function Chat() {
                         : '18px 18px 18px 4px',
                     }}
                   >
-                    <div className="font-body text-sm leading-relaxed whitespace-pre-wrap">
-                      {msg.content}
+                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-sepia prose-headings:font-display prose-p:text-ink prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:text-sepia prose-code:bg-paper prose-code:px-1 prose-code:rounded prose-pre:bg-paper prose-pre:border prose-pre:border-academic-border">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>
