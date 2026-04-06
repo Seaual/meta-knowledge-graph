@@ -116,6 +116,7 @@ def chat(request: AgentChatRequest):
         "response": "",
         "agent_used": "lead",
         "needs_summary": False,
+        "attachments": [],
     }
 
     # 执行图
