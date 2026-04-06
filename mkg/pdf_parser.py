@@ -1017,20 +1017,19 @@ class LLMConceptExtractor:
     使用 LLM 从论文全文中提取动态层级的概念树
     """
 
-    def __init__(self, api_client=None):
+    def __init__(self):
         """
         初始化
-
-        Args:
-            api_client: LLM API 客户端
         """
-        self.api_client = api_client
+        pass  # 使用统一的 mkg.llm 模块
 
     def _stage1_summarize(self, paper_content: PaperContent) -> dict:
         """
         Stage 1: 论文总结
         目标：理解论文，区分背景概念和核心贡献
         """
+        from mkg.llm import generate
+
         prompt = STAGE1_SUMMARY_PROMPT.format(
             title=paper_content.title,
             authors=', '.join(paper_content.authors[:5]) if paper_content.authors else 'Unknown',
@@ -1038,7 +1037,10 @@ class LLMConceptExtractor:
             body=paper_content.full_text[:50000]
         )
 
-        response = self.api_client.extract_concepts(prompt)
+        response = generate(
+            prompt=prompt,
+            system_prompt="You are a senior academic literature analyst with expertise in identifying the precise contribution boundaries of research papers."
+        )
         return self._parse_stage1_response(response)
 
     def _parse_stage1_response(self, response: str) -> dict:
@@ -1068,6 +1070,7 @@ class LLMConceptExtractor:
         目标：基于 Stage 1 摘要，只提取核心贡献对应的概念树
         """
         import json
+        from mkg.llm import generate
 
         # 构建已有图谱部分
         existing_section = ""
@@ -1079,7 +1082,10 @@ class LLMConceptExtractor:
             existing_graph_section=existing_section
         )
 
-        response = self.api_client.extract_concepts(prompt)
+        response = generate(
+            prompt=prompt,
+            system_prompt="You are an academic knowledge graph construction expert. Build a refined concept tree based on the paper summary."
+        )
         return self._parse_stage2_response(response)
 
     def _parse_stage2_response(self, response: str) -> dict:
@@ -1108,9 +1114,6 @@ class LLMConceptExtractor:
         Stage 1: 论文总结 - 理解论文，区分背景和贡献
         Stage 2: 核心提取 - 基于摘要构建概念树
         """
-        if not self.api_client:
-            raise ValueError("需要配置 LLM API 客户端")
-
         # Stage 1: 总结（理解论文）
         summary = self._stage1_summarize(paper_content)
 
@@ -1444,202 +1447,3 @@ class LLMConceptExtractor:
             ))
 
         return root
-
-
-# LLM API 客户端接口
-class LLMClient:
-    """LLM API 客户端接口"""
-
-    def extract_concepts(self, prompt: str) -> str:
-        """提取概念"""
-        raise NotImplementedError
-
-
-class LiteLLMClient(LLMClient):
-    """统一 LLM 客户端，基于 LiteLLM 支持所有主流服务商
-
-    支持的服务商：
-    - openai: gpt-4o, gpt-4o-mini, gpt-4-turbo
-    - anthropic: claude-sonnet-4-20250514, claude-3-5-sonnet
-    - deepseek: deepseek-chat, deepseek-coder, deepseek-reasoner
-    - minimax: abab6.5s-chat, abab6.5g-chat
-    - zhipu: glm-4, glm-4-flash, glm-4-plus
-    - moonshot: moonshot-v1-8k, moonshot-v1-32k
-    - dashscope (阿里云): qwen-max, qwen-plus, qwen-turbo
-    - openrouter: anthropic/claude-sonnet-4, openai/gpt-4o
-    - gemini: gemini-2.0-flash, gemini-1.5-pro
-    """
-
-    # 服务商环境变量映射
-    ENV_KEY_MAP = {
-        'openai': 'OPENAI_API_KEY',
-        'anthropic': 'ANTHROPIC_API_KEY',
-        'deepseek': 'DEEPSEEK_API_KEY',
-        'minimax': 'MINIMAX_API_KEY',
-        'zhipu': 'ZHIPU_API_KEY',
-        'moonshot': 'MOONSHOT_API_KEY',
-        'dashscope': 'DASHSCOPE_API_KEY',
-        'openrouter': 'OPENROUTER_API_KEY',
-        'gemini': 'GEMINI_API_KEY',
-        'custom': 'CUSTOM_API_KEY',
-    }
-
-    def __init__(self, provider: str, api_key: str = None, model: str = None, base_url: str = None):
-        """
-        Args:
-            provider: 服务商名称 (openai, deepseek, minimax, zhipu 等)
-            api_key: API 密钥（可选，也可通过环境变量设置）
-            model: 模型名称
-            base_url: 自定义 API 地址（可选，一般不需要）
-        """
-        self.provider = provider
-        self.model = model or self._get_default_model(provider)
-        self.api_key = api_key
-
-        # MiniMax 使用 Anthropic 兼容 API
-        if provider == 'minimax' and not base_url:
-            base_url = 'https://api.minimaxi.com/anthropic'
-        self.base_url = base_url
-
-        # 设置环境变量（LiteLLM 会自动读取）
-        if api_key:
-            env_key = self.ENV_KEY_MAP.get(provider, f'{provider.upper()}_API_KEY')
-            import os
-            os.environ[env_key] = api_key
-
-    def _get_default_model(self, provider: str) -> str:
-        """获取服务商的默认模型"""
-        defaults = {
-            'openai': 'gpt-5.4-mini',
-            'anthropic': 'claude-3.5-sonnet-20250514',
-            'deepseek': 'deepseek-v3.2',
-            'minimax': 'minimax-m2.7',
-            'zhipu': 'glm-5-turbo',
-            'moonshot': 'moonshot-v1-8k',
-            'dashscope': 'qwen3.5-plus',
-            'openrouter': 'openai/gpt-5.4-mini',
-            'gemini': 'gemini-3.1-flash',
-        }
-        return defaults.get(provider, 'gpt-5.4-mini')
-
-    def _get_litellm_model(self) -> str:
-        """转换为 LiteLLM 模型格式"""
-        # MiniMax 使用 Anthropic 兼容 API
-        if self.provider == 'minimax':
-            return f"anthropic/{self.model}"
-
-        # 自定义配置：根据 base_url 判断使用哪种格式
-        if self.provider == 'custom':
-            if self.base_url and 'anthropic' in self.base_url.lower():
-                return f"anthropic/{self.model}"
-            else:
-                # 默认使用 OpenAI 格式
-                return f"openai/{self.model}"
-
-        # LiteLLM 格式：provider/model
-        if '/' in self.model:
-            return self.model  # 已经是正确格式
-        return f"{self.provider}/{self.model}"
-
-    def extract_concepts(self, prompt: str) -> str:
-        """使用 LiteLLM 提取概念"""
-        from litellm import completion
-        import os
-
-        model = self._get_litellm_model()
-
-        kwargs = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": "You are an academic knowledge graph builder. Extract concepts and their hierarchical relationships from research papers."},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": 4096,
-        }
-
-        # 自定义 base_url（如代理或私有部署）
-        if self.base_url:
-            kwargs["api_base"] = self.base_url
-
-        # 自定义配置需要显式传递 api_key
-        if self.provider == 'custom':
-            if self.api_key:
-                kwargs["api_key"] = self.api_key
-
-        response = completion(**kwargs)
-        return response.choices[0].message.content
-
-    def generate(self, prompt: str) -> str:
-        """生成响应"""
-        return self.extract_concepts(prompt)
-
-
-class ClaudeCLIClient(LLMClient):
-    """使用 Claude CLI 的客户端（利用 Claude Code 已配置的 API）"""
-
-    def __init__(self, model: str = None):
-        self.model = model  # None means use default model
-        self._check_cli_available()
-
-    def _check_cli_available(self):
-        """检查 Claude CLI 是否可用"""
-        import subprocess
-        try:
-            result = subprocess.run(
-                ["claude", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            if result.returncode != 0:
-                raise RuntimeError("Claude CLI not available")
-        except FileNotFoundError:
-            raise RuntimeError("Claude CLI not found. Please install Claude Code first.")
-        except Exception as e:
-            raise RuntimeError(f"Claude CLI check failed: {e}")
-
-    def extract_concepts(self, prompt: str) -> str:
-        """使用 Claude CLI 提取概念"""
-        return self.generate(prompt)
-
-    def generate(self, prompt: str) -> str:
-        """使用 Claude CLI 生成响应"""
-        import subprocess
-        import tempfile
-        import os
-
-        # 创建临时文件存储 prompt（避免命令行长度限制）
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False, encoding='utf-8') as f:
-            f.write(prompt)
-            prompt_file = f.name
-
-        try:
-            # 构建命令
-            cmd = ["claude", "-p"]
-            if self.model:
-                cmd.extend(["--model", self.model])
-
-            # 从文件读取输入
-            with open(prompt_file, 'r', encoding='utf-8') as f:
-                prompt_content = f.read()
-
-            result = subprocess.run(
-                cmd,
-                input=prompt_content,
-                capture_output=True,
-                text=True,
-                timeout=300,
-                encoding='utf-8',
-                errors='replace'
-            )
-
-            if result.returncode != 0:
-                error_msg = result.stdout or result.stderr or "Unknown error"
-                raise RuntimeError(f"Claude CLI error: {error_msg}")
-
-            return result.stdout.strip()
-
-        finally:
-            # 清理临时文件
-            if os.path.exists(prompt_file):
-                os.unlink(prompt_file)
