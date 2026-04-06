@@ -10,8 +10,8 @@ from langgraph.checkpoint.memory import MemorySaver
 
 from .state import AgentState
 from .tools import init_tools
-from .llm_config import init_llm
 from .nodes import lead_node
+from mkg.llm import init_llm_from_db
 
 
 def build_agent_graph(db=None, s2_client=None, pdf_parser=None):
@@ -20,11 +20,11 @@ def build_agent_graph(db=None, s2_client=None, pdf_parser=None):
 
     简化架构：只有一个 lead node，通过 tool 调用实现所有功能
     """
+    # 初始化 LLM
+    init_llm_from_db(db)
+
     # 初始化 Tools 依赖
     init_tools(db=db, s2_client=s2_client, pdf_parser=pdf_parser)
-
-    # 初始化 LLM 配置
-    init_llm(db=db)
 
     # 创建图
     graph = StateGraph(AgentState)
@@ -52,7 +52,8 @@ def get_agent_graph(db=None, s2_client=None, pdf_parser=None):
     """获取编译后的 Agent 图（单例）"""
     global _compiled_graph
 
-    init_llm(db=db)
+    # 初始化 LLM
+    init_llm_from_db(db)
 
     if _compiled_graph is None:
         _compiled_graph = build_agent_graph(db, s2_client, pdf_parser)
@@ -64,5 +65,5 @@ def reset_graph():
     """重置图"""
     global _compiled_graph
     _compiled_graph = None
-    from .llm_config import reset_llm
+    from mkg.llm import reset_llm
     reset_llm()

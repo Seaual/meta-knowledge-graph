@@ -10,7 +10,7 @@ from typing import Dict, Any
 
 from ..state import AgentState
 from .. import tools
-from ..llm_config import get_llm_or_raise
+from mkg.llm import get_llm_or_raise
 
 
 # Lead Node 系统提示

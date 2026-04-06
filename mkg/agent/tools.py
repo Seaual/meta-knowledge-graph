@@ -8,6 +8,8 @@ LangChain Tools - Agent 可调用的工具
 from langchain_core.tools import tool
 from typing import Optional, List, Dict, Any
 
+from mkg.llm import get_llm_or_raise, generate
+
 
 # ============================================================
 # 依赖注入 - 在运行时初始化
@@ -374,6 +376,41 @@ def create_folder(name: str, description: str = "") -> str:
 
 
 # ============================================================
+# Deep Research Tool
+# ============================================================
+
+@tool
+def deep_research(target_name: str, target_type: str, query: str,
+                  dimensions: Optional[List[str]] = None) -> Dict[str, Any]:
+    """深入研究 - 多智能体协作分析。
+
+    启动多个维度的研究 agent，并行分析后综合报告。
+    当用户说"深入研究"、"全面分析"时调用。
+
+    Args:
+        target_name: 研究目标名称（概念或论文标题）
+        target_type: 目标类型 ('concept' | 'paper')
+        query: 研究问题
+        dimensions: 研究维度（可选，默认自动生成）
+
+    Returns:
+        研究报告，包含各维度分析和综合结论
+    """
+    from mkg.agent.research_graph import run_deep_research
+
+    try:
+        result = run_deep_research(
+            target_name=target_name,
+            target_type=target_type,
+            query=query,
+            dimensions=dimensions
+        )
+        return result
+    except Exception as e:
+        return {"error": f"深入研究失败: {str(e)}"}
+
+
+# ============================================================
 # 所有工具集合
 # ============================================================
 
@@ -387,6 +424,8 @@ ALL_TOOLS = [
     # 概念相关
     get_concept_graph,
     analyze_research_points,
+    # 深入研究
+    deep_research,
     # 文件夹管理
     list_folders,
     move_paper_to_folder,
