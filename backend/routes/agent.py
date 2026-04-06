@@ -122,13 +122,21 @@ def chat(request: AgentChatRequest):
     config = {"configurable": {"thread_id": "default"}}
     result = graph.invoke(initial_state, config)
 
-    # 提取概念数据
+    # 提取概念数据（向后兼容）
     concept_data = result.get("concept_data")
+
+    # 提取附件
+    attachments = result.get("attachments", [])
+
+    # 如果有 concept_data 但 attachments 中没有 concept_graph，自动迁移
+    if concept_data and not any(a.get("type") == "concept_graph" for a in attachments):
+        attachments.append({"type": "concept_graph", "data": concept_data})
 
     return AgentChatResponse(
         message=result.get("response", "抱歉，处理请求时遇到问题。"),
         agent=result.get("agent_used", "lead"),
         conceptData=concept_data,
+        attachments=attachments if attachments else None,
     )
 
 

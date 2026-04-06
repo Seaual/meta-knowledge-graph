@@ -332,7 +332,8 @@ class AgentChatResponse(BaseModel):
     agent: str
     contextUpdate: Optional[dict] = None
     researchSessionId: Optional[str] = None
-    conceptData: Optional[ConceptGraphData] = None
+    conceptData: Optional[ConceptGraphData] = None  # deprecated，向后兼容
+    attachments: Optional[List[dict]] = None  # 新增：结构化附件列表
 
 
 class DeepResearchStartRequest(BaseModel):
