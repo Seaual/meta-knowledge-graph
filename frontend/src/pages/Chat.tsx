@@ -397,7 +397,7 @@ export default function Chat() {
           <div
             className="flex items-end gap-3 px-4 py-3 rounded-2xl"
             style={{
-              background: 'var(--color-vellum)',
+              background: '#ffffff',
               border: '1px solid rgba(184, 134, 11, 0.12)',
               boxShadow: '0 2px 8px rgba(44, 24, 16, 0.04)',
             }}
@@ -427,8 +427,8 @@ export default function Chat() {
               onKeyDown={handleKeyDown}
               placeholder="输入消息..."
               rows={1}
-              className="flex-1 bg-transparent font-body text-sm resize-none outline-none"
-              style={{ color: '#1a1a1a', maxHeight: '200px' }}
+              className="flex-1 font-body text-sm resize-none outline-none"
+              style={{ color: '#000000', background: 'transparent', maxHeight: '200px' }}
             />
             <button
               onClick={handleSend}
