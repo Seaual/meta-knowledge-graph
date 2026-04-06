@@ -416,6 +416,17 @@ body::before {
     animation: slideUp var(--duration-normal) var(--ease-out-expo);
   }
 
+  .modal-academic {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: auto;
+    animation: slideUp var(--duration-normal) var(--ease-out-expo);
+  }
+
   /* Table - Clean Data Display */
   .table {
     width: 100%;
