@@ -381,8 +381,8 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
           ref={containerRef}
           style={{
             width: '100%',
-            height: 400,
-            minWidth: 400,
+            height: 500,
+            minWidth: 500,
             cursor: 'grab'
           }}
         />
