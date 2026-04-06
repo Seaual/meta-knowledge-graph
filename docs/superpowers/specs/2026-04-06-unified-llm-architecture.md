@@ -120,12 +120,18 @@ def init_llm(provider: str, api_key: str, model: str, base_url: Optional[str] = 
     global _llm_instance
 
     if base_url and 'anthropic' in base_url.lower():
+        # Anthropic 兼容 API
+        # 注意：ChatAnthropic 可能需要通过环境变量设置 base_url
+        # 或使用 base_url 参数（取决于 langchain-anthropic 版本）
+        import os
+        if base_url:
+            os.environ["ANTHROPIC_BASE_URL"] = base_url
         _llm_instance = ChatAnthropic(
             model=model,
             api_key=api_key,
-            anthropic_api_url=base_url,
         )
     else:
+        # OpenAI 兼容 API
         _llm_instance = ChatOpenAI(
             model=model,
             api_key=api_key,

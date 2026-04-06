@@ -3,7 +3,7 @@ Graph API routes
 """
 
 from fastapi import APIRouter, Response, HTTPException
-from typing import List
+from typing import List, Optional
 import sys
 from pathlib import Path
 from datetime import datetime
