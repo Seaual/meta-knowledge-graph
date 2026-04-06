@@ -291,6 +291,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     【重要】当用户提到「研究点」「研究方向」「研究机会」「分析...的研究点」时调用此工具！
 
     这个工具用于分析某个概念的研究现状和潜在研究方向。
+    会调用 LLM 深入分析图谱结构，生成研究点建议。
 
     不要与 get_concept_graph 混淆：
     - 用户说「研究点」→ 用这个工具 analyze_research_points
@@ -300,7 +301,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
         concept_name: 概念名称
 
     Returns:
-        研究点分析结果，包含相关论文、子概念等
+        研究点分析结果，包含 LLM 生成的研究点列表
     """
     if not _db:
         return {"error": "数据库未初始化"}
@@ -317,28 +318,40 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
         return {"error": f"未找到概念「{concept_name}」"}
 
     concept_id = concept['id']
-    papers = _db.get_papers_by_concept(concept_id) or []
-    children = _db.get_concept_children(concept_id) or []
-    parents = _db.get_concept_parents(concept_id) or []
 
-    # 搜索相关前沿工作
-    related_papers = []
-    if _s2_client:
-        try:
-            related_papers = _s2_client.search_papers(concept.get('text', ''), limit=5)
-        except:
-            pass
+    # 调用与概念页面相同的研究点分析 API
+    try:
+        import requests
+        res = requests.get(f"http://localhost:8000/api/concepts/{concept_id}/research-points", timeout=120)
+        if res.status_code == 200:
+            data = res.json()
+            return {
+                "concept_name": data.get("concept_name", concept.get("text", concept_name)),
+                "research_points": data.get("research_points", []),
+                "analysis_context": data.get("analysis_context", {}),
+            }
+        else:
+            return {"error": f"研究点分析失败: HTTP {res.status_code}"}
+    except Exception as e:
+        # Fallback：返回基础概念数据
+        papers = _db.get_papers_by_concept(concept_id) or []
+        children = _db.get_concept_children(concept_id) or []
+        parents = _db.get_concept_parents(concept_id) or []
 
-    return {
-        "concept": {
-            "name": concept.get('text'),
-            "paper_count": concept.get('paper_count', 0),
-        },
-        "local_papers": papers,
-        "children_concepts": [c.get('text') for c in children],
-        "parent_concepts": [p.get('text') for p in parents],
-        "related_frontier_papers": related_papers,
-    }
+        return {
+            "concept_name": concept.get('text', concept_name),
+            "research_points": [],
+            "analysis_context": {
+                "concept": {"id": concept_id, "name": concept.get("text"), "category": concept.get("category")},
+                "ancestors": [{"id": p["id"], "name": p.get("text")} for p in parents],
+                "descendants": [{"id": c["id"], "name": c.get("text")} for c in children],
+                "edge_nodes": [],
+                "related_papers": [{"title": p.get("title")} for p in papers[:5]],
+            },
+            "local_papers": papers,
+            "children_concepts": [c.get('text') for c in children],
+            "parent_concepts": [p.get('text') for p in parents],
+        }
 
 
 # ============================================================
@@ -417,6 +430,75 @@ def create_folder(name: str, description: str = "") -> str:
 
 
 # ============================================================
+# 论文推荐 Tools
+# ============================================================
+
+@tool
+def recommend_papers(concept_name: str, limit: int = 10) -> Dict[str, Any]:
+    """推荐与某概念相关的论文。
+
+    当用户说「推荐论文」「相关论文」「找相关工作」「有什么新论文」时调用。
+
+    Args:
+        concept_name: 概念名称
+        limit: 返回数量限制，默认10
+
+    Returns:
+        推荐论文列表，包含标题、作者、摘要等
+    """
+    if not _db:
+        return {"error": "数据库未初始化"}
+
+    # 查找概念（获取英文名用于搜索）
+    concept = _db.get_concept_by_text(concept_name)
+    if not concept:
+        all_concepts = _db.get_all_concepts()
+        for c in all_concepts:
+            if concept_name.lower() in (c.get('text') or '').lower():
+                concept = c
+                break
+
+    # 使用英文名搜索（如果有），否则用中文名
+    search_query = concept_name
+    if concept and concept.get('text_en'):
+        search_query = concept['text_en']
+    elif concept:
+        search_query = concept.get('text', concept_name)
+
+    papers = []
+    if _s2_client:
+        try:
+            results = _s2_client.search_papers(search_query, limit=limit)
+            if isinstance(results, list):
+                papers = results
+            elif isinstance(results, dict):
+                papers = results.get('data', results.get('papers', []))
+        except Exception as e:
+            return {"error": f"搜索失败: {str(e)}"}
+    else:
+        return {"error": "Semantic Scholar 客户端未初始化，无法推荐论文"}
+
+    return {
+        "concept_name": concept.get('text', concept_name) if concept else concept_name,
+        "papers": [
+            {
+                "title": p.get("title", ""),
+                "authors": [a.get("name", a) if isinstance(a, dict) else str(a) for a in (p.get("authors") or [])[:5]],
+                "year": p.get("year"),
+                "abstract": p.get("abstract", ""),
+                "citation_count": p.get("citationCount") or p.get("citation_count", 0),
+                "venue": p.get("venue", ""),
+                "paper_id": p.get("paperId") or p.get("paper_id", ""),
+                "open_access_url": (p.get("openAccessPdf") or {}).get("url") if isinstance(p.get("openAccessPdf"), dict) else None,
+                "tldr": p.get("tldr", {}).get("text") if isinstance(p.get("tldr"), dict) else p.get("tldr"),
+            }
+            for p in papers[:limit]
+        ],
+        "count": len(papers),
+    }
+
+
+# ============================================================
 # Deep Research Tool
 # ============================================================
 
@@ -465,6 +547,8 @@ ALL_TOOLS = [
     # 概念相关
     get_concept_graph,
     analyze_research_points,
+    # 论文推荐
+    recommend_papers,
     # 深入研究
     deep_research,
     # 文件夹管理
