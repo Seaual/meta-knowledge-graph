@@ -71,8 +71,31 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     messages = [SystemMessage(content=system_prompt)]
     messages.extend(state.get("messages", []))
 
+    # 获取最后一条用户消息，用于工具选择验证
+    last_user_msg = ""
+    for msg in reversed(state.get("messages", [])):
+        if hasattr(msg, 'content') and not hasattr(msg, 'type') or (hasattr(msg, 'type') and getattr(msg, 'type', '') != 'ai'):
+            last_user_msg = msg.content if hasattr(msg, 'content') else str(msg)
+            break
+
     # 调用 LLM
     response = llm_with_tools.invoke(messages)
+
+    # 工具选择纠正逻辑
+    if response.tool_calls:
+        for i, tc in enumerate(response.tool_calls):
+            tool_name = tc["name"]
+
+            # 强制纠正：研究点相关查询必须用 analyze_research_points
+            if tool_name == "get_concept_graph" and last_user_msg:
+                research_keywords = ["研究点", "研究方向", "研究机会", "分析.*研究"]
+                import re
+                if any(re.search(kw, last_user_msg) for kw in research_keywords):
+                    # 强制改为 analyze_research_points
+                    response.tool_calls[i]["name"] = "analyze_research_points"
+                    if "concept_name" not in response.tool_calls[i]["args"]:
+                        # 从消息中提取概念名
+                        response.tool_calls[i]["args"]["concept_name"] = last_user_msg.replace("研究点", "").replace("研究方向", "").replace("分析", "").strip()
 
     # 处理 tool calls
     concept_data = None
