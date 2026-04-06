@@ -85,7 +85,8 @@ export default function Chat() {
         role: 'assistant',
         content: response.message,
         agent: response.agent as any,
-        conceptData: response.conceptData,  // 传递概念图谱数据
+        conceptData: response.conceptData,  // 保留向后兼容
+        attachments: response.attachments,  // 新增
       })
     } catch (error) {
       console.error('Chat error:', error)

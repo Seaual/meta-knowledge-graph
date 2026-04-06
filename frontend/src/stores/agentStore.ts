@@ -27,13 +27,20 @@ export interface ConceptNode {
   parents?: ConceptNode[]
 }
 
+// 统一附件类型
+export interface ChatAttachment {
+  type: 'research_points' | 'paper_detail' | 'paper_list' | 'concept_graph' | 'recommendation' | 'citation_analysis'
+  data: any
+}
+
 export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
   agent?: 'lead' | 'citation' | 'research' | 'deep_research' | 'merge' | 'paper_qa'
   researchSessionId?: string
-  conceptData?: ConceptNode  // 概念图谱数据
+  conceptData?: ConceptNode  // deprecated，向后兼容
+  attachments?: ChatAttachment[]  // 新增：结构化附件
   timestamp: number
 }
 

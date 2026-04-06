@@ -476,12 +476,16 @@ interface ConceptGraphData {
   parents?: ConceptGraphData[]
 }
 
+// 附件类型定义
+type AttachmentType = 'research_points' | 'paper_detail' | 'paper_list' | 'concept_graph' | 'recommendation' | 'citation_analysis'
+
 interface AgentChatResponse {
   message: string
   agent: string
   contextUpdate?: Partial<AgentContextSummary>
   researchSessionId?: string
-  conceptData?: ConceptGraphData  // 概念图谱数据
+  conceptData?: ConceptGraphData  // deprecated
+  attachments?: Array<{ type: AttachmentType; data: any }>  // 新增
 }
 
 // Agent API
