@@ -2211,3 +2211,227 @@ class Database:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
+
+    # ========== 向后兼容方法（委托给 Repository）==========
+
+    # Paper 方法
+    def add_paper(self, paper_data: dict) -> str:
+        return self.papers.add(paper_data)
+
+    def get_paper(self, identifier: str):
+        return self.papers.get(identifier)
+
+    def get_all_papers(self) -> list:
+        return self.papers.get_all()
+
+    def get_papers_by_status(self, status: str) -> list:
+        return self.papers.get_by_status(status)
+
+    def get_papers_by_folder(self, folder_id: str) -> list:
+        return self.papers.get_by_folder(folder_id)
+
+    def update_paper_status(self, doi: str, status: str, error_message: str = None):
+        return self.papers.update_status(doi, status, error_message)
+
+    def add_pdf_path(self, doi: str, pdf_path: str):
+        return self.papers.add_pdf_path(doi, pdf_path)
+
+    def move_paper_to_folder(self, doi: str, folder_id: str):
+        return self.papers.move_to_folder(doi, folder_id)
+
+    def get_paper_by_s2_id(self, s2_paper_id: str):
+        return self.papers.get_by_s2_id(s2_paper_id)
+
+    def get_papers_with_s2_id(self) -> list:
+        return self.papers.get_with_s2_id()
+
+    def get_all_papers_basic(self) -> list:
+        return self.papers.get_all_basic()
+
+    def update_paper_metadata(self, doi: str, metadata: dict):
+        return self.papers.update_metadata(doi, metadata)
+
+    def update_paper_s2_metadata(self, doi: str, metadata: dict):
+        return self.papers.update_s2_metadata(doi, metadata)
+
+    # Concept 方法
+    def add_concept(self, concept_data: dict) -> str:
+        return self.concepts.add(concept_data)
+
+    def get_concept(self, concept_id: str):
+        return self.concepts.get(concept_id)
+
+    def get_concept_by_text(self, text: str):
+        return self.concepts.get_by_text(text)
+
+    def get_all_concepts(self) -> list:
+        return self.concepts.get_all()
+
+    def get_root_concepts(self) -> list:
+        return self.concepts.get_root()
+
+    def get_concept_children(self, concept_id: str) -> list:
+        return self.concepts.get_children(concept_id)
+
+    def get_concept_parents(self, concept_id: str) -> list:
+        return self.concepts.get_parents(concept_id)
+
+    def get_concept_tree(self, root_id: str = None) -> dict:
+        return self.concepts.get_tree(root_id)
+
+    def get_papers_by_concept(self, concept_id: str) -> list:
+        return self.concepts.get_papers(concept_id)
+
+    def get_concepts_by_paper(self, paper_doi: str) -> list:
+        return self.papers.get_concepts(paper_doi)
+
+    def add_concept_relation(self, parent_id: str, child_id: str, relation_type: str = "parent-child"):
+        return self.concepts.add_relation(parent_id, child_id, relation_type)
+
+    def update_concept_relations(self, concept_id: str, relations: dict):
+        return self.concepts.update_relations(concept_id, relations)
+
+    def delete_concept(self, concept_id: str):
+        return self.concepts.delete(concept_id)
+
+    def get_concept_count(self, folder_id: str = None) -> int:
+        return self.concepts.get_count(folder_id)
+
+    def get_concepts_by_category(self, category: str) -> list:
+        return self.concepts.get_by_category(category)
+
+    def get_concepts_by_category_and_folder(self, category: str, folder_id: str) -> list:
+        return self.concepts.get_by_category_and_folder(category, folder_id)
+
+    def get_concepts_by_folder(self, folder_id: str) -> list:
+        return self.concepts.get_by_folder(folder_id)
+
+    def get_concept_relations_by_folder(self, folder_id: str) -> list:
+        return self.concepts.get_relations_by_folder(folder_id)
+
+    def save_concept_extraction(self, paper_doi: str, hierarchy: dict, raw_response: str):
+        return self.concepts.save_extraction(paper_doi, hierarchy, raw_response)
+
+    def get_concept_extraction(self, paper_doi: str):
+        return self.concepts.get_extraction(paper_doi)
+
+    def recalculate_depth_cache(self, concept_id: str = None):
+        return self.concepts.recalculate_depth_cache(concept_id)
+
+    # Folder 方法
+    def get_all_folders(self) -> list:
+        return self.folders.get_all()
+
+    def get_folder(self, folder_id: str):
+        return self.folders.get(folder_id)
+
+    def create_folder(self, folder_data: dict) -> str:
+        return self.folders.create(folder_data.get('name'), folder_data.get('description'))
+
+    def update_folder(self, folder_id: str, data: dict):
+        return self.folders.update(folder_id, data.get('name'), data.get('description'))
+
+    def delete_folder(self, folder_id: str, delete_contents: bool = True) -> bool:
+        return self.folders.delete(folder_id)
+
+    def ensure_default_folder(self):
+        return self.folders.ensure_default()
+
+    # LLM Config 方法
+    def get_llm_config(self):
+        return self.config.get_llm_config()
+
+    def save_llm_config(self, mode: str, providers: list) -> dict:
+        return self.config.save_llm_config(mode, providers)
+
+    def get_llm_provider_for_function(self, function_group: str):
+        return self.config.get_llm_provider_for_function(function_group)
+
+    def get_active_llm_provider(self):
+        return self.config.get_active_llm_provider()
+
+    # S2 Config 方法
+    def get_s2_config(self):
+        return self.config.get_s2_config()
+
+    def save_s2_config(self, api_key: str, enabled: bool = True) -> dict:
+        return self.config.save_s2_config(api_key, enabled)
+
+    # Conversation 方法
+    def create_conversation(self, device_id: str) -> str:
+        return self.conversations.create(device_id)
+
+    def get_conversation(self, conv_id: str):
+        return self.conversations.get(conv_id)
+
+    def get_conversations(self, device_id: str, limit: int = 50) -> list:
+        return self.conversations.get_all(device_id, limit)
+
+    def update_conversation_title(self, conv_id: str, title: str):
+        return self.conversations.update_title(conv_id, title)
+
+    def update_conversation_timestamp(self, conv_id: str):
+        return self.conversations.update_timestamp(conv_id)
+
+    def delete_conversation(self, conv_id: str):
+        return self.conversations.delete(conv_id)
+
+    def add_message(self, conv_id: str, role: str, content: str, agent=None, attachments=None):
+        return self.conversations.add_message(conv_id, role, content, agent, attachments)
+
+    def get_messages(self, conv_id: str) -> list:
+        return self.conversations.get_messages(conv_id)
+
+    # Research 方法
+    def create_research_session(self, session_id: str, target_type: str, target_id: str, query: str):
+        return self.research.create_session(session_id, target_type, target_id, query)
+
+    def get_research_session(self, session_id: str):
+        return self.research.get_session(session_id)
+
+    def update_research_progress(self, session_id: str, progress: int, dimensions: list):
+        return self.research.update_progress(session_id, progress, dimensions)
+
+    def save_research_finding(self, session_id: str, dimension: str, finding: str, confidence=None):
+        return self.research.save_finding(session_id, dimension, finding, confidence)
+
+    def get_research_findings(self, session_id: str) -> list:
+        return self.research.get_findings(session_id)
+
+    def save_research_report(self, session_id: str, report: str):
+        return self.research.save_report(session_id, report)
+
+    # S2 Recommendation 方法
+    def add_s2_recommendation(self, data: dict):
+        return self.research.add_s2_recommendation(data.get('source_type'), data.get('source_id'), data)
+
+    def get_s2_recommendations(self, source_type: str, source_id: str) -> list:
+        return self.research.get_s2_recommendations(source_type, source_id)
+
+    def clear_s2_recommendations(self, source_type=None, source_id=None):
+        return self.research.clear_s2_recommendations(source_type, source_id)
+
+    # Citation 方法
+    def add_paper_citation(self, data: dict):
+        return self.citations.add(data.get('paper_doi'), data)
+
+    def get_paper_citations(self, paper_doi: str) -> list:
+        return self.citations.get_paper_citations(paper_doi)
+
+    def get_paper_cited_by(self, paper_doi: str) -> list:
+        return self.citations.get_paper_cited_by(paper_doi)
+
+    def get_internal_citation_edges(self) -> list:
+        return self.citations.get_internal_edges()
+
+    def get_all_citations(self) -> list:
+        return self.citations.get_all()
+
+    def get_all_citation_edges(self) -> list:
+        return self.citations.get_all_edges()
+
+    def get_citation_by_s2_id(self, s2_id: str):
+        return self.citations.get_by_s2_id(s2_id)
+
+    def clear_paper_citations(self, paper_doi: str = None):
+        return self.citations.clear_paper_citations(paper_doi)
