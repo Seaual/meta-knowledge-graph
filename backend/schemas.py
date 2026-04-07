@@ -353,6 +353,7 @@ class DeepResearchStatusResponse(BaseModel):
 
 # Conversation schemas
 class ConversationBase(BaseModel):
+    """对话基础信息"""
     id: str
     title: Optional[str] = None
     created_at: Optional[str] = None
@@ -360,14 +361,17 @@ class ConversationBase(BaseModel):
 
 
 class ConversationCreate(BaseModel):
+    """创建对话请求"""
     device_id: str
 
 
 class ConversationUpdate(BaseModel):
+    """更新对话请求"""
     title: str
 
 
 class MessageBase(BaseModel):
+    """消息基础信息"""
     id: str
     role: str  # 'user' | 'assistant'
     content: str
@@ -375,12 +379,20 @@ class MessageBase(BaseModel):
     attachments: Optional[List[dict]] = None
     created_at: Optional[str] = None
 
+    class Config:
+        from_attributes = True
+
 
 class ConversationDetail(ConversationBase):
+    """对话详情（含消息列表）"""
     messages: List[MessageBase] = []
+
+    class Config:
+        from_attributes = True
 
 
 class MessageCreate(BaseModel):
+    """创建消息请求"""
     role: str
     content: str
     agent: Optional[str] = None
