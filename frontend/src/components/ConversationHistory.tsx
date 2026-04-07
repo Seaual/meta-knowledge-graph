@@ -87,7 +87,7 @@ export default function ConversationHistory({ onSelect }: ConversationHistoryPro
           </div>
           <button
             onClick={(e) => handleDelete(conv.id, e)}
-            className="p-1 rounded hover:bg-overlay transition-colors opacity-0 group-hover:opacity-100"
+            className="p-1 rounded hover:bg-overlay transition-colors"
             style={{ color: 'var(--color-ink-muted)' }}
             title="删除"
             aria-label="删除此对话"
