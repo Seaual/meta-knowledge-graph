@@ -56,6 +56,15 @@ export default function ConversationHistory({ onSelect }: ConversationHistoryPro
         <div
           key={conv.id}
           onClick={() => handleSelect(conv.id)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              handleSelect(conv.id)
+            }
+          }}
+          tabIndex={0}
+          role="button"
+          aria-current={conv.id === currentConversationId ? 'page' : undefined}
           className="flex items-center justify-between rounded-lg px-3 py-2 mb-1 cursor-pointer transition-colors group"
           style={{
             background: conv.id === currentConversationId
@@ -81,6 +90,8 @@ export default function ConversationHistory({ onSelect }: ConversationHistoryPro
             className="p-1 rounded hover:bg-overlay transition-colors opacity-0 group-hover:opacity-100"
             style={{ color: 'var(--color-ink-muted)' }}
             title="删除"
+            aria-label="删除此对话"
+            type="button"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
