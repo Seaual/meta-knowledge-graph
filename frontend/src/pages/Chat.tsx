@@ -321,27 +321,43 @@ export default function Chat() {
                   {msg.role === 'assistant' && msg.conceptData && (!msg.attachments || msg.attachments.length === 0) && (
                     <ConceptGraphInChat data={msg.conceptData} />
                   )}
-                  <div
-                    className="px-4 py-3"
-                    style={{
-                      background: msg.role === 'user'
-                        ? 'linear-gradient(135deg, #8B2500 0%, #A0522D 100%)'
-                        : 'var(--color-surface)',
-                      color: msg.role === 'user' ? '#FFFFFF' : 'var(--color-ink)',
-                      borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                      border: msg.role === 'assistant' ? '1px solid var(--color-border-subtle)' : 'none',
-                      boxShadow: msg.role === 'user' ? '0 2px 8px rgba(139, 37, 0, 0.3)' : 'var(--shadow-sm)',
-                    }}
-                  >
+                  {/* 用户消息 */}
+                  {msg.role === 'user' && (
                     <div
-                      className="font-body text-sm leading-relaxed"
-                      style={{ color: 'inherit' }}
+                      className="px-4 py-3"
+                      style={{
+                        background: 'linear-gradient(135deg, #C41E3A 0%, #8B0000 100%)',
+                        color: '#FFFFFF',
+                        borderRadius: '20px 20px 4px 20px',
+                        boxShadow: '0 2px 8px rgba(139, 0, 0, 0.4)',
+                      }}
                     >
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.content}
-                      </ReactMarkdown>
+                      <div style={{ color: '#FFFFFF' }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
                     </div>
-                  </div>
+                  )}
+                  {/* 助手消息 */}
+                  {msg.role === 'assistant' && (
+                    <div
+                      className="px-4 py-3"
+                      style={{
+                        background: '#f5f0e8',
+                        color: '#2c1810',
+                        borderRadius: '20px 20px 20px 4px',
+                        border: '1px solid #d4c4b0',
+                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                      }}
+                    >
+                      <div style={{ color: '#2c1810' }}>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
