@@ -43,9 +43,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   // Create new conversation
   createConversation: async () => {
+    console.log('createConversation called')
     set({ isLoading: true, error: null })
     try {
       const conv = await conversationsApi.create()
+      console.log('createConversation created:', conv.id)
       set({
         currentConversationId: conv.id,
         currentMessages: [],
@@ -56,6 +58,7 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
       set({ conversations: [conv, ...conversations] })
       return conv.id
     } catch (err: any) {
+      console.error('createConversation error:', err)
       set({ error: err.message, isLoading: false })
       throw err
     }
@@ -63,15 +66,18 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
 
   // Switch to existing conversation
   switchConversation: async (id: string) => {
+    console.log('switchConversation called with id:', id)
     set({ isLoading: true, error: null })
     try {
       const detail = await conversationsApi.get(id)
+      console.log('switchConversation got detail:', detail.id, 'messages:', detail.messages.length)
       set({
         currentConversationId: id,
         currentMessages: detail.messages,
         isLoading: false,
       })
     } catch (err: any) {
+      console.error('switchConversation error:', err)
       set({ error: err.message, isLoading: false })
     }
   },
@@ -95,7 +101,11 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   // Add message to current conversation
   addMessage: async (message) => {
     const { currentConversationId } = get()
-    if (!currentConversationId) return
+    console.log('addMessage called, currentConversationId:', currentConversationId)
+    if (!currentConversationId) {
+      console.error('addMessage: No currentConversationId, skipping')
+      return
+    }
 
     // Optimistically add to local state
     const tempId = crypto.randomUUID()
