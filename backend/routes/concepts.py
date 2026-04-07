@@ -494,7 +494,10 @@ def discover_research_points(concept_id: str):
 
     try:
         # 调用LLM
-        response = extractor.api_client.generate(prompt)
+        from mkg.llm import generate
+        print("DEBUG: Calling generate() from mkg.llm")
+        response = generate(prompt)
+        print(f"DEBUG: Got response, length={len(response)}")
 
         # 解析响应
         # 尝试提取JSON

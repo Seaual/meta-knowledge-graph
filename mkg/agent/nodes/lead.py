@@ -174,15 +174,9 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     attachments: List[Dict[str, Any]] = []
     response_content = extract_text_content(response.content)
 
-    # 最多处理 5 轮工具调用（每轮只处理第一个 tool）
-    max_iterations = 5
-    iteration = 0
-
-    while response.tool_calls and iteration < max_iterations:
-        iteration += 1
-
-        # 只处理第一个 tool call，防止 LLM 同时调用多个工具
-        tool_call = response.tool_calls[0]
+    # 只处理一轮工具调用（LLM 可能会多次迭代，但我们只执行一次）
+    if response.tool_calls:
+        tool_call = response.tool_calls[0]  # 只取第一个
         tool_name = tool_call["name"]
         tool_args = tool_call["args"]
 
@@ -215,7 +209,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
                     ))
                 break
 
-        # 继续调用 LLM
+        # 继续调用 LLM 获取最终响应（不再继续工具调用）
         messages.append(response)
         messages.extend(tool_messages)
         response = llm_with_tools.invoke(messages)
