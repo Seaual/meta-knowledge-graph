@@ -53,26 +53,19 @@ export default function Chat() {
     conversations,
   } = useConversationStore()
 
-  // Initialize conversation on mount
+  // Load conversations on mount, but don't create a new one
   useEffect(() => {
-    const initConversation = async () => {
-      if (currentConversationId) return // Already have a conversation
-
-      // Load conversations first
+    const loadExistingConversations = async () => {
       await loadConversations()
-
-      // If there are existing conversations, switch to the most recent one
+      // Switch to most recent conversation if exists
       const { conversations } = useConversationStore.getState()
       if (conversations.length > 0) {
         await switchConversation(conversations[0].id)
-      } else {
-        // No conversations exist, create a new one
-        await createConversation()
       }
     }
 
-    initConversation().catch(err => {
-      console.error('Failed to initialize conversation:', err)
+    loadExistingConversations().catch(err => {
+      console.error('Failed to load conversations:', err)
     })
   }, []) // Only run once on mount
 
@@ -101,6 +94,12 @@ export default function Chat() {
 
     const userMessage = input.trim()
     setInput('')
+
+    // Create conversation if none exists
+    let convId = currentConversationId
+    if (!convId) {
+      convId = await createConversation()
+    }
 
     // Add user message to store (and backend)
     await addMessageToStore({ role: 'user', content: userMessage })

@@ -1,6 +1,6 @@
 // Sidebar.tsx - Minimal Navigation for Meta Knowledge Graph
 import { useState, useCallback, useEffect } from 'react'
-import { NavLink, useLocation, Link } from 'react-router-dom'
+import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import ConversationHistory from './ConversationHistory'
 import { useConversationStore } from '../stores/conversationStore'
@@ -33,8 +33,9 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const { t, language, toggleLanguage } = useTranslation()
   const location = useLocation()
+  const navigate = useNavigate()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const { loadConversations, createConversation } = useConversationStore()
+  const { loadConversations, createConversation, conversations } = useConversationStore()
 
   // Load conversations on mount
   useEffect(() => {
@@ -44,6 +45,11 @@ export default function Sidebar() {
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(prev => !prev)
   }, [])
+
+  const handleNewChat = useCallback(async () => {
+    await createConversation()
+    navigate('/chat')
+  }, [createConversation, navigate])
 
   const sidebarWidth = isCollapsed ? 64 : 220
 
@@ -88,32 +94,6 @@ export default function Sidebar() {
           )}
         </Link>
       </div>
-
-      {/* New Chat Button */}
-      {!isCollapsed && (
-        <div className="px-3 pb-3">
-          <button
-            onClick={async () => {
-              await createConversation()
-            }}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-body text-sm font-medium transition-all"
-            style={{
-              background: 'var(--color-accent)',
-              color: 'white',
-            }}
-          >
-            <Plus className="w-4 h-4" />
-            <span>新对话</span>
-          </button>
-        </div>
-      )}
-
-      {/* Conversation History */}
-      {!isCollapsed && (
-        <ConversationHistory onSelect={() => {
-          // Could close mobile sidebar here if needed
-        }} />
-      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2">
@@ -180,6 +160,16 @@ export default function Sidebar() {
           )}
         </button>
       </div>
+
+      {/* Conversation History - Below settings */}
+      {!isCollapsed && conversations.length > 0 && (
+        <div className="border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>
+          <div className="px-3 py-2">
+            <div className="text-xs mb-2" style={{ color: 'var(--color-ink-muted)' }}>对话历史</div>
+            <ConversationHistory onSelect={() => {}} />
+          </div>
+        </div>
+      )}
     </aside>
   )
 }
