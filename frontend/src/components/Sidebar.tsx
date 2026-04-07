@@ -1,7 +1,9 @@
 // Sidebar.tsx - Minimal Navigation for Meta Knowledge Graph
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { NavLink, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from '../i18n'
+import ConversationHistory from './ConversationHistory'
+import { useConversationStore } from '../stores/conversationStore'
 import {
   Home,
   MessageSquare,
@@ -32,6 +34,12 @@ export default function Sidebar() {
   const { t, language, toggleLanguage } = useTranslation()
   const location = useLocation()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const { loadConversations, createConversation } = useConversationStore()
+
+  // Load conversations on mount
+  useEffect(() => {
+    loadConversations()
+  }, [loadConversations])
 
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(prev => !prev)
@@ -84,8 +92,10 @@ export default function Sidebar() {
       {/* New Chat Button */}
       {!isCollapsed && (
         <div className="px-3 pb-3">
-          <Link
-            to="/chat"
+          <button
+            onClick={async () => {
+              await createConversation()
+            }}
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-body text-sm font-medium transition-all"
             style={{
               background: 'var(--color-accent)',
@@ -94,8 +104,15 @@ export default function Sidebar() {
           >
             <Plus className="w-4 h-4" />
             <span>新对话</span>
-          </Link>
+          </button>
         </div>
+      )}
+
+      {/* Conversation History */}
+      {!isCollapsed && (
+        <ConversationHistory onSelect={() => {
+          // Could close mobile sidebar here if needed
+        }} />
       )}
 
       {/* Navigation */}
