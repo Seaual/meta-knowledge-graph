@@ -24,6 +24,15 @@ class Database:
         self.conn: Optional[sqlite3.Connection] = None
         self._lock = threading.Lock()
 
+        # Repository 实例（延迟初始化）
+        self._papers = None
+        self._concepts = None
+        self._folders = None
+        self._config = None
+        self._conversations = None
+        self._research = None
+        self._citations = None
+
     def connect(self):
         """连接到数据库"""
         self.conn = sqlite3.connect(self.db_path, check_same_thread=False)
@@ -62,6 +71,64 @@ class Database:
         if self.conn:
             self.conn.close()
             self.conn = None
+
+    # ========== Repository 属性访问器 ==========
+
+    @property
+    def papers(self) -> 'PaperRepository':
+        """获取 Paper Repository"""
+        if self._papers is None:
+            from .repositories import PaperRepository
+            self._papers = PaperRepository(self)
+        return self._papers
+
+    @property
+    def concepts(self) -> 'ConceptRepository':
+        """获取 Concept Repository"""
+        if self._concepts is None:
+            from .repositories import ConceptRepository
+            self._concepts = ConceptRepository(self)
+        return self._concepts
+
+    @property
+    def folders(self) -> 'FolderRepository':
+        """获取 Folder Repository"""
+        if self._folders is None:
+            from .repositories import FolderRepository
+            self._folders = FolderRepository(self)
+        return self._folders
+
+    @property
+    def config(self) -> 'ConfigRepository':
+        """获取 Config Repository"""
+        if self._config is None:
+            from .repositories import ConfigRepository
+            self._config = ConfigRepository(self)
+        return self._config
+
+    @property
+    def conversations(self) -> 'ConversationRepository':
+        """获取 Conversation Repository"""
+        if self._conversations is None:
+            from .repositories import ConversationRepository
+            self._conversations = ConversationRepository(self)
+        return self._conversations
+
+    @property
+    def research(self) -> 'ResearchRepository':
+        """获取 Research Repository"""
+        if self._research is None:
+            from .repositories import ResearchRepository
+            self._research = ResearchRepository(self)
+        return self._research
+
+    @property
+    def citations(self) -> 'CitationRepository':
+        """获取 Citation Repository"""
+        if self._citations is None:
+            from .repositories import CitationRepository
+            self._citations = CitationRepository(self)
+        return self._citations
 
     def _init_tables(self):
         """初始化数据表"""
