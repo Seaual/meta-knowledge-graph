@@ -53,13 +53,17 @@ def list_conversations(device_id: str = Header(None, alias="X-Device-ID")):
 
 
 @router.get("/{conv_id}", response_model=ConversationDetail)
-def get_conversation(conv_id: str):
+def get_conversation(conv_id: str, device_id: str = Header(None, alias="X-Device-ID")):
     """获取单个对话及其消息"""
     db = get_db()
 
     conv = db.get_conversation(conv_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Validate device ownership
+    if device_id and conv['device_id'] != device_id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     messages = db.get_messages(conv_id)
     return ConversationDetail(
@@ -72,7 +76,7 @@ def get_conversation(conv_id: str):
 
 
 @router.put("/{conv_id}/title")
-def update_title(conv_id: str, request: ConversationUpdate):
+def update_title(conv_id: str, request: ConversationUpdate, device_id: str = Header(None, alias="X-Device-ID")):
     """更新对话标题"""
     db = get_db()
 
@@ -80,12 +84,16 @@ def update_title(conv_id: str, request: ConversationUpdate):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    # Validate device ownership
+    if device_id and conv['device_id'] != device_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     db.update_conversation_title(conv_id, request.title)
     return {"success": True}
 
 
 @router.delete("/{conv_id}")
-def delete_conversation(conv_id: str):
+def delete_conversation(conv_id: str, device_id: str = Header(None, alias="X-Device-ID")):
     """删除对话"""
     db = get_db()
 
@@ -93,18 +101,26 @@ def delete_conversation(conv_id: str):
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
 
+    # Validate device ownership
+    if device_id and conv['device_id'] != device_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     db.delete_conversation(conv_id)
     return {"success": True}
 
 
 @router.post("/{conv_id}/messages")
-def add_message(conv_id: str, request: MessageCreate):
+def add_message(conv_id: str, request: MessageCreate, device_id: str = Header(None, alias="X-Device-ID")):
     """添加消息到对话"""
     db = get_db()
 
     conv = db.get_conversation(conv_id)
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Validate device ownership
+    if device_id and conv['device_id'] != device_id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     db.add_message(
         conv_id,
