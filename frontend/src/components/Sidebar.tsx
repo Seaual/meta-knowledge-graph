@@ -1,6 +1,6 @@
 // Sidebar.tsx - Minimal Navigation for Meta Knowledge Graph
 import { useState, useCallback, useEffect } from 'react'
-import { NavLink, useLocation, Link, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, Link } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import ConversationHistory from './ConversationHistory'
 import { useConversationStore } from '../stores/conversationStore'
@@ -12,7 +12,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Plus,
   Globe,
 } from 'lucide-react'
 
@@ -33,9 +32,8 @@ const navItems: NavItem[] = [
 export default function Sidebar() {
   const { t, language, toggleLanguage } = useTranslation()
   const location = useLocation()
-  const navigate = useNavigate()
   const [isCollapsed, setIsCollapsed] = useState(false)
-  const { loadConversations, createConversation, conversations } = useConversationStore()
+  const { loadConversations, conversations } = useConversationStore()
 
   // Load conversations on mount
   useEffect(() => {
@@ -45,11 +43,6 @@ export default function Sidebar() {
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(prev => !prev)
   }, [])
-
-  const handleNewChat = useCallback(async () => {
-    await createConversation()
-    navigate('/chat')
-  }, [createConversation, navigate])
 
   const sidebarWidth = isCollapsed ? 64 : 220
 
