@@ -10,6 +10,7 @@ SQLite 数据库管理 - 论文、概念、动态层级关系存储
 import sqlite3
 import json
 import threading
+import uuid
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict
@@ -2045,6 +2046,95 @@ class Database:
             SET report = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
             WHERE id = ?
         """, (report, session_id))
+
+    # ========== Conversation Methods ==========
+
+    def create_conversation(self, device_id: str) -> str:
+        """创建新对话，返回对话 ID"""
+        conv_id = str(uuid.uuid4())
+        self.execute_write(
+            "INSERT INTO conversations (id, device_id) VALUES (?, ?)",
+            (conv_id, device_id)
+        )
+        return conv_id
+
+    def get_conversations(self, device_id: str, limit: int = 50) -> List[Dict]:
+        """获取设备的对话列表（按更新时间倒序）"""
+        cursor = self.execute_read(
+            """SELECT id, title, created_at, updated_at
+               FROM conversations
+               WHERE device_id = ?
+               ORDER BY updated_at DESC
+               LIMIT ?""",
+            (device_id, limit)
+        )
+        rows = cursor.fetchall()
+        return [dict(row) for row in rows]
+
+    def get_conversation(self, conv_id: str) -> Optional[Dict]:
+        """获取单个对话信息"""
+        cursor = self.execute_read(
+            "SELECT id, device_id, title, created_at, updated_at FROM conversations WHERE id = ?",
+            (conv_id,)
+        )
+        row = cursor.fetchone()
+        return dict(row) if row else None
+
+    def update_conversation_title(self, conv_id: str, title: str):
+        """更新对话标题"""
+        self.execute_write(
+            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (title, conv_id)
+        )
+
+    def update_conversation_timestamp(self, conv_id: str):
+        """更新对话的 updated_at 时间"""
+        self.execute_write(
+            "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (conv_id,)
+        )
+
+    def delete_conversation(self, conv_id: str):
+        """删除对话（消息会通过 CASCADE 自动删除）"""
+        self.execute_write(
+            "DELETE FROM conversations WHERE id = ?",
+            (conv_id,)
+        )
+
+    # ========== Message Methods ==========
+
+    def add_message(self, conv_id: str, role: str, content: str, agent: Optional[str] = None, attachments: Optional[List] = None):
+        """添加消息到对话"""
+        msg_id = str(uuid.uuid4())
+        attachments_json = json.dumps(attachments) if attachments else None
+        self.execute_write(
+            """INSERT INTO conversation_messages
+               (id, conversation_id, role, content, agent, attachments)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            (msg_id, conv_id, role, content, agent, attachments_json)
+        )
+        # 更新对话时间戳
+        self.update_conversation_timestamp(conv_id)
+
+    def get_messages(self, conv_id: str) -> List[Dict]:
+        """获取对话的所有消息"""
+        cursor = self.execute_read(
+            """SELECT id, role, content, agent, attachments, created_at
+               FROM conversation_messages
+               WHERE conversation_id = ?
+               ORDER BY created_at ASC""",
+            (conv_id,)
+        )
+        rows = cursor.fetchall()
+        messages = []
+        for row in rows:
+            msg = dict(row)
+            if msg['attachments']:
+                msg['attachments'] = json.loads(msg['attachments'])
+            else:
+                msg['attachments'] = None
+            messages.append(msg)
+        return messages
 
     # ========== 上下文管理器 ==========
 
