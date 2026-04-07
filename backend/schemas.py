@@ -349,3 +349,39 @@ class DeepResearchStatusResponse(BaseModel):
     progress: int
     dimensions: List[str]
     completedDimensions: List[str]
+
+
+# Conversation schemas
+class ConversationBase(BaseModel):
+    id: str
+    title: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+
+class ConversationCreate(BaseModel):
+    device_id: str
+
+
+class ConversationUpdate(BaseModel):
+    title: str
+
+
+class MessageBase(BaseModel):
+    id: str
+    role: str  # 'user' | 'assistant'
+    content: str
+    agent: Optional[str] = None
+    attachments: Optional[List[dict]] = None
+    created_at: Optional[str] = None
+
+
+class ConversationDetail(ConversationBase):
+    messages: List[MessageBase] = []
+
+
+class MessageCreate(BaseModel):
+    role: str
+    content: str
+    agent: Optional[str] = None
+    attachments: Optional[List[dict]] = None
