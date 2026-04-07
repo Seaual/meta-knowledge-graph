@@ -3,6 +3,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAgentStore } from '../stores/agentStore'
+import { useConversationStore } from '../stores/conversationStore'
 import { agentApi } from '../lib/api'
 import { Send, X, Loader2, FileText, Sparkles } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
@@ -32,15 +33,30 @@ const AGENT_LABELS: Record<string, string> = {
 
 export default function Chat() {
   const {
-    messages,
     isLoading,
     contextSummary,
-    addMessage,
     setLoading,
     setCurrentAgent,
     updateContext,
     addUploadedPapers,
   } = useAgentStore()
+
+  const {
+    currentConversationId,
+    currentMessages: messages,
+    isLoading: isConvLoading,
+    addMessage: addMessageToStore,
+    updateTitle,
+    loadConversations,
+    createConversation,
+  } = useConversationStore()
+
+  // Create conversation if none exists
+  useEffect(() => {
+    if (!currentConversationId) {
+      createConversation()
+    }
+  }, [currentConversationId, createConversation])
 
   const [input, setInput] = useState('')
   const [isUploading, setIsUploading] = useState(false)
@@ -67,11 +83,13 @@ export default function Chat() {
 
     const userMessage = input.trim()
     setInput('')
-    addMessage({ role: 'user', content: userMessage })
+
+    // Add user message to store (and backend)
+    await addMessageToStore({ role: 'user', content: userMessage })
     setLoading(true)
 
     try {
-      // Build history from messages (exclude the current message we just added)
+      // Build history from currentMessages (excluding the message we just added)
       const history = messages.map(m => ({
         role: m.role,
         content: m.content,
@@ -84,23 +102,33 @@ export default function Chat() {
         setCurrentAgent(response.agent as any)
       }
 
-      addMessage({
+      // Add assistant message
+      await addMessageToStore({
         role: 'assistant',
         content: response.message,
         agent: response.agent as any,
-        conceptData: response.conceptData,  // 保留向后兼容
-        attachments: response.attachments,  // 新增
+        attachments: response.attachments,
       })
+
+      // Generate title if first message and no title exists
+      const { conversations, currentConversationId } = useConversationStore.getState()
+      const currentConv = conversations.find(c => c.id === currentConversationId)
+      if (messages.length === 0 && !currentConv?.title) {
+        // Generate title from first user message (simple: first 20 chars or until first punctuation)
+        const title = userMessage.slice(0, 20).replace(/[？。！？.!?]/, '') || '新对话'
+        await updateTitle(title)
+        await loadConversations()
+      }
     } catch (error) {
       console.error('Chat error:', error)
-      addMessage({
+      await addMessageToStore({
         role: 'assistant',
         content: '抱歉，处理请求时遇到问题，请重试。',
       })
     } finally {
       setLoading(false)
     }
-  }, [input, isLoading, contextSummary, messages, addMessage, setLoading, setCurrentAgent])
+  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setCurrentAgent])
 
   // Handle programmatic send from card actions
   const handleCardAction = useCallback((text: string) => {
@@ -142,20 +170,20 @@ export default function Chat() {
       ? `已上传论文${titles}，你可以问我关于这篇论文的问题。`
       : `已上传 ${papers.length} 篇论文：${titles}。你可以问我关于这些论文的问题。`
 
-    addMessage({
+    addMessageToStore({
       role: 'assistant',
       content: message + '\n\n默认存放在"全部论文"文件夹，如需移动到其他文件夹请告诉我。',
     })
-  }, [addUploadedPapers, updateContext, addMessage])
+  }, [addUploadedPapers, updateContext, addMessageToStore])
 
   // Handle upload error
   const handleUploadError = useCallback((error: string) => {
     setIsUploading(false)
-    addMessage({
+    addMessageToStore({
       role: 'assistant',
       content: `上传失败：${error}`,
     })
-  }, [addMessage])
+  }, [addMessageToStore])
 
   // Handle file button upload
   const handleFileSelect = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,7 +192,7 @@ export default function Chat() {
     )
 
     if (files.length === 0) {
-      addMessage({
+      addMessageToStore({
         role: 'assistant',
         content: '请选择 PDF 文件',
       })
@@ -203,7 +231,7 @@ export default function Chat() {
     } else {
       handleUploadError('上传失败，请重试')
     }
-  }, [addMessage, handleUploadSuccess, handleUploadError])
+  }, [addMessageToStore, handleUploadSuccess, handleUploadError])
 
   // Context indicator
   const currentTarget = contextSummary.currentTarget
