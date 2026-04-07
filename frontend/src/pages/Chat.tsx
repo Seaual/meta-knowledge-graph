@@ -321,43 +321,23 @@ export default function Chat() {
                   {msg.role === 'assistant' && msg.conceptData && (!msg.attachments || msg.attachments.length === 0) && (
                     <ConceptGraphInChat data={msg.conceptData} />
                   )}
-                  {/* 用户消息 */}
-                  {msg.role === 'user' && (
-                    <div
-                      className="px-4 py-3"
-                      style={{
-                        background: 'linear-gradient(135deg, #C41E3A 0%, #8B0000 100%)',
-                        color: '#FFFFFF',
-                        borderRadius: '20px 20px 4px 20px',
-                        boxShadow: '0 2px 8px rgba(139, 0, 0, 0.4)',
-                      }}
-                    >
-                      <div style={{ color: '#FFFFFF' }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
+                  {/* 统一消息样式 */}
+                  <div
+                    className="px-4 py-3"
+                    style={{
+                      background: '#f5f0e8',
+                      color: '#2c1810',
+                      borderRadius: '16px',
+                      border: '1px solid #d4c4b0',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                    }}
+                  >
+                    <div style={{ color: '#2c1810' }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
                     </div>
-                  )}
-                  {/* 助手消息 */}
-                  {msg.role === 'assistant' && (
-                    <div
-                      className="px-4 py-3"
-                      style={{
-                        background: '#f5f0e8',
-                        color: '#2c1810',
-                        borderRadius: '20px 20px 20px 4px',
-                        border: '1px solid #d4c4b0',
-                        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                      }}
-                    >
-                      <div style={{ color: '#2c1810' }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ))
