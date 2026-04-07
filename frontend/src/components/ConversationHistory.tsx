@@ -48,10 +48,7 @@ export default function ConversationHistory({ onSelect }: ConversationHistoryPro
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-2 py-2">
-      <div className="text-xs px-2 py-1 mb-2" style={{ color: 'var(--color-ink-muted)' }}>
-        对话历史
-      </div>
+    <div className="overflow-y-auto px-1 py-1">
       {conversations.map((conv) => (
         <div
           key={conv.id}

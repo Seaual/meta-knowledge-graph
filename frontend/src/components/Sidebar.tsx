@@ -118,6 +118,14 @@ export default function Sidebar() {
             </NavLink>
           )
         })}
+
+        {/* Conversation History - Below settings, inside nav area */}
+        {!isCollapsed && conversations.length > 0 && (
+          <div className="mt-2 pt-2 border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>
+            <div className="text-xs px-3 py-1" style={{ color: 'var(--color-ink-muted)' }}>对话历史</div>
+            <ConversationHistory onSelect={() => {}} />
+          </div>
+        )}
       </nav>
 
       {/* Bottom Section */}
@@ -153,16 +161,6 @@ export default function Sidebar() {
           )}
         </button>
       </div>
-
-      {/* Conversation History - Below settings */}
-      {!isCollapsed && conversations.length > 0 && (
-        <div className="border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>
-          <div className="px-3 py-2">
-            <div className="text-xs mb-2" style={{ color: 'var(--color-ink-muted)' }}>对话历史</div>
-            <ConversationHistory onSelect={() => {}} />
-          </div>
-        </div>
-      )}
     </aside>
   )
 }
