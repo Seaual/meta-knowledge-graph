@@ -37,6 +37,17 @@
 
 ---
 
+## What's New in v2.2
+
+| Feature | Description |
+|---------|-------------|
+| 💬 **Chat Attachments** | LLM Agent conversation-driven with interactive cards for research points, paper details, recommendations, etc. |
+| 🛠️ **Agent Tool Optimization** | Fixed LLM over-calling multiple tools, now processes one tool per turn |
+| 🌐 **Full Bilingual Support** | Added `text_zh` database field for complete Chinese/English concept names |
+| 🔧 **Improved Dedup Prompts** | Optimized prompts for concept merge judgment and floating concept fixing |
+
+---
+
 ## What's New in v2.1
 
 | Feature | Description |
