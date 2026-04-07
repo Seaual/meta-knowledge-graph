@@ -157,6 +157,41 @@ class Database:
             )
         """)
 
+        # 对话历史表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                id TEXT PRIMARY KEY,  -- UUID
+                device_id TEXT NOT NULL,  -- 设备标识
+                title TEXT,  -- AI 生成的标题
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 对话消息表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_messages (
+                id TEXT PRIMARY KEY,  -- UUID
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,  -- 'user' | 'assistant'
+                content TEXT NOT NULL,
+                agent TEXT,  -- optional, for assistant messages
+                attachments TEXT,  -- JSON format
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+            )
+        """)
+
+        # 创建索引加速查询
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_conversations_device
+            ON conversations(device_id, updated_at DESC)
+        """)
+        cursor.execute("""
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation
+            ON conversation_messages(conversation_id, created_at)
+        """)
+
         # 批量任务表
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS batch_jobs (
