@@ -54,7 +54,9 @@ export default function Chat() {
   // Create conversation if none exists
   useEffect(() => {
     if (!currentConversationId) {
-      createConversation()
+      createConversation().catch(err => {
+        console.error('Failed to create conversation:', err)
+      })
     }
   }, [currentConversationId, createConversation])
 
@@ -115,7 +117,7 @@ export default function Chat() {
       const currentConv = conversations.find(c => c.id === currentConversationId)
       if (messages.length === 0 && !currentConv?.title) {
         // Generate title from first user message (simple: first 20 chars or until first punctuation)
-        const title = userMessage.slice(0, 20).replace(/[？。！？.!?]/, '') || '新对话'
+        const title = userMessage.slice(0, 20).replace(/[？。！.!?]/, '') || '新对话'
         await updateTitle(title)
         await loadConversations()
       }
@@ -173,7 +175,7 @@ export default function Chat() {
     addMessageToStore({
       role: 'assistant',
       content: message + '\n\n默认存放在"全部论文"文件夹，如需移动到其他文件夹请告诉我。',
-    })
+    }).catch(err => console.error('Failed to save message:', err))
   }, [addUploadedPapers, updateContext, addMessageToStore])
 
   // Handle upload error
@@ -182,7 +184,7 @@ export default function Chat() {
     addMessageToStore({
       role: 'assistant',
       content: `上传失败：${error}`,
-    })
+    }).catch(err => console.error('Failed to save message:', err))
   }, [addMessageToStore])
 
   // Handle file button upload
@@ -195,7 +197,7 @@ export default function Chat() {
       addMessageToStore({
         role: 'assistant',
         content: '请选择 PDF 文件',
-      })
+      }).catch(err => console.error('Failed to save message:', err))
       return
     }
 
