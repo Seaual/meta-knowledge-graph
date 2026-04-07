@@ -322,14 +322,18 @@ export default function Chat() {
                     <ConceptGraphInChat data={msg.conceptData} />
                   )}
                   <div
-                    className={`chat-bubble ${
-                      msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'
-                    } px-4 py-3`}
+                    className="px-4 py-3"
+                    style={{
+                      background: msg.role === 'user'
+                        ? 'linear-gradient(135deg, #8B2500 0%, #A0522D 100%)'
+                        : 'var(--color-surface)',
+                      color: msg.role === 'user' ? '#FFFFFF' : 'var(--color-ink)',
+                      borderRadius: msg.role === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                      border: msg.role === 'assistant' ? '1px solid var(--color-border-subtle)' : 'none',
+                      boxShadow: msg.role === 'user' ? '0 2px 8px rgba(139, 37, 0, 0.3)' : 'var(--shadow-sm)',
+                    }}
                   >
-                    <div
-                      className="font-body text-sm leading-relaxed prose prose-sm max-w-none"
-                      style={{ color: msg.role === 'user' ? '#fffef5' : 'var(--color-ink)' }}
-                    >
+                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none prose-p:text-inherit prose-p:m-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
@@ -361,7 +365,10 @@ export default function Chat() {
       </div>
 
       {/* Input Area - 印章风格输入框 */}
-      <div className="chat-input-area flex-shrink-0 px-4 py-4">
+      <div
+        className="flex-shrink-0 px-4 py-4"
+        style={{ background: 'linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%)' }}
+      >
         <div className="max-w-4xl mx-auto">
           {/* Hidden file input */}
           <input
@@ -372,12 +379,26 @@ export default function Chat() {
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />
-          <div className="chat-input-wrapper">
+          <div
+            className="flex items-end gap-3"
+            style={{
+              background: '#FFFFFF',
+              border: '1px solid var(--color-border)',
+              borderRadius: '24px',
+              boxShadow: '0 2px 12px rgba(139, 69, 19, 0.1)',
+              padding: '16px 20px',
+              minHeight: '64px',
+            }}
+          >
             {/* Upload button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="upload-btn flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+              className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                background: 'rgba(139, 69, 19, 0.08)',
+                color: 'var(--color-ink-secondary)',
+              }}
               title="上传 PDF"
             >
               {isUploading ? (
@@ -393,20 +414,26 @@ export default function Chat() {
               onKeyDown={handleKeyDown}
               placeholder="输入消息..."
               rows={1}
-              className="flex-1 font-body text-sm resize-none outline-none"
-              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px', minHeight: '40px' }}
+              className="flex-1 font-body text-base resize-none outline-none"
+              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px', minHeight: '44px', lineHeight: '1.5' }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="send-btn flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
+              className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                background: input.trim() && !isLoading
+                  ? 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)'
+                  : 'rgba(139, 69, 19, 0.1)',
+                color: input.trim() && !isLoading ? '#FFFFFF' : 'var(--color-ink-muted)',
+              }}
             >
               <Send className="w-5 h-5" />
             </button>
           </div>
 
           <div className="mt-2 text-center">
-            <span className="font-mono text-[10px]" style={{ color: 'var(--color-ink-muted)' }}>
+            <span className="font-mono text-xs" style={{ color: 'var(--color-ink-muted)' }}>
               Shift + Enter 换行 · Enter 发送
             </span>
           </div>
