@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, ExternalLink, BookOpen, Quote, Users } from 'lucide-react'
-import { cn } from '../../lib/utils'
 
 interface Props {
   data: {

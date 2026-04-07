@@ -29,7 +29,7 @@ def find_floating_concepts(db) -> List[Dict]:
     cur = conn.cursor()
 
     cur.execute('''
-        SELECT c.id, c.text, c.category, c.paper_count,
+        SELECT c.id, c.text, c.text_en, c.text_zh, c.category, c.paper_count,
                (SELECT COUNT(*) FROM concept_relations WHERE child_id = c.id) as parent_count,
                (SELECT COUNT(*) FROM concept_relations WHERE parent_id = c.id) as child_count
         FROM concepts c
@@ -63,6 +63,8 @@ def find_floating_concepts(db) -> List[Dict]:
             floating.append({
                 'id': row['id'],
                 'text': row['text'],
+                'text_en': row['text_en'],
+                'text_zh': row['text_zh'],
                 'category': row['category'],
                 'paper_count': row['paper_count'],
                 'children': [{'text': c['text'], 'category': c['category']} for c in children],
@@ -133,6 +135,8 @@ Key principles:
 
 <floating_concept>
 - Name: {floating_concept['text']}
+- English: {floating_concept.get('text_en', 'N/A')}
+- Chinese: {floating_concept.get('text_zh', 'N/A')}
 - Category: {floating_concept['category']}
 - Current children: {json.dumps(children_names, ensure_ascii=False)}
 - Associated papers: {json.dumps(paper_titles, ensure_ascii=False)}

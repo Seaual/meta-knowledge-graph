@@ -75,7 +75,12 @@ def summarize_for_llm(tool_name: str, result) -> str:
 # Lead Node 系统提示
 LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 
-【工具选择规则 - 非常重要】
+【核心原则】
+- 每次只调用一个工具！不要同时调用多个工具。
+- 如果用户问题不需要工具，直接回答即可。
+- 工具调用要精确匹配用户意图，不要"顺便"调用其他工具。
+
+【工具选择规则】
 
 用户说「有哪些论文」「搜索论文」→ 用 search_paper
 用户说「研究点」「研究方向」「分析...的研究点」→ 用 analyze_research_points
@@ -83,6 +88,12 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 用户说「引用」「被引用」→ 用 analyze_citations
 用户说「论文内容」「这篇论文讲什么」→ 用 read_paper_content
 用户说「推荐论文」「相关论文」「找相关工作」→ 用 recommend_papers
+
+【禁止行为】
+- 禁止在问「研究点」时同时调用 recommend_papers
+- 禁止在问「图谱」时同时调用 analyze_research_points
+- 禁止在问「论文」时同时调用 get_concept_graph
+- 简单问答（如"你好"、"什么是XX"）不要调用任何工具
 
 【特别注意】
 - 「查看...的研究点」要用 analyze_research_points，不要用 get_concept_graph！
@@ -163,45 +174,46 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     attachments: List[Dict[str, Any]] = []
     response_content = extract_text_content(response.content)
 
-    # 最多处理 5 轮工具调用
+    # 最多处理 5 轮工具调用（每轮只处理第一个 tool）
     max_iterations = 5
     iteration = 0
 
     while response.tool_calls and iteration < max_iterations:
         iteration += 1
 
+        # 只处理第一个 tool call，防止 LLM 同时调用多个工具
+        tool_call = response.tool_calls[0]
+        tool_name = tool_call["name"]
+        tool_args = tool_call["args"]
+
+        # 查找并执行工具
         tool_messages = []
-        for tool_call in response.tool_calls:
-            tool_name = tool_call["name"]
-            tool_args = tool_call["args"]
+        for tool_item in tools:
+            if tool_item.name == tool_name:
+                try:
+                    result = tool_item.invoke(tool_args)
 
-            # 查找并执行工具
-            for tool_item in tools:
-                if tool_item.name == tool_name:
-                    try:
-                        result = tool_item.invoke(tool_args)
+                    # 收集附件
+                    attachment = make_attachment(tool_name, result)
+                    if attachment:
+                        attachments.append(attachment)
 
-                        # 收集附件
-                        attachment = make_attachment(tool_name, result)
-                        if attachment:
-                            attachments.append(attachment)
+                    # 特殊处理：get_concept_graph 返回图谱数据（向后兼容）
+                    if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
+                        concept_data = result
 
-                        # 特殊处理：get_concept_graph 返回图谱数据（向后兼容）
-                        if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
-                            concept_data = result
-
-                        # 使用摘要给 LLM（节省 token）
-                        summary = summarize_for_llm(tool_name, result)
-                        tool_messages.append(ToolMessage(
-                            content=summary,
-                            tool_call_id=tool_call["id"]
-                        ))
-                    except Exception as e:
-                        tool_messages.append(ToolMessage(
-                            content=f"错误: {str(e)}",
-                            tool_call_id=tool_call["id"]
-                        ))
-                    break
+                    # 使用摘要给 LLM（节省 token）
+                    summary = summarize_for_llm(tool_name, result)
+                    tool_messages.append(ToolMessage(
+                        content=summary,
+                        tool_call_id=tool_call["id"]
+                    ))
+                except Exception as e:
+                    tool_messages.append(ToolMessage(
+                        content=f"错误: {str(e)}",
+                        tool_call_id=tool_call["id"]
+                    ))
+                break
 
         # 继续调用 LLM
         messages.append(response)

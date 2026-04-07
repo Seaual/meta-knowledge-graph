@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Check, Loader2 } from 'lucide-react'
-import { s2PaperApi } from '../lib/api'
+import { s2PaperApi } from '../../lib/api'
 
 interface RecommendedPaper {
   title: string

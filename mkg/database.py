@@ -427,6 +427,12 @@ class Database:
         except:
             pass  # 字段已存在
 
+        # 迁移：添加 text_zh 字段到 concepts 表（中文概念名）
+        try:
+            cursor.execute("ALTER TABLE concepts ADD COLUMN text_zh TEXT")
+        except:
+            pass  # 字段已存在
+
         # Research sessions table
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS research_sessions (
@@ -780,21 +786,27 @@ class Database:
         existing = cursor.fetchone()
 
         if existing:
-            # 更新 text_en 如果提供了且当前为空
+            # 更新 text_en/text_zh 如果提供了且当前为空
             if concept_data.get('text_en'):
                 cursor.execute("""
                     UPDATE concepts SET text_en = ?
                     WHERE id = ? AND (text_en IS NULL OR text_en = '')
                 """, (concept_data['text_en'], concept_id))
+            if concept_data.get('text_zh'):
+                cursor.execute("""
+                    UPDATE concepts SET text_zh = ?
+                    WHERE id = ? AND (text_zh IS NULL OR text_zh = '')
+                """, (concept_data['text_zh'], concept_id))
         else:
             # 插入新概念
             cursor.execute("""
-                INSERT INTO concepts (id, text, text_en, category, paper_count, updated_at)
-                VALUES (?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
+                INSERT INTO concepts (id, text, text_en, text_zh, category, paper_count, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
             """, (
                 concept_id,
                 concept_data['text'],
                 concept_data.get('text_en'),
+                concept_data.get('text_zh'),
                 concept_data.get('category'),
             ))
 
@@ -1061,10 +1073,12 @@ class Database:
                 # 新格式: {"en": "...", "zh": "..."}
                 concept_text = concept_data.get('zh', concept_data.get('en', ''))
                 concept_en = concept_data.get('en')
+                concept_zh = concept_data.get('zh')
             else:
                 # 旧格式
                 concept_text = concept_data
                 concept_en = node.get('concept_en')
+                concept_zh = node.get('concept_zh')
 
             # 生成 ID（优先使用英文）
             concept_id = node.get('id', self._to_slug(concept_en or concept_text))
@@ -1074,6 +1088,7 @@ class Database:
                 'id': concept_id,
                 'text': concept_text,
                 'text_en': concept_en,
+                'text_zh': concept_zh,
                 'category': node.get('category', 'method')
             }
             self.add_concept(concept_data)
