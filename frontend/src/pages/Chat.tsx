@@ -1,28 +1,30 @@
 // Chat.tsx - LLM Conversation Page
+// 墨迹书房风格 - Ink & Study Design
+
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useAgentStore } from '../stores/agentStore'
 import { agentApi } from '../lib/api'
-import { Send, X, Loader2, FileText } from 'lucide-react'
+import { Send, X, Loader2, FileText, Sparkles } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
 import ConceptGraphInChat from '../components/ConceptGraphInChat'
 import ChatAttachments from '../components/ChatAttachments'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 
-// Agent badge colors
+// Agent 徽章配色 - 朱砂印章风格
 const AGENT_COLORS: Record<string, string> = {
-  lead: '#6b4423',
+  lead: '#8b4513',
   citation: '#4a6b8a',
-  research: '#2d5a27',
-  deep_research: '#9a6b3c',
-  merge: '#c2410c',
-  paper_qa: '#8b5a2b',
+  research: '#2d5a4a',
+  deep_research: '#6b4423',
+  merge: '#a65d2e',
+  paper_qa: '#5c4a3a',
 }
 
 const AGENT_LABELS: Record<string, string> = {
   lead: '助手',
   citation: '引用分析',
-  research: '研究点分析',
+  research: '研究点',
   deep_research: '深入研究',
   merge: '概念合并',
   paper_qa: '论文问答',
@@ -207,50 +209,38 @@ export default function Chat() {
   const currentTarget = contextSummary.currentTarget
 
   return (
-    <div className="h-full flex flex-col relative" style={{ background: 'var(--color-cream)' }}>
+    <div className="chat-container h-full flex flex-col relative">
       {/* Drag upload zone */}
       <DragUploadZone
         onUploadSuccess={handleUploadSuccess}
         onUploadError={handleUploadError}
       />
 
-      {/* Header */}
-      <div
-        className="flex-shrink-0 px-6 py-4 border-b"
-        style={{
-          borderColor: 'rgba(184, 134, 11, 0.08)',
-          background: 'linear-gradient(180deg, rgba(255,254,249,0.9) 0%, rgba(250,248,245,0.9) 100%)',
-        }}
-      >
+      {/* Header - 书卷气息 */}
+      <div className="chat-header flex-shrink-0 px-6 py-4">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="font-display text-xl font-medium" style={{ color: 'var(--color-sepia)' }}>
+            <h1 className="font-display text-xl font-medium" style={{ color: 'var(--color-ink)' }}>
               AI 研究助手
             </h1>
-            <p className="font-body text-sm mt-0.5" style={{ color: 'var(--color-muted)' }}>
-              分析论文引用、发现研究点、深入研究主题
+            <p className="font-body text-sm mt-0.5" style={{ color: 'var(--color-ink-tertiary)' }}>
+              分析论文引用 · 发现研究点 · 深入研究主题
             </p>
           </div>
 
-          {/* Current context indicator */}
+          {/* Current context indicator - 书签角标 */}
           {currentTarget && (
-            <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
-              style={{
-                background: 'rgba(184, 134, 11, 0.06)',
-                border: '1px solid rgba(184, 134, 11, 0.1)',
-              }}
-            >
+            <div className="chat-context-badge flex items-center gap-2">
               <span className="text-sm">
                 {currentTarget.type === 'paper' ? '📄' : '💡'}
               </span>
-              <span className="font-body text-sm" style={{ color: 'var(--color-sepia)' }}>
-                {currentTarget.name}
+              <span className="font-body text-sm" style={{ color: 'var(--color-ink-secondary)' }}>
+                {currentTarget.name.length > 25 ? currentTarget.name.slice(0, 25) + '...' : currentTarget.name}
               </span>
               <button
                 onClick={() => useAgentStore.getState().updateContext({ currentTarget: undefined })}
-                className="ml-1 p-0.5 rounded hover:bg-amber/10 transition-colors"
-                style={{ color: 'var(--color-muted)' }}
+                className="ml-1 p-0.5 rounded hover:bg-overlay transition-colors"
+                style={{ color: 'var(--color-ink-muted)' }}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -260,50 +250,39 @@ export default function Chat() {
       </div>
 
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto px-4 py-6 relative z-10">
+        <div className="max-w-4xl mx-auto space-y-5">
           {messages.length === 0 ? (
-            // Welcome message
-            <div className="text-center py-20">
+            // Welcome message - 卷轴展开动画
+            <div className="chat-welcome text-center py-16">
               <div
-                className="w-16 h-16 mx-auto mb-6 rounded-2xl flex items-center justify-center"
+                className="w-20 h-20 mx-auto mb-8 rounded-2xl flex items-center justify-center relative"
                 style={{
-                  background: 'linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%)',
+                  background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-amber) 50%, var(--color-copper) 100%)',
+                  boxShadow: '0 8px 32px rgba(139, 69, 19, 0.2)',
                 }}
               >
-                <span className="text-3xl">🔮</span>
+                <Sparkles className="w-10 h-10" style={{ color: 'var(--color-cream)' }} />
               </div>
-              <h2 className="font-display text-2xl font-medium mb-3" style={{ color: 'var(--color-sepia)' }}>
+              <h2 className="font-display text-3xl font-medium mb-4" style={{ color: 'var(--color-ink)' }}>
                 欢迎使用 AI 研究助手
               </h2>
-              <p className="font-body text-base mb-8" style={{ color: 'var(--color-muted)' }}>
+              <p className="font-body text-base mb-10 max-w-md mx-auto" style={{ color: 'var(--color-ink-tertiary)' }}>
                 我可以帮你分析论文引用、发现概念研究点、深入研究主题
               </p>
 
-              {/* Quick actions */}
+              {/* Quick actions - 书签标签风格 */}
               <div className="flex flex-wrap justify-center gap-3">
                 {[
-                  { label: '分析论文引用', prompt: '分析 AgentScope 这篇论文的引用关系' },
-                  { label: '发现研究点', prompt: '帮我分析多智能体系统这个概念的研究点' },
-                  { label: '深入研究', prompt: '深入研究 AgentScope 平台架构' },
+                  { label: '📄 分析论文引用', prompt: '分析 AgentScope 这篇论文的引用关系' },
+                  { label: '💡 发现研究点', prompt: '帮我分析多智能体系统这个概念的研究点' },
+                  { label: '🔬 深入研究', prompt: '深入研究 AgentScope 平台架构' },
                 ].map((action, i) => (
                   <button
                     key={i}
                     onClick={() => setInput(action.prompt)}
-                    className="px-4 py-2.5 rounded-xl font-body text-sm transition-all"
-                    style={{
-                      background: 'var(--color-paper)',
-                      border: '1px solid rgba(184, 134, 11, 0.12)',
-                      color: 'var(--color-sepia)',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.25)'
-                      e.currentTarget.style.background = 'rgba(184, 134, 11, 0.04)'
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.borderColor = 'rgba(184, 134, 11, 0.12)'
-                      e.currentTarget.style.background = 'var(--color-paper)'
-                    }}
+                    className="chat-quick-action"
+                    style={{ animationDelay: `${i * 100}ms` }}
                   >
                     {action.label}
                   </button>
@@ -311,21 +290,19 @@ export default function Chat() {
               </div>
             </div>
           ) : (
-            // Messages
+            // Messages - 印章风格气泡
             messages.map((msg) => (
               <div
                 key={msg.id}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-${msg.role === 'user' ? 'right' : 'left'}`}
+                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div
-                  className={`max-w-[80%] ${msg.role === 'user' ? 'order-1' : ''}`}
-                >
+                <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-1' : ''}`}>
                   {msg.role === 'assistant' && msg.agent && (
-                    <div className="flex items-center gap-2 mb-1.5 animate-fade-in">
+                    <div className="flex items-center gap-2 mb-2">
                       <span
-                        className="px-2 py-0.5 rounded-md text-xs font-mono"
+                        className="agent-badge"
                         style={{
-                          backgroundColor: AGENT_COLORS[msg.agent] + '15',
+                          backgroundColor: AGENT_COLORS[msg.agent] + '12',
                           color: AGENT_COLORS[msg.agent],
                         }}
                       >
@@ -342,28 +319,14 @@ export default function Chat() {
                   )}
                   {/* 向后兼容：旧消息的 conceptData */}
                   {msg.role === 'assistant' && msg.conceptData && (!msg.attachments || msg.attachments.length === 0) && (
-                    <ConceptGraphInChat
-                      data={msg.conceptData}
-                    />
+                    <ConceptGraphInChat data={msg.conceptData} />
                   )}
                   <div
-                    className="px-4 py-3 rounded-2xl transition-colors-smooth"
-                    style={{
-                      backgroundColor: msg.role === 'user'
-                        ? 'var(--color-accent)'
-                        : 'var(--color-surface)',
-                      color: msg.role === 'user'
-                        ? 'white'
-                        : 'var(--color-ink)',
-                      border: msg.role === 'assistant'
-                        ? '1px solid var(--color-border-subtle)'
-                        : 'none',
-                      borderRadius: msg.role === 'user'
-                        ? '18px 18px 4px 18px'
-                        : '18px 18px 18px 4px',
-                    }}
+                    className={`chat-bubble ${
+                      msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'
+                    } px-4 py-3`}
                   >
-                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none prose-headings:text-sepia prose-headings:font-display prose-p:text-ink prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-li:my-0.5 prose-code:text-sepia prose-code:bg-paper prose-code:px-1 prose-code:rounded prose-pre:bg-paper prose-pre:border prose-pre:border-academic-border">
+                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
@@ -374,17 +337,14 @@ export default function Chat() {
             ))
           )}
 
-          {/* Loading indicator */}
+          {/* Loading indicator - 墨水滴落动画 */}
           {isLoading && (
-            <div className="flex justify-start animate-fade-in">
+            <div className="flex justify-start">
               <div
-                className="px-4 py-3 rounded-2xl"
-                style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border-subtle)',
-                }}
+                className="chat-bubble-assistant px-4 py-3"
+                style={{ background: 'var(--color-surface)' }}
               >
-                <div className="typing-indicator">
+                <div className="typing-indicator-ink">
                   <span></span>
                   <span></span>
                   <span></span>
@@ -397,14 +357,8 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Input Area */}
-      <div
-        className="flex-shrink-0 px-4 py-4 border-t"
-        style={{
-          borderColor: 'rgba(184, 134, 11, 0.08)',
-          background: 'linear-gradient(180deg, rgba(250,248,245,0.95) 0%, rgba(255,254,249,0.95) 100%)',
-        }}
-      >
+      {/* Input Area - 印章风格输入框 */}
+      <div className="chat-input-area flex-shrink-0 px-4 py-4">
         <div className="max-w-4xl mx-auto">
           {/* Hidden file input */}
           <input
@@ -415,24 +369,12 @@ export default function Chat() {
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />
-          <div
-            className="flex items-end gap-3 px-4 py-3 rounded-2xl"
-            style={{
-              background: '#ffffff',
-              border: '1px solid rgba(184, 134, 11, 0.12)',
-              boxShadow: '0 2px 8px rgba(44, 24, 16, 0.04)',
-            }}
-          >
+          <div className="chat-input-wrapper flex items-end gap-3 px-4 py-3">
             {/* Upload button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all"
-              style={{
-                background: 'rgba(184, 134, 11, 0.08)',
-                color: 'var(--color-sepia)',
-                cursor: isUploading ? 'not-allowed' : 'pointer',
-              }}
+              className="upload-btn flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
               title="上传 PDF"
             >
               {isUploading ? (
@@ -449,28 +391,19 @@ export default function Chat() {
               placeholder="输入消息..."
               rows={1}
               className="flex-1 font-body text-sm resize-none outline-none"
-              style={{ color: '#000000', background: 'transparent', maxHeight: '200px' }}
+              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px' }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all"
-              style={{
-                background: input.trim() && !isLoading
-                  ? 'linear-gradient(135deg, var(--color-sepia) 0%, var(--color-copper) 100%)'
-                  : 'rgba(184, 134, 11, 0.1)',
-                color: input.trim() && !isLoading
-                  ? 'var(--color-vellum)'
-                  : 'var(--color-faint)',
-                cursor: input.trim() && !isLoading ? 'pointer' : 'not-allowed',
-              }}
+              className="send-btn flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center"
             >
               <Send className="w-5 h-5" />
             </button>
           </div>
 
           <div className="mt-2 text-center">
-            <span className="font-mono text-[10px]" style={{ color: 'var(--color-faint)' }}>
+            <span className="font-mono text-[10px]" style={{ color: 'var(--color-ink-muted)' }}>
               Shift + Enter 换行 · Enter 发送
             </span>
           </div>

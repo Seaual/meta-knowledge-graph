@@ -1,56 +1,62 @@
 /* ========================================
-   Refined Scholar - 极简学术风设计系统 v2.0
+   墨迹书房 - Ink & Study Design System v3.0
+   沉浸式学术对话界面
    ======================================== */
 
-/* Google Fonts Import - 更精致的字体组合 */
-@import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap');
+/* Google Fonts Import - 独特字体组合 */
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* CSS Custom Properties - Refined Palette */
+/* CSS Custom Properties - 墨迹书房配色 */
 :root {
-  /* Typography - Refined Choices */
-  --font-display: 'Newsreader', Georgia, serif;
-  --font-body: 'DM Sans', system-ui, sans-serif;
+  /* Typography - 独特字体选择 */
+  --font-display: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
+  --font-body: 'Sora', 'Noto Sans SC', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Colors - Muted Academic */
-  --color-base: #faf9f7;
-  --color-surface: #ffffff;
-  --color-surface-raised: #fefefe;
-  --color-overlay: #f7f6f4;
+  /* Colors - 墨迹书房主色调 */
+  --color-base: #f5f1eb;           /* 宣纸底色 */
+  --color-surface: #faf8f5;        /* 书页白 */
+  --color-surface-raised: #fdfcf9;
+  --color-overlay: #ebe7e0;
 
-  --color-ink: #1a1a1a;
-  --color-ink-secondary: #4a4a4a;
-  --color-ink-tertiary: #7a7a7a;
-  --color-ink-muted: #a0a0a0;
+  --color-ink: #1a1612;            /* 墨色 */
+  --color-ink-secondary: #3d3832;
+  --color-ink-tertiary: #6b635a;
+  --color-ink-muted: #9a918a;
 
-  --color-accent: #2d5a4a;      /* Forest green - 沉稳知性 */
-  --color-accent-soft: #3d7a64;
-  --color-accent-hover: #1d4a3a;
+  --color-accent: #8b4513;         /* 朱砂红 */
+  --color-accent-soft: #a65d2e;
+  --color-accent-hover: #6d3610;
+  --color-accent-glow: rgba(139, 69, 19, 0.15);
 
-  --color-highlight: #c9a227;   /* Gold highlight */
-  --color-highlight-soft: rgba(201, 162, 39, 0.12);
+  --color-sepia: #5c4a3a;          /* 褐石色 */
+  --color-copper: #9a6b3c;
+  --color-amber: #b8860b;
+  --color-cream: #fef9f0;
+  --color-vellum: #fffef8;
+  --color-paper: #fffdf7;
 
-  --color-border: #e8e6e3;
-  --color-border-subtle: #f0eeeb;
-  --color-border-accent: rgba(45, 90, 74, 0.2);
+  --color-highlight: #c9a227;
+  --color-highlight-soft: rgba(201, 162, 39, 0.1);
 
-  /* Input backgrounds */
-  --color-vellum: #fefdfb;
-  --color-paper: #ffffff;
+  --color-border: #ddd5c8;
+  --color-border-subtle: #e8e2d9;
+  --color-border-accent: rgba(139, 69, 19, 0.2);
 
-  /* Shadows - Soft & Airy */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.03);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.06);
-  --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.08);
+  /* Shadows - 墨迹层次 */
+  --shadow-sm: 0 1px 3px rgba(26, 22, 18, 0.04);
+  --shadow-md: 0 4px 12px rgba(26, 22, 18, 0.06);
+  --shadow-lg: 0 8px 24px rgba(26, 22, 18, 0.08);
+  --shadow-xl: 0 16px 48px rgba(26, 22, 18, 0.1);
+  --shadow-ink: 0 4px 20px rgba(26, 22, 18, 0.12);
 
-  /* Transitions - Smooth & Natural */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  /* Transitions - 流畅自然 */
+  --ease-ink: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-brush: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-fast: 150ms;
   --duration-normal: 250ms;
   --duration-slow: 400ms;
@@ -1049,5 +1055,357 @@ input:focus-visible {
   .btn-primary,
   .btn-secondary {
     display: none;
+  }
+}
+
+/* ========================================
+   Chat Page - 墨迹书房风格
+   ======================================== */
+
+/* Chat container */
+.chat-container {
+  background: var(--color-base);
+  position: relative;
+}
+
+/* 纸张纹理背景 */
+.chat-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(90deg, transparent 79px, rgba(139, 69, 19, 0.03) 79px, rgba(139, 69, 19, 0.03) 81px, transparent 81px),
+    linear-gradient(rgba(139, 69, 19, 0.02) 1px, transparent 1px);
+  background-size: 100% 28px;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* Chat header - 书卷气息 */
+.chat-header {
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-base) 100%);
+  border-bottom: 1px solid var(--color-border-subtle);
+  position: relative;
+}
+
+.chat-header::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-accent-glow), transparent);
+}
+
+/* Chat input area - 印章风格 */
+.chat-input-area {
+  background: linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.chat-input-wrapper {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-ink);
+  transition: all var(--duration-normal) var(--ease-brush);
+}
+
+.chat-input-wrapper:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-lg), 0 0 0 3px var(--color-accent-glow);
+}
+
+/* 消息气泡 - 印章风格 */
+.chat-bubble {
+  position: relative;
+  animation: inkDrop var(--duration-normal) var(--ease-brush);
+}
+
+/* 用户消息 - 朱砂印章风格 */
+.chat-bubble-user {
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-soft) 100%);
+  color: var(--color-cream);
+  border-radius: 20px 20px 4px 20px;
+  box-shadow:
+    0 2px 8px rgba(139, 69, 19, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* 用户消息印章效果 */
+.chat-bubble-user::before {
+  content: '';
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent 60%);
+  border-radius: 4px;
+  transform: rotate(-5deg);
+  opacity: 0.6;
+}
+
+/* 助手消息 - 书页风格 */
+.chat-bubble-assistant {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 20px 20px 20px 4px;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+/* 助手消息书页效果 */
+.chat-bubble-assistant::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    var(--color-accent) 0%,
+    var(--color-amber) 50%,
+    var(--color-copper) 100%);
+  border-radius: 20px 20px 0 0;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-ink);
+}
+
+.chat-bubble-assistant:hover::before {
+  opacity: 1;
+}
+
+/* 墨滴动画 */
+@keyframes inkDrop {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  60% {
+    transform: translateY(2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 附件卡片 - 书签风格 */
+.chat-attachment-card {
+  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-overlay) 100%);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+  transition: all var(--duration-normal) var(--ease-brush);
+}
+
+.chat-attachment-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(180deg, var(--color-accent), var(--color-amber), var(--color-copper));
+  opacity: 0.8;
+}
+
+.chat-attachment-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 欢迎区域 - 卷轴展开 */
+.chat-welcome {
+  animation: scrollUnfold 0.8s var(--ease-brush);
+}
+
+@keyframes scrollUnfold {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 快捷操作按钮 - 书签标签 */
+.chat-quick-action {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-sm) var(--space-lg);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  color: var(--color-ink-secondary);
+  cursor: pointer;
+  transition: all var(--duration-fast) var(--ease-ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-quick-action::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, var(--color-accent-glow), transparent);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-ink);
+}
+
+.chat-quick-action:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-quick-action:hover::before {
+  opacity: 1;
+}
+
+/* 上下文指示器 - 书签角标 */
+.chat-context-badge {
+  background: var(--color-overlay);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-md);
+  font-size: 0.8125rem;
+  color: var(--color-ink-secondary);
+  position: relative;
+}
+
+.chat-context-badge::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 3px;
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+/* Agent 徽章 - 印章风格 */
+.agent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+}
+
+.agent-badge::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+}
+
+/* 打字指示器 - 墨水滴落 */
+.typing-indicator-ink {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+}
+
+.typing-indicator-ink span {
+  width: 6px;
+  height: 6px;
+  background: var(--color-accent);
+  border-radius: 50%;
+  animation: inkDropBounce 1.2s ease-in-out infinite;
+}
+
+.typing-indicator-ink span:nth-child(1) { animation-delay: 0s; }
+.typing-indicator-ink span:nth-child(2) { animation-delay: 0.15s; }
+.typing-indicator-ink span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes inkDropBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* 上传按钮 - 印章风格 */
+.upload-btn {
+  background: var(--color-overlay);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-ink-secondary);
+  transition: all var(--duration-fast) var(--ease-ink);
+}
+
+.upload-btn:hover {
+  background: var(--color-accent-glow);
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}
+
+/* 发送按钮 - 朱砂印章 */
+.send-btn {
+  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-soft) 100%);
+  color: var(--color-cream);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) var(--ease-ink);
+  box-shadow: 0 2px 8px rgba(139, 69, 19, 0.2);
+}
+
+.send-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(139, 69, 19, 0.3);
+}
+
+.send-btn:disabled {
+  background: var(--color-overlay);
+  color: var(--color-ink-muted);
+  box-shadow: none;
+}
+
+/* 消息时间戳 */
+.chat-timestamp {
+  font-family: var(--font-mono);
+  font-size: 0.625rem;
+  color: var(--color-ink-muted);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-ink);
+}
+
+.chat-bubble:hover .chat-timestamp {
+  opacity: 1;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .chat-bubble-user,
+  .chat-bubble-assistant {
+    max-width: 90%;
+  }
+
+  .chat-quick-action {
+    padding: var(--space-xs) var(--space-md);
+    font-size: 0.8125rem;
   }
 }
