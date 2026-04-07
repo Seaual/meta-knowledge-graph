@@ -1,4 +1,5 @@
 import axios from 'axios'
+import type { ChatAttachment } from '../stores/agentStore'
 
 const api = axios.create({
   baseURL: '/api',
@@ -524,6 +525,90 @@ export const agentApi = {
     )
     return response.data
   },
+}
+
+// Conversation types
+interface Conversation {
+  id: string
+  title?: string
+  created_at?: string
+  updated_at?: string
+}
+
+interface Message {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  agent?: string
+  attachments?: ChatAttachment[]
+  created_at?: string
+}
+
+interface ConversationDetail extends Conversation {
+  messages: Message[]
+}
+
+// Device ID management
+const DEVICE_ID_KEY = 'mkg_device_id'
+
+function getOrCreateDeviceId(): string {
+  let deviceId = localStorage.getItem(DEVICE_ID_KEY)
+  if (!deviceId) {
+    deviceId = crypto.randomUUID()
+    localStorage.setItem(DEVICE_ID_KEY, deviceId)
+  }
+  return deviceId
+}
+
+// Add device ID header to all requests
+api.interceptors.request.use((config) => {
+  const deviceId = getOrCreateDeviceId()
+  config.headers['X-Device-ID'] = deviceId
+  return config
+})
+
+// Conversation API
+export const conversationsApi = {
+  // Create new conversation
+  create: async (): Promise<Conversation> => {
+    const response = await api.post<Conversation>('/conversations')
+    return response.data
+  },
+
+  // List conversations
+  list: async (): Promise<Conversation[]> => {
+    const response = await api.get<Conversation[]>('/conversations')
+    return response.data
+  },
+
+  // Get conversation with messages
+  get: async (id: string): Promise<ConversationDetail> => {
+    const response = await api.get<ConversationDetail>(`/conversations/${id}`)
+    return response.data
+  },
+
+  // Update title
+  updateTitle: async (id: string, title: string): Promise<void> => {
+    await api.put(`/conversations/${id}/title`, { title })
+  },
+
+  // Delete conversation
+  delete: async (id: string): Promise<void> => {
+    await api.delete(`/conversations/${id}`)
+  },
+
+  // Add message
+  addMessage: async (convId: string, message: {
+    role: 'user' | 'assistant'
+    content: string
+    agent?: string
+    attachments?: ChatAttachment[]
+  }): Promise<void> => {
+    await api.post(`/conversations/${convId}/messages`, message)
+  },
+
+  // Get device ID
+  getDeviceId: getOrCreateDeviceId,
 }
 
 export default api
