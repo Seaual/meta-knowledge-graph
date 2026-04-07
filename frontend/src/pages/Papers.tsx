@@ -608,7 +608,7 @@ export default function Papers() {
             </div>
           ) : (
             <div className="card-academic overflow-hidden">
-              <table className="table-academic min-w-full">
+              <table className="table min-w-full">
                 <thead>
                   <tr>
                     <th>{t.papers.table.title}</th>

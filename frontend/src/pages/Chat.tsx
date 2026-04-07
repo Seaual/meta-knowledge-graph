@@ -326,7 +326,10 @@ export default function Chat() {
                       msg.role === 'user' ? 'chat-bubble-user' : 'chat-bubble-assistant'
                     } px-4 py-3`}
                   >
-                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none">
+                    <div
+                      className="font-body text-sm leading-relaxed prose prose-sm max-w-none"
+                      style={{ color: msg.role === 'user' ? '#fffef5' : 'var(--color-ink)' }}
+                    >
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
