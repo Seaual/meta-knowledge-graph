@@ -369,7 +369,7 @@ export default function Chat() {
             onChange={handleFileSelect}
             style={{ display: 'none' }}
           />
-          <div className="chat-input-wrapper flex items-end gap-3 px-4 py-3">
+          <div className="chat-input-wrapper">
             {/* Upload button */}
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -391,7 +391,7 @@ export default function Chat() {
               placeholder="输入消息..."
               rows={1}
               className="flex-1 font-body text-sm resize-none outline-none"
-              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px' }}
+              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px', minHeight: '40px' }}
             />
             <button
               onClick={handleSend}

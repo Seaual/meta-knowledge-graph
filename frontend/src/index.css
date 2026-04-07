@@ -453,18 +453,28 @@ body::before {
     color: var(--color-ink-muted);
     text-align: left;
     padding: var(--space-md) var(--space-lg);
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 2px solid var(--color-border);
     background: var(--color-overlay);
   }
 
   .table td {
-    padding: var(--space-md) var(--space-lg);
-    border-bottom: 1px solid var(--color-border-subtle);
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
     color: var(--color-ink-secondary);
+    vertical-align: top;
   }
 
   .table tr:hover td {
-    background: var(--color-overlay);
+    background: rgba(139, 69, 19, 0.03);
+  }
+
+  .table tr td:first-child {
+    border-left: 3px solid transparent;
+    transition: border-color var(--duration-fast) var(--ease-ink);
+  }
+
+  .table tr:hover td:first-child {
+    border-left-color: var(--color-accent);
   }
 }
 
@@ -1102,7 +1112,6 @@ input:focus-visible {
 /* Chat input area - 印章风格 */
 .chat-input-area {
   background: linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%);
-  border-top: 1px solid var(--color-border-subtle);
 }
 
 .chat-input-wrapper {
@@ -1111,6 +1120,10 @@ input:focus-visible {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-ink);
   transition: all var(--duration-normal) var(--ease-brush);
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
 }
 
 .chat-input-wrapper:focus-within {
@@ -1126,12 +1139,12 @@ input:focus-visible {
 
 /* 用户消息 - 朱砂印章风格 */
 .chat-bubble-user {
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-soft) 100%);
-  color: var(--color-cream);
+  background: linear-gradient(135deg, #6d3610 0%, #8b4513 100%);
+  color: #fffef5;
   border-radius: 20px 20px 4px 20px;
   box-shadow:
-    0 2px 8px rgba(139, 69, 19, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    0 2px 8px rgba(139, 69, 19, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* 用户消息印章效果 */
