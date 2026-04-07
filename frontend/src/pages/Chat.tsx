@@ -333,7 +333,10 @@ export default function Chat() {
                       boxShadow: msg.role === 'user' ? '0 2px 8px rgba(139, 37, 0, 0.3)' : 'var(--shadow-sm)',
                     }}
                   >
-                    <div className="font-body text-sm leading-relaxed prose prose-sm max-w-none prose-p:text-inherit prose-p:m-0">
+                    <div
+                      className="font-body text-sm leading-relaxed"
+                      style={{ color: 'inherit' }}
+                    >
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {msg.content}
                       </ReactMarkdown>
@@ -386,15 +389,15 @@ export default function Chat() {
               border: '1px solid var(--color-border)',
               borderRadius: '24px',
               boxShadow: '0 2px 12px rgba(139, 69, 19, 0.1)',
-              padding: '16px 20px',
-              minHeight: '64px',
+              padding: '20px 24px',
+              minHeight: '80px',
             }}
           >
             {/* Upload button */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+              className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
               style={{
                 background: 'rgba(139, 69, 19, 0.08)',
                 color: 'var(--color-ink-secondary)',
@@ -415,12 +418,12 @@ export default function Chat() {
               placeholder="输入消息..."
               rows={1}
               className="flex-1 font-body text-base resize-none outline-none"
-              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px', minHeight: '44px', lineHeight: '1.5' }}
+              style={{ color: 'var(--color-ink)', background: 'transparent', maxHeight: '200px', minHeight: '52px', lineHeight: '1.6' }}
             />
             <button
               onClick={handleSend}
               disabled={!input.trim() || isLoading}
-              className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center transition-all"
+              className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
               style={{
                 background: input.trim() && !isLoading
                   ? 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)'
