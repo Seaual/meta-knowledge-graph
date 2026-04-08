@@ -33,6 +33,104 @@ def get_s2_client():
 
 
 # ============================================================
+# S2 配置
+# ============================================================
+
+class S2ConfigRequest(BaseModel):
+    """S2 配置请求"""
+    api_key: str
+    enabled: bool = True
+
+
+class S2TestRequest(BaseModel):
+    """S2 测试请求"""
+    api_key: str
+
+
+@router.get("/s2/config")
+def get_s2_config():
+    """获取 S2 API 配置"""
+    db = get_db()
+    config = db.get_s2_config()
+
+    if not config or not config.get('api_key'):
+        return {"has_api_key": False, "enabled": False}
+
+    # 返回脱敏的 API key
+    api_key = config.get('api_key', '')
+    masked_key = api_key[:8] + '****' + api_key[-4:] if len(api_key) > 12 else '****'
+
+    return {
+        "has_api_key": True,
+        "enabled": config.get('enabled', True),
+        "masked_key": masked_key
+    }
+
+
+@router.post("/s2/config")
+def save_s2_config(request: S2ConfigRequest):
+    """保存 S2 API 配置"""
+    db = get_db()
+    db.save_s2_config(request.api_key, request.enabled)
+
+    return {
+        "has_api_key": True,
+        "enabled": request.enabled,
+        "masked_key": request.api_key[:8] + '****' + request.api_key[-4:]
+    }
+
+
+@router.post("/s2/test")
+def test_s2_connection(request: S2TestRequest):
+    """测试 S2 API 连接"""
+    try:
+        client = S2Client(api_key=request.api_key)
+        # 尝试一个简单的搜索
+        results = client.search_papers("test", limit=1)
+        return {"success": True, "message": "Semantic Scholar API 连接成功"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"连接失败: {str(e)}")
+
+
+@router.get("/s2/search")
+def search_s2_papers(query: str, limit: int = 20):
+    """搜索 Semantic Scholar 论文"""
+    client = get_s2_client()
+    results = client.search_papers(query, limit=limit)
+    return {"papers": results, "total": len(results)}
+
+
+@router.post("/s2/papers/{doi:path}/enhance")
+def enhance_paper_from_s2(doi: str):
+    """从 S2 增强论文元数据"""
+    db = get_db()
+    client = get_s2_client()
+
+    paper = db.get_paper(doi)
+    if not paper:
+        raise HTTPException(status_code=404, detail="Paper not found")
+
+    # 尝试通过 DOI 查找 S2 论文
+    s2_paper = client.get_paper_by_doi(doi)
+    if not s2_paper:
+        return {"success": False, "message": "Paper not found in Semantic Scholar"}
+
+    # 更新论文信息
+    db.papers.update(doi, {
+        "s2_paper_id": s2_paper.get("paperId"),
+        "s2_doi": s2_paper.get("externalIds", {}).get("DOI"),
+        "citation_count": s2_paper.get("citationCount", 0),
+        "venue": s2_paper.get("venue"),
+        "year": s2_paper.get("year"),
+        "tldr": s2_paper.get("tldr", {}).get("text") if s2_paper.get("tldr") else None,
+        "s2_fields_of_study": json.dumps(s2_paper.get("fieldsOfStudy", [])),
+        "open_access_pdf_url": s2_paper.get("openAccessPdf", {}).get("url"),
+    })
+
+    return {"success": True, "message": "Paper enhanced", "s2_paper_id": s2_paper.get("paperId")}
+
+
+# ============================================================
 # 引用图谱
 # ============================================================
 

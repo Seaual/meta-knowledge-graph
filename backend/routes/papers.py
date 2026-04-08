@@ -104,6 +104,16 @@ def move_paper(
     return {"status": "moved", "doi": doi, "folder_id": request.folder_id}
 
 
+@router.patch("/{doi:path}/folder")
+def move_paper_alias(
+    doi: str,
+    request: MovePaperRequest,
+    service: PaperService = Depends(get_paper_service)
+):
+    """移动论文到文件夹（alias for /move）"""
+    return move_paper(doi, request, service)
+
+
 @router.get("/{doi:path}/concepts")
 def get_paper_concepts(
     doi: str,

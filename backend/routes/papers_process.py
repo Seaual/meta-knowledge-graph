@@ -26,6 +26,16 @@ class ProcessResponse(BaseModel):
     message: str
     concept_tree: Optional[dict] = None
     duration: float = 0
+    concepts_count: int = 0
+
+
+class ProcessSingleResponse(BaseModel):
+    """单个论文处理响应"""
+    success: bool
+    message: str
+    concept_tree: Optional[dict] = None
+    duration: float = 0
+    concepts_count: int = 0
 
 
 class AddFromS2Request(BaseModel):
@@ -66,6 +76,27 @@ def process_paper(
         message=result.get("message", result.get("error", "")),
         concept_tree=None,
         duration=0
+    )
+
+
+@router.post("/process-single", response_model=ProcessSingleResponse)
+def process_single_paper(
+    request: ProcessRequest,
+    service: ProcessService = Depends(get_process_service)
+):
+    """处理单个论文 - 提取概念（与 process 相同，但返回 concepts_count）"""
+    import time
+    start_time = time.time()
+
+    result = service.process_paper(request.doi)
+    duration = time.time() - start_time
+
+    return ProcessSingleResponse(
+        success=result.get("success", False),
+        message=result.get("message", result.get("error", "")),
+        concept_tree=None,
+        duration=duration,
+        concepts_count=result.get("concepts_count", 0)
     )
 
 
