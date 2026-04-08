@@ -5,6 +5,7 @@ import { useState, useRef, useEffect, useCallback, Component, ReactNode } from '
 import { useAgentStore } from '../stores/agentStore'
 import { useConversationStore } from '../stores/conversationStore'
 import { agentApi } from '../lib/api'
+import { sseManager } from '../lib/sse'
 import { getToolLabel } from '../lib/textUtils'
 import { Send, X, Loader2, FileText, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Brain, Wrench } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
@@ -148,6 +149,7 @@ export default function Chat() {
     setToolStatus,
     updateContext,
     addUploadedPapers,
+    setSSEStatus,
   } = useAgentStore()
 
   const {
@@ -209,65 +211,57 @@ export default function Chat() {
     // Add user message to store (and backend)
     await addMessageToStore({ role: 'user', content: userMessage })
     setLoading(true)
-    setToolStatus(null)  // 清空 tool status
+    setToolStatus(null)
+    setSSEStatus('connecting')
 
-    try {
-      // Build history from currentMessages
-      const history = messages.map(m => ({
-        role: m.role,
-        content: m.content,
-        agent: m.agent as 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa' | 'merge' | undefined,
-      }))
+    // Build history from currentMessages
+    const history = messages.map(m => ({
+      role: m.role,
+      content: m.content,
+      agent: m.agent as 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa' | 'merge' | undefined,
+    }))
 
-      let finalResponse = ''
-      let finalAttachments: any[] = []
+    // 使用 SSEManager 启动后台 SSE 连接
+    sseManager.startChatStream(
+      userMessage,
+      contextSummary,
+      history,
+      {
+        onToolStatus: (status) => setToolStatus(status),
+        onResponse: (msg, attachments) => {
+          addMessageToStore({
+            role: 'assistant',
+            content: msg,
+            agent: 'lead',
+            attachments: attachments,
+          }).catch(err => console.error('Failed to save message:', err))
 
-      // 使用 SSE 流式调用
-      await agentApi.chatStreamFetch(userMessage, contextSummary, history, (event) => {
-        if (event.type === 'tool') {
-          // 更新 tool status
-          if (event.status === 'running') {
-            setToolStatus({
-              tool: event.tool || '',
-              label: event.label || getToolLabel(event.tool || ''),
-              status: 'running',
-            })
-          } else if (event.status === 'completed') {
-            setToolStatus(null)
+          // Generate title if first message
+          const { conversations, currentConversationId } = useConversationStore.getState()
+          const currentConv = conversations.find(c => c.id === currentConversationId)
+          if (messages.length === 0 && !currentConv?.title) {
+            const title = userMessage.slice(0, 20).replace(/[？。！.!?]/, '') || '新对话'
+            updateTitle(title).catch(err => console.error('Failed to update title:', err))
+            loadConversations().catch(err => console.error('Failed to load conversations:', err))
           }
-        } else if (event.type === 'response') {
-          finalResponse = event.message || ''
-          finalAttachments = event.attachments || []
-        }
-      })
-
-      // 添加 assistant message
-      await addMessageToStore({
-        role: 'assistant',
-        content: finalResponse,
-        agent: 'lead',
-        attachments: finalAttachments,
-      })
-
-      // Generate title if first message
-      const { conversations, currentConversationId } = useConversationStore.getState()
-      const currentConv = conversations.find(c => c.id === currentConversationId)
-      if (messages.length === 0 && !currentConv?.title) {
-        const title = userMessage.slice(0, 20).replace(/[？。！.!?]/, '') || '新对话'
-        await updateTitle(title)
-        await loadConversations()
+        },
+        onComplete: () => {
+          setLoading(false)
+          setToolStatus(null)
+          setSSEStatus('idle')
+        },
+        onError: (err) => {
+          addMessageToStore({
+            role: 'assistant',
+            content: `抱歉，处理请求时遇到问题：${err}`,
+          }).catch(err => console.error('Failed to save message:', err))
+          setLoading(false)
+          setToolStatus(null)
+          setSSEStatus('error')
+        },
       }
-    } catch (error) {
-      console.error('Chat error:', error)
-      await addMessageToStore({
-        role: 'assistant',
-        content: '抱歉，处理请求时遇到问题，请重试。',
-      })
-    } finally {
-      setLoading(false)
-      setToolStatus(null)
-    }
-  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setToolStatus])
+    )
+  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setToolStatus, setSSEStatus])
 
   // Handle programmatic send from card actions
   const handleCardAction = useCallback((text: string) => {
