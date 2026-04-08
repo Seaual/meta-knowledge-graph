@@ -303,28 +303,40 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     Returns:
         研究点分析结果，包含 LLM 生成的研究点列表
     """
+    print(f"DEBUG analyze_research_points: concept_name={concept_name}")
+
     if not _db:
+        print("DEBUG: 数据库未初始化")
         return {"error": "数据库未初始化"}
 
     concept = _db.get_concept_by_text(concept_name)
+    print(f"DEBUG: 直接匹配结果={concept}")
+
     if not concept:
         all_concepts = _db.get_all_concepts()
         for c in all_concepts:
             if concept_name.lower() in (c.get('text') or '').lower():
                 concept = c
+                print(f"DEBUG: 模糊匹配结果={c.get('text')}")
                 break
 
     if not concept:
+        print(f"DEBUG: 未找到概念「{concept_name}」")
         return {"error": f"未找到概念「{concept_name}」"}
 
     concept_id = concept['id']
+    print(f"DEBUG: concept_id={concept_id}")
 
     # 调用与概念页面相同的研究点分析 API
     try:
         import requests
-        res = requests.get(f"http://localhost:8000/api/concepts/{concept_id}/research-points", timeout=120)
+        url = f"http://localhost:8000/api/concepts/{concept_id}/research-points"
+        print(f"DEBUG: 调用API={url}")
+        res = requests.get(url, timeout=120)
+        print(f"DEBUG: API返回状态码={res.status_code}")
         if res.status_code == 200:
             data = res.json()
+            print(f"DEBUG: 研究点数量={len(data.get('research_points', []))}")
             return {
                 "concept_name": data.get("concept_name", concept.get("text", concept_name)),
                 "research_points": data.get("research_points", []),
@@ -333,6 +345,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
         else:
             return {"error": f"研究点分析失败: HTTP {res.status_code}"}
     except Exception as e:
+        print(f"DEBUG: 异常={e}")
         # Fallback：返回基础概念数据
         papers = _db.get_papers_by_concept(concept_id) or []
         children = _db.get_concept_children(concept_id) or []

@@ -23,7 +23,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { path: '/', icon: <Home className="w-[18px] h-[18px]" />, labelKey: 'home' },
-  { path: '/chat', icon: <MessageSquare className="w-[18px] h-[18px]" />, labelKey: 'chat' },
   { path: '/concepts', icon: <Network className="w-[18px] h-[18px]" />, labelKey: 'concepts' },
   { path: '/papers', icon: <FileText className="w-[18px] h-[18px]" />, labelKey: 'papers' },
   { path: '/settings', icon: <Settings className="w-[18px] h-[18px]" />, labelKey: 'settings' },
@@ -90,10 +89,25 @@ export default function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-2 py-2">
+        {/* 新对话按钮 - 在首页上方 */}
+        {!isCollapsed && (
+          <Link
+            to="/chat"
+            onClick={() => useConversationStore.getState().clearCurrentConversation()}
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg transition-colors mb-2"
+            style={{
+              color: 'var(--color-cream)',
+              background: 'linear-gradient(135deg, var(--color-accent) 0%, var(--color-copper) 100%)',
+            }}
+          >
+            <MessageSquare className="w-[18px] h-[18px]" />
+            <span className="font-body text-sm font-medium">新对话</span>
+          </Link>
+        )}
+
         {navItems.map((item) => {
           const isActive = location.pathname === item.path
           const label = item.labelKey === 'home' ? t.nav.home :
-                       item.labelKey === 'chat' ? 'AI 对话' :
                        item.labelKey === 'concepts' ? t.nav.concepts :
                        item.labelKey === 'papers' ? t.nav.papers :
                        item.labelKey === 'settings' ? '设置' : item.labelKey

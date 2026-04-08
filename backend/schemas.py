@@ -330,6 +330,7 @@ class AgentChatResponse(BaseModel):
     """Response from agent chat endpoint"""
     message: str
     agent: str
+    toolUsed: Optional[str] = None  # 使用的工具名称
     contextUpdate: Optional[dict] = None
     researchSessionId: Optional[str] = None
     conceptData: Optional[ConceptGraphData] = None  # deprecated，向后兼容

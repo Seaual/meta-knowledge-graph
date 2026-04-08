@@ -1,4 +1,5 @@
 // frontend/src/components/ConversationHistory.tsx
+import { useNavigate } from 'react-router-dom'
 import { useConversationStore } from '../stores/conversationStore'
 import { MessageSquare, Trash2 } from 'lucide-react'
 
@@ -7,6 +8,7 @@ interface ConversationHistoryProps {
 }
 
 export default function ConversationHistory({ onSelect }: ConversationHistoryProps) {
+  const navigate = useNavigate()
   const {
     conversations,
     currentConversationId,
@@ -17,6 +19,7 @@ export default function ConversationHistory({ onSelect }: ConversationHistoryPro
 
   const handleSelect = async (id: string) => {
     await switchConversation(id)
+    navigate('/chat')  // 跳转到Chat页面
     onSelect?.()
   }
 

@@ -3,9 +3,12 @@ Agent API routes
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import Dict, Any, Optional, List
+from fastapi.responses import StreamingResponse
+from typing import Dict, Any, Optional, List, AsyncGenerator
 from pydantic import BaseModel
 import sys
+import json
+import asyncio
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -21,6 +24,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from mkg.agent.graph import get_agent_graph, reset_graph
 from mkg.agent.state import AgentState
+from mkg.agent.tools import ALL_TOOLS
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -28,6 +32,23 @@ router = APIRouter(prefix="/api/agent", tags=["agent"])
 _db = None
 _s2_client = None
 _pdf_parser = None
+
+# 工具名称中文映射
+TOOL_LABELS = {
+    "analyze_research_points": "分析研究点",
+    "deep_research": "深入研究",
+    "search_paper": "搜索论文",
+    "get_paper_by_title": "获取论文详情",
+    "read_paper_content": "阅读论文内容",
+    "analyze_citations": "分析引用关系",
+    "get_concept_graph": "获取概念图谱",
+    "recommend_papers": "推荐相关论文",
+}
+
+
+def get_tool_label(tool_name: str) -> str:
+    """获取工具的中文名称"""
+    return TOOL_LABELS.get(tool_name, tool_name)
 
 
 class DeepResearchStartRequest(BaseModel):
@@ -136,6 +157,7 @@ def chat(request: AgentChatRequest):
     return AgentChatResponse(
         message=result.get("response", "抱歉，处理请求时遇到问题。"),
         agent=result.get("agent_used", "lead"),
+        toolUsed=result.get("tool_used"),
         conceptData=concept_data,
         attachments=attachments,
     )
@@ -164,6 +186,84 @@ def start_deep_research(request: DeepResearchStartRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/chat/stream")
+async def chat_stream(request: AgentChatRequest):
+    """
+    处理用户对话 - SSE 流式响应版本
+
+    推送 tool 状态，让前端显示动态进度
+    """
+    from mkg.agent.nodes.lead import lead_node_stream
+
+    db = get_db()
+    init_llm_from_db(db)
+
+    # 检查 LLM 配置
+    config = db.get_llm_config()
+    if not config or not config.get('providers'):
+        raise HTTPException(
+            status_code=500,
+            detail="LLM 未配置，请先在设置中配置 API Key"
+        )
+
+    # 构建消息历史
+    messages = []
+    for m in request.history:
+        if m.role == "user":
+            messages.append(HumanMessage(content=m.content))
+        else:
+            messages.append(AIMessage(content=m.content))
+
+    messages.append(HumanMessage(content=request.message))
+
+    # 构建初始状态
+    initial_state: AgentState = {
+        "messages": messages,
+        "current_target": request.context.currentTarget if request.context else None,
+        "uploaded_papers": request.context.uploadedPapers if request.context else [],
+        "intent": "lead",
+        "target_name": None,
+        "response": "",
+        "agent_used": "lead",
+        "needs_summary": False,
+        "attachments": [],
+    }
+
+    async def generate():
+        """SSE 生成器"""
+        try:
+            # 推送开始状态
+            yield f"data: {json.dumps({'type': 'status', 'status': 'thinking', 'message': '正在思考...'})}\n\n"
+
+            # 调用流式 lead_node
+            for event in lead_node_stream(initial_state):
+                if event.get("type") == "tool_call":
+                    # 推送工具调用状态
+                    tool_name = event.get("tool_name", "")
+                    yield f"data: {json.dumps({'type': 'tool', 'tool': tool_name, 'label': get_tool_label(tool_name), 'status': 'running'})}\n\n"
+                elif event.get("type") == "tool_result":
+                    # 推送工具完成状态
+                    yield f"data: {json.dumps({'type': 'tool', 'status': 'completed'})}\n\n"
+                elif event.get("type") == "response":
+                    # 推送最终响应
+                    yield f"data: {json.dumps({'type': 'response', 'message': event.get('content', ''), 'attachments': event.get('attachments', [])})}\n\n"
+
+            # 推送完成状态
+            yield f"data: {json.dumps({'type': 'status', 'status': 'completed'})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+        }
+    )
 
 
 @router.post("/reset")

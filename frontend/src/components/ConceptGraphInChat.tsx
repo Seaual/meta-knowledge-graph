@@ -2,7 +2,7 @@
 // 聊天中嵌入的概念图谱组件 - 与概念页面完全一致
 // 不包含右上角功能按钮和节点点击功能面板
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import ForceGraph from 'force-graph'
 import { forceManyBody, forceCollide, forceLink, forceCenter } from 'd3-force'
 import { graphApi, foldersApi } from '../lib/api'
@@ -83,7 +83,7 @@ interface Props {
   onNodeClick?: (node: {id: string; name: string; category?: string; paper_count: number}) => void
 }
 
-export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
+export default function ConceptGraphInChat({ data: _data, onNodeClick }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const graphRef = useRef<any>(null)
   const [error, setError] = useState<string | null>(null)
@@ -198,7 +198,6 @@ export default function ConceptGraphInChat({ data, onNodeClick }: Props) {
       .nodeId('id')
       .nodeLabel((node: any) => node.name)
       .nodeVal((node: any) => {
-        const baseSize = CATEGORY_SIZES[node.category || 'method'] || 10
         return 1 + Math.sqrt(node.paperCount || 0) * 0.3
       })
       .nodeCanvasObject((node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {

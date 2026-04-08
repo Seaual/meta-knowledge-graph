@@ -1,8 +1,8 @@
 // Settings.tsx - Settings Page
 import { useState, useEffect } from 'react'
 import { useTranslation } from '../i18n'
-import { foldersApi } from '../lib/api'
-import { Database, Key, Globe, Folder, Save, Check } from 'lucide-react'
+import { foldersApi, llmApi } from '../lib/api'
+import { Database, Key, Globe, Folder, Save, Check, Zap, Loader2 } from 'lucide-react'
 
 interface LLMConfig {
   mode: string
@@ -22,6 +22,8 @@ export default function Settings() {
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [testing, setTesting] = useState(false)
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
 
   // Load config
   useEffect(() => {
@@ -30,10 +32,23 @@ export default function Settings() {
         const res = await fetch('/api/llm/config')
         if (res.ok) {
           const data = await res.json()
-          setLlmConfig(data)
+          // 只保留custom provider
+          const customProvider = data.providers?.find((p: any) => p.provider === 'custom') || {
+            provider: 'custom',
+            api_key: '',
+            base_url: '',
+            model: '',
+            is_active: true,
+          }
+          setLlmConfig({ mode: 'custom', providers: [customProvider] })
         }
       } catch (e) {
         console.error('Failed to load LLM config:', e)
+        // 初始化默认custom配置
+        setLlmConfig({
+          mode: 'custom',
+          providers: [{ provider: 'custom', api_key: '', base_url: '', model: '', is_active: true }]
+        })
       }
     }
 
@@ -73,20 +88,37 @@ export default function Settings() {
     }
   }
 
+  // Test connection
+  const handleTestConnection = async () => {
+    if (!llmConfig?.providers[0]?.api_key) return
+
+    setTesting(true)
+    setTestResult(null)
+    try {
+      const provider = llmConfig.providers[0]
+      const res = await llmApi.test({
+        provider: 'custom',
+        api_key: provider.api_key,
+        base_url: provider.base_url,
+        model: provider.model,
+      })
+      if (res.data?.success) {
+        setTestResult({ success: true, message: `连接成功！模型: ${res.data.model || provider.model || 'unknown'}` })
+      } else {
+        setTestResult({ success: false, message: res.data?.message || '连接失败' })
+      }
+    } catch (e: any) {
+      setTestResult({ success: false, message: e.response?.data?.detail || e.message || '连接失败' })
+    } finally {
+      setTesting(false)
+    }
+  }
+
   // Update provider field
-  const updateProvider = (index: number, field: string, value: string | boolean) => {
+  const updateProvider = (field: string, value: string | boolean) => {
     if (!llmConfig) return
 
-    const newProviders = [...llmConfig.providers]
-    newProviders[index] = { ...newProviders[index], [field]: value }
-
-    // If setting active, deactivate others
-    if (field === 'is_active' && value === true) {
-      newProviders.forEach((p, i) => {
-        if (i !== index) p.is_active = false
-      })
-    }
-
+    const newProviders = [{ ...llmConfig.providers[0], [field]: value }]
     setLlmConfig({ ...llmConfig, providers: newProviders })
   }
 
@@ -112,68 +144,24 @@ export default function Settings() {
             </h2>
           </div>
 
-          {llmConfig?.providers?.map((provider, index) => (
+          {llmConfig?.providers?.[0] && (
             <div
-              key={index}
               className="p-5 rounded-xl mb-4"
               style={{
                 background: 'var(--color-vellum)',
                 border: '1px solid rgba(184, 134, 11, 0.1)',
               }}
             >
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <select
-                    value={provider.provider}
-                    onChange={(e) => updateProvider(index, 'provider', e.target.value)}
-                    className="px-3 py-2 rounded-lg font-body text-sm"
-                    style={{
-                      background: 'var(--color-paper)',
-                      border: '1px solid rgba(184, 134, 11, 0.12)',
-                      color: 'var(--color-ink)',
-                    }}
-                  >
-                    <option value="openai">OpenAI</option>
-                    <option value="deepseek">DeepSeek</option>
-                    <option value="custom">Custom</option>
-                  </select>
-
-                  {provider.is_active && (
-                    <span
-                      className="px-2 py-0.5 rounded text-xs font-mono"
-                      style={{
-                        background: 'rgba(45, 90, 39, 0.1)',
-                        color: '#2d5a27',
-                      }}
-                    >
-                      当前使用
-                    </span>
-                  )}
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={provider.is_active}
-                    onChange={(e) => updateProvider(index, 'is_active', e.target.checked)}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="font-body text-sm" style={{ color: 'var(--color-muted)' }}>
-                    启用
-                  </span>
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block font-mono text-xs uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-faint)' }}>
                     Model
                   </label>
                   <input
                     type="text"
-                    value={provider.model}
-                    onChange={(e) => updateProvider(index, 'model', e.target.value)}
-                    placeholder="gpt-4o / deepseek-chat"
+                    value={llmConfig.providers[0].model}
+                    onChange={(e) => updateProvider('model', e.target.value)}
+                    placeholder="gpt-4o / claude-3-sonnet"
                     className="w-full px-3 py-2 rounded-lg font-mono text-sm"
                     style={{
                       background: 'var(--color-paper)',
@@ -189,8 +177,8 @@ export default function Settings() {
                   </label>
                   <input
                     type="password"
-                    value={provider.api_key}
-                    onChange={(e) => updateProvider(index, 'api_key', e.target.value)}
+                    value={llmConfig.providers[0].api_key}
+                    onChange={(e) => updateProvider('api_key', e.target.value)}
                     placeholder="sk-..."
                     className="w-full px-3 py-2 rounded-lg font-mono text-sm"
                     style={{
@@ -203,12 +191,12 @@ export default function Settings() {
 
                 <div className="col-span-2">
                   <label className="block font-mono text-xs uppercase tracking-wider mb-1.5" style={{ color: 'var(--color-faint)' }}>
-                    Base URL (可选)
+                    Base URL
                   </label>
                   <input
                     type="text"
-                    value={provider.base_url}
-                    onChange={(e) => updateProvider(index, 'base_url', e.target.value)}
+                    value={llmConfig.providers[0].base_url}
+                    onChange={(e) => updateProvider('base_url', e.target.value)}
                     placeholder="https://api.openai.com/v1"
                     className="w-full px-3 py-2 rounded-lg font-mono text-sm"
                     style={{
@@ -219,8 +207,48 @@ export default function Settings() {
                   />
                 </div>
               </div>
+
+              {/* Test Connection Button */}
+              <button
+                onClick={handleTestConnection}
+                disabled={testing || !llmConfig.providers[0].api_key}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg font-body text-sm transition-colors mr-3"
+                style={{
+                  background: testing || !llmConfig.providers[0].api_key
+                    ? 'var(--color-overlay)'
+                    : 'var(--color-paper)',
+                  border: '1px solid rgba(184, 134, 11, 0.12)',
+                  color: testing || !llmConfig.providers[0].api_key
+                    ? 'var(--color-muted)'
+                    : 'var(--color-accent)',
+                }}
+              >
+                {testing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    测试中...
+                  </>
+                ) : (
+                  <>
+                    <Zap className="w-4 h-4" />
+                    测试连接
+                  </>
+                )}
+              </button>
+
+              {/* Test Result */}
+              {testResult && (
+                <span
+                  className="font-mono text-sm"
+                  style={{
+                    color: testResult.success ? '#2d5a27' : '#b43c3c',
+                  }}
+                >
+                  {testResult.message}
+                </span>
+              )}
             </div>
-          ))}
+          )}
 
           <button
             onClick={handleSaveConfig}

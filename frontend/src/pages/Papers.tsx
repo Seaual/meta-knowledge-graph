@@ -94,8 +94,6 @@ export default function Papers() {
   const loadFolders = () => {
     foldersApi.list().then(res => {
       setFolders(res.data)
-      // 计算总论文数：累加所有文件夹的 paper_count + 无文件夹的论文
-      const folderTotal = res.data.reduce((sum: number, f: FolderItem) => sum + f.paper_count, 0)
       // 从 graph stats 获取真实的总数
       papersApi.list().then(papersRes => {
         setTotalPaperCount(papersRes.data.length)

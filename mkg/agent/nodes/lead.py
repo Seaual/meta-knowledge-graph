@@ -21,6 +21,7 @@ TOOL_ATTACHMENT_MAP = {
     "get_concept_graph": "concept_graph",
     "analyze_citations": "citation_analysis",
     "recommend_papers": "recommendation",
+    "deep_research": "deep_research",
 }
 
 
@@ -80,6 +81,20 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 - 如果用户问题不需要工具，直接回答即可。
 - 工具调用要精确匹配用户意图，不要"顺便"调用其他工具。
 
+【回复原则 - 非常重要】
+- 调用工具后，数据会自动以卡片形式展示给用户
+- 你只需要给出简短的引导性回复（1-2句话），不要重复数据内容
+- 例如：调用 analyze_research_points 后，只需说"我分析了这个概念的研究点，请查看上方卡片"
+- 例如：调用 search_paper 后，只需说"找到了相关论文，请查看上方列表"
+
+【思考过程】
+在回复用户前，你可以先进行内部思考，格式如下：
+<think>
+这里写你的思考过程、分析、推理...
+</think>
+
+思考过程会以折叠形式展示给用户，用户可以选择是否查看。
+
 【工具选择规则】
 
 用户说「有哪些论文」「搜索论文」→ 用 search_paper
@@ -94,6 +109,7 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 - 禁止在问「图谱」时同时调用 analyze_research_points
 - 禁止在问「论文」时同时调用 get_concept_graph
 - 简单问答（如"你好"、"什么是XX"）不要调用任何工具
+- 禁止在回复中重复工具返回的数据内容（数据已通过卡片展示）
 
 【特别注意】
 - 「查看...的研究点」要用 analyze_research_points，不要用 get_concept_graph！
@@ -173,12 +189,14 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     concept_data = None
     attachments: List[Dict[str, Any]] = []
     response_content = extract_text_content(response.content)
+    tool_used = None  # 记录使用的工具
 
     # 只处理一轮工具调用（LLM 可能会多次迭代，但我们只执行一次）
     if response.tool_calls:
         tool_call = response.tool_calls[0]  # 只取第一个
         tool_name = tool_call["name"]
         tool_args = tool_call["args"]
+        tool_used = tool_name  # 记录工具名称
 
         # 查找并执行工具
         tool_messages = []
@@ -218,8 +236,103 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
     return {
         "response": response_content,
         "agent_used": "lead",
+        "tool_used": tool_used,
         "needs_summary": False,
         "messages": [AIMessage(content=response_content)],
         "concept_data": concept_data,
         "attachments": attachments,
+    }
+
+
+def lead_node_stream(state: AgentState):
+    """
+    Lead Node 流式版本 - 用于 SSE 响应
+
+    使用 generator 推送中间状态
+    """
+    llm = get_llm_or_raise()
+    tools = legacy_tools.ALL_TOOLS
+    llm_with_tools = llm.bind_tools(tools)
+
+    # 构建消息
+    context_info = build_context_info(state)
+    system_prompt = LEAD_SYSTEM_PROMPT.format(context_info=context_info)
+    messages = [SystemMessage(content=system_prompt)]
+    messages.extend(state.get("messages", []))
+
+    # 获取最后一条用户消息
+    last_user_msg = ""
+    for msg in reversed(state.get("messages", [])):
+        if hasattr(msg, 'content') and not hasattr(msg, 'type') or (hasattr(msg, 'type') and getattr(msg, 'type', '') != 'ai'):
+            last_user_msg = msg.content if hasattr(msg, 'content') else str(msg)
+            break
+
+    # 第一次 LLM 调用
+    response = llm_with_tools.invoke(messages)
+
+    # 工具选择纠正逻辑
+    if response.tool_calls:
+        for i, tc in enumerate(response.tool_calls):
+            tool_name = tc["name"]
+            if tool_name == "get_concept_graph" and last_user_msg:
+                research_keywords = ["研究点", "研究方向", "研究机会", "分析.*研究"]
+                if any(re.search(kw, last_user_msg) for kw in research_keywords):
+                    response.tool_calls[i]["name"] = "analyze_research_points"
+                    if "concept_name" not in response.tool_calls[i]["args"]:
+                        response.tool_calls[i]["args"]["concept_name"] = last_user_msg.replace("研究点", "").replace("研究方向", "").replace("分析", "").strip()
+
+    # 处理 tool calls
+    concept_data = None
+    attachments: List[Dict[str, Any]] = []
+    response_content = extract_text_content(response.content)
+
+    if response.tool_calls:
+        tool_call = response.tool_calls[0]
+        tool_name = tool_call["name"]
+        tool_args = tool_call["args"]
+
+        # 推送工具调用状态
+        yield {"type": "tool_call", "tool_name": tool_name}
+
+        # 执行工具
+        tool_messages = []
+        for tool_item in tools:
+            if tool_item.name == tool_name:
+                try:
+                    result = tool_item.invoke(tool_args)
+
+                    attachment = make_attachment(tool_name, result)
+                    if attachment:
+                        attachments.append(attachment)
+
+                    if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
+                        concept_data = result
+
+                    summary = summarize_for_llm(tool_name, result)
+                    tool_messages.append(ToolMessage(
+                        content=summary,
+                        tool_call_id=tool_call["id"]
+                    ))
+                except Exception as e:
+                    tool_messages.append(ToolMessage(
+                        content=f"错误: {str(e)}",
+                        tool_call_id=tool_call["id"]
+                    ))
+                break
+
+        # 推送工具完成状态
+        yield {"type": "tool_result"}
+
+        # 第二次 LLM 调用获取最终响应
+        messages.append(response)
+        messages.extend(tool_messages)
+        response = llm_with_tools.invoke(messages)
+        response_content = extract_text_content(response.content)
+
+    # 推送最终响应
+    yield {
+        "type": "response",
+        "content": response_content,
+        "attachments": attachments,
+        "concept_data": concept_data,
     }

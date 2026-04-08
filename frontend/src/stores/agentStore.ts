@@ -44,6 +44,13 @@ export interface Message {
   timestamp: number
 }
 
+// Tool Status for SSE streaming
+export interface ToolStatus {
+  tool: string       // 工具名称 (英文)
+  label: string      // 工具名称 (中文)
+  status: 'idle' | 'running' | 'completed'
+}
+
 interface AgentState {
   // UI State
   isOpen: boolean
@@ -55,6 +62,9 @@ interface AgentState {
   currentAgent: 'lead' | 'citation' | 'research' | 'deep_research' | 'merge' | 'paper_qa'
   contextSummary: ContextSummary
   isLoading: boolean
+
+  // Tool Status (SSE streaming)
+  toolStatus: ToolStatus | null
 
   // Deep Research State
   researchSessionId?: string
@@ -73,6 +83,9 @@ interface AgentState {
   setCurrentAgent: (agent: AgentState['currentAgent']) => void
   updateContext: (ctx: Partial<ContextSummary>) => void
   setLoading: (loading: boolean) => void
+
+  // Tool Status Actions
+  setToolStatus: (status: ToolStatus | null) => void
 
   addUploadedPapers: (papers: Array<{ doi: string; title: string }>) => void
   clearUploadedPapers: () => void
@@ -100,6 +113,9 @@ export const useAgentStore = create<AgentState>((set) => ({
     lastActiveAgent: 'lead',
   },
   isLoading: false,
+
+  // Tool Status
+  toolStatus: null,
 
   // Deep Research State
   researchSessionId: undefined,
@@ -133,6 +149,9 @@ export const useAgentStore = create<AgentState>((set) => ({
   })),
 
   setLoading: (loading) => set({ isLoading: loading }),
+
+  // Tool Status
+  setToolStatus: (status) => set({ toolStatus: status }),
 
   addUploadedPapers: (papers) => set((state) => ({
     contextSummary: {

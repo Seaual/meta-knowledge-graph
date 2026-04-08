@@ -1,6 +1,7 @@
 // frontend/src/components/cards/ResearchPointsCard.tsx
 import { useState } from 'react'
 import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
+import { removeThinkingTags } from '../../lib/textUtils'
 
 interface ResearchPoint {
   title: string
@@ -15,9 +16,18 @@ interface ResearchPoint {
 }
 
 interface AnalysisContext {
-  ancestors?: number
-  descendants?: number
-  edge_nodes?: number
+  concept?: {
+    id: string
+    name?: string
+    text?: string
+    category?: string
+    paper_count?: number
+  }
+  ancestors?: Array<{ id: string; name?: string; text?: string }>
+  descendants?: Array<{ id: string; name?: string; text?: string; depth?: number }>
+  siblings?: Array<{ id: string; name?: string; text?: string }>
+  edge_nodes?: Array<{ id: string; name?: string; text?: string }>
+  related_papers?: Array<{ title: string; abstract?: string; keywords?: string[] }>
 }
 
 interface Props {
@@ -99,7 +109,7 @@ function ResearchPointItem({
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-display text-sm font-medium text-academic-sepia truncate">
-              {point.title}
+              {removeThinkingTags(point.title)}
             </span>
             {/* Expand/collapse icon */}
             {isExpanded ? (
@@ -112,7 +122,7 @@ function ResearchPointItem({
           {/* Hypothesis preview when collapsed */}
           {!isExpanded && point.hypothesis && (
             <p className="mt-1 text-xs text-academic-muted line-clamp-1 italic">
-              {point.hypothesis}
+              {removeThinkingTags(point.hypothesis)}
             </p>
           )}
         </div>
@@ -149,7 +159,7 @@ function ResearchPointItem({
           {/* Full description */}
           <div className="mb-3">
             <p className="font-body text-sm text-academic-ink leading-relaxed">
-              {point.description}
+              {removeThinkingTags(point.description)}
             </p>
           </div>
 
@@ -158,7 +168,7 @@ function ResearchPointItem({
             <div className="mb-3 p-2.5 rounded-soft bg-academic-vellum/50 border border-academic-border/50">
               <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">假设</span>
               <p className="mt-1 font-quote text-sm text-academic-sepia italic">
-                {point.hypothesis}
+                {removeThinkingTags(point.hypothesis)}
               </p>
             </div>
           )}
@@ -184,7 +194,7 @@ function ResearchPointItem({
             <div className="mb-3">
               <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">推理依据</span>
               <p className="mt-1 font-body text-sm text-academic-ink/80">
-                {point.rationale}
+                {removeThinkingTags(point.rationale)}
               </p>
             </div>
           )}
@@ -204,7 +214,7 @@ function ResearchPointItem({
                       border: '1px solid rgba(154, 107, 60, 0.15)',
                     }}
                   >
-                    {concept}
+                    {removeThinkingTags(concept)}
                   </span>
                 ))}
               </div>
@@ -232,6 +242,57 @@ function ResearchPointItem({
 export default function ResearchPointsCard({ data, onAction }: Props) {
   const [expandedPoints, setExpandedPoints] = useState<Set<number>>(new Set())
 
+  // 调试日志
+  console.log('ResearchPointsCard data:', data)
+
+  // 防御性检查
+  if (!data) {
+    return (
+      <div
+        className="my-2 p-4 rounded-xl"
+        style={{
+          background: 'rgba(184, 134, 11, 0.04)',
+          border: '1px solid rgba(184, 134, 11, 0.2)',
+          color: 'var(--color-ink-secondary)',
+        }}
+      >
+        <p className="font-body text-sm">研究点数据为空</p>
+      </div>
+    )
+  }
+
+  if (!data.research_points) {
+    return (
+      <div
+        className="my-2 p-4 rounded-xl"
+        style={{
+          background: 'rgba(184, 134, 11, 0.04)',
+          border: '1px solid rgba(184, 134, 11, 0.2)',
+          color: 'var(--color-ink-secondary)',
+        }}
+      >
+        <p className="font-body text-sm">研究点数据格式错误：缺少 research_points 字段</p>
+        <p className="font-mono text-xs mt-2 opacity-70">收到的数据: {JSON.stringify(Object.keys(data))}</p>
+      </div>
+    )
+  }
+
+  if (!Array.isArray(data.research_points)) {
+    return (
+      <div
+        className="my-2 p-4 rounded-xl"
+        style={{
+          background: 'rgba(180, 60, 60, 0.05)',
+          border: '1px solid rgba(180, 60, 60, 0.2)',
+          color: '#8b4040',
+        }}
+      >
+        <p className="font-body text-sm">research_points 不是数组</p>
+        <p className="font-mono text-xs mt-2 opacity-70">类型: {typeof data.research_points}</p>
+      </div>
+    )
+  }
+
   const togglePoint = (index: number) => {
     setExpandedPoints((prev) => {
       const newSet = new Set(prev)
@@ -245,6 +306,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
   }
 
   const expandAll = () => {
+    if (!data?.research_points) return
     setExpandedPoints(new Set(data.research_points.map((_, i) => i)))
   }
 
@@ -252,12 +314,13 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
     setExpandedPoints(new Set())
   }
 
-  const allExpanded = expandedPoints.size === data.research_points.length
+  const allExpanded = data.research_points && expandedPoints.size === data.research_points.length
   const hasContext = data.analysis_context && (
     data.analysis_context.ancestors ||
     data.analysis_context.descendants ||
     data.analysis_context.edge_nodes
   )
+  const conceptName = data.concept_name || '未命名概念'
 
   return (
     <div
@@ -278,7 +341,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
         <div className="flex items-start justify-between">
           <div>
             <h3 className="font-display text-base font-medium text-academic-sepia">
-              {data.concept_name}
+              {conceptName}
             </h3>
             <p className="mt-1 text-xs text-academic-muted font-mono">
               {data.research_points.length} 个研究点
@@ -301,7 +364,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
         {/* Analysis context stats */}
         {hasContext && (
           <div className="mt-3 flex items-center gap-4">
-            {data.analysis_context!.ancestors !== undefined && (
+            {data.analysis_context!.ancestors && data.analysis_context!.ancestors.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-academic-muted">上游概念</span>
                 <span
@@ -311,11 +374,11 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
                     color: '#6b4423',
                   }}
                 >
-                  {data.analysis_context!.ancestors}
+                  {data.analysis_context!.ancestors!.length}
                 </span>
               </div>
             )}
-            {data.analysis_context!.descendants !== undefined && (
+            {data.analysis_context!.descendants && data.analysis_context!.descendants.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-academic-muted">下游概念</span>
                 <span
@@ -325,11 +388,11 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
                     color: '#b8860b',
                   }}
                 >
-                  {data.analysis_context!.descendants}
+                  {data.analysis_context!.descendants!.length}
                 </span>
               </div>
             )}
-            {data.analysis_context!.edge_nodes !== undefined && (
+            {data.analysis_context!.edge_nodes && data.analysis_context!.edge_nodes.length > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="text-xs text-academic-muted">边缘节点</span>
                 <span
@@ -339,7 +402,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
                     color: '#9a6b3c',
                   }}
                 >
-                  {data.analysis_context!.edge_nodes}
+                  {data.analysis_context!.edge_nodes!.length}
                 </span>
               </div>
             )}

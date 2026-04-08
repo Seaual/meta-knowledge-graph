@@ -1,16 +1,124 @@
 // Chat.tsx - LLM Conversation Page
 // 墨迹书房风格 - Ink & Study Design
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, Component, ReactNode } from 'react'
 import { useAgentStore } from '../stores/agentStore'
 import { useConversationStore } from '../stores/conversationStore'
 import { agentApi } from '../lib/api'
-import { Send, X, Loader2, FileText, Sparkles } from 'lucide-react'
+import { getToolLabel } from '../lib/textUtils'
+import { Send, X, Loader2, FileText, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Brain, Wrench } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
 import ConceptGraphInChat from '../components/ConceptGraphInChat'
 import ChatAttachments from '../components/ChatAttachments'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+
+// 解析消息中的思考过程
+function parseThinkingContent(content: string): { thinking: string | null; response: string } {
+  // 匹配 <think>...</think> 或 🤔... 格式
+  const thinkMatch = content.match(/<think>([\s\S]*?)<\/think>/)
+  const emojiMatch = content.match(/🤔\s*([\s\S]*?)(?=\n\n|\n[^\s]|$)/)
+
+  if (thinkMatch) {
+    return {
+      thinking: thinkMatch[1].trim(),
+      response: content.replace(/<think>[\s\S]*?<\/think>/, '').trim()
+    }
+  }
+
+  if (emojiMatch) {
+    return {
+      thinking: emojiMatch[1].trim(),
+      response: content.replace(/🤔\s*[\s\S]*?(?=\n\n|\n[^#*\-])/gm, '').trim()
+    }
+  }
+
+  return { thinking: null, response: content }
+}
+
+// 可折叠的思考组件
+function ThinkingBlock({ content }: { content: string }) {
+  const [expanded, setExpanded] = useState(false)
+
+  return (
+    <div
+      className="mb-3 rounded-lg overflow-hidden"
+      style={{
+        background: 'rgba(139, 69, 19, 0.05)',
+        border: '1px solid rgba(139, 69, 19, 0.15)',
+      }}
+    >
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="w-full px-3 py-2 flex items-center gap-2 text-sm transition-colors hover:bg-amber/5"
+        style={{ color: 'var(--color-ink-secondary)' }}
+      >
+        <Brain className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
+        <span className="font-body">思考过程</span>
+        {expanded ? (
+          <ChevronUp className="w-4 h-4 ml-auto" />
+        ) : (
+          <ChevronDown className="w-4 h-4 ml-auto" />
+        )}
+      </button>
+      {expanded && (
+        <div
+          className="px-3 py-2 text-sm border-t"
+          style={{
+            borderColor: 'rgba(139, 69, 19, 0.1)',
+            color: 'var(--color-ink-secondary)',
+          }}
+        >
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// 错误边界组件
+class ChatErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: string }> {
+  state = { hasError: false, error: '' }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="h-full flex items-center justify-center p-8">
+          <div
+            className="max-w-md p-6 rounded-xl text-center"
+            style={{
+              background: 'rgba(180, 60, 60, 0.05)',
+              border: '1px solid rgba(180, 60, 60, 0.2)',
+            }}
+          >
+            <AlertTriangle className="w-12 h-12 mx-auto mb-4" style={{ color: '#8b4040' }} />
+            <h2 className="font-display text-lg mb-2" style={{ color: '#8b4040' }}>
+              渲染出错
+            </h2>
+            <p className="font-body text-sm mb-4" style={{ color: 'var(--color-ink-secondary)' }}>
+              {this.state.error || '页面渲染时发生错误'}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-cream)',
+              }}
+            >
+              刷新页面
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // Agent 徽章配色 - 朱砂印章风格
 const AGENT_COLORS: Record<string, string> = {
@@ -34,9 +142,10 @@ const AGENT_LABELS: Record<string, string> = {
 export default function Chat() {
   const {
     isLoading,
+    toolStatus,
     contextSummary,
     setLoading,
-    setCurrentAgent,
+    setToolStatus,
     updateContext,
     addUploadedPapers,
   } = useAgentStore()
@@ -44,30 +153,26 @@ export default function Chat() {
   const {
     currentConversationId,
     currentMessages: messages,
-    isLoading: isConvLoading,
     addMessage: addMessageToStore,
     updateTitle,
     loadConversations,
     createConversation,
-    switchConversation,
-    conversations,
   } = useConversationStore()
 
-  // Load conversations on mount, but don't create a new one
+  // Load conversations on mount if not already selected
   useEffect(() => {
-    const loadExistingConversations = async () => {
+    const initConversation = async () => {
+      // 如果已经有选中的对话，不需要重新加载
+      if (currentConversationId) return
+
       await loadConversations()
-      // Switch to most recent conversation if exists
-      const { conversations } = useConversationStore.getState()
-      if (conversations.length > 0) {
-        await switchConversation(conversations[0].id)
-      }
+      // 如果有对话历史但不切换，保持空状态等待用户选择
     }
 
-    loadExistingConversations().catch(err => {
+    initConversation().catch(err => {
       console.error('Failed to load conversations:', err)
     })
-  }, []) // Only run once on mount
+  }, [currentConversationId, loadConversations])
 
   const [input, setInput] = useState('')
   const [isUploading, setIsUploading] = useState(false)
@@ -104,34 +209,50 @@ export default function Chat() {
     // Add user message to store (and backend)
     await addMessageToStore({ role: 'user', content: userMessage })
     setLoading(true)
+    setToolStatus(null)  // 清空 tool status
 
     try {
-      // Build history from currentMessages (excluding the message we just added)
+      // Build history from currentMessages
       const history = messages.map(m => ({
         role: m.role,
         content: m.content,
-        agent: m.agent,
+        agent: m.agent as 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa' | 'merge' | undefined,
       }))
 
-      const response = await agentApi.chat(userMessage, contextSummary, history)
+      let finalResponse = ''
+      let finalAttachments: any[] = []
 
-      if (response.agent) {
-        setCurrentAgent(response.agent as any)
-      }
-
-      // Add assistant message
-      await addMessageToStore({
-        role: 'assistant',
-        content: response.message,
-        agent: response.agent as any,
-        attachments: response.attachments,
+      // 使用 SSE 流式调用
+      await agentApi.chatStreamFetch(userMessage, contextSummary, history, (event) => {
+        if (event.type === 'tool') {
+          // 更新 tool status
+          if (event.status === 'running') {
+            setToolStatus({
+              tool: event.tool || '',
+              label: event.label || getToolLabel(event.tool || ''),
+              status: 'running',
+            })
+          } else if (event.status === 'completed') {
+            setToolStatus(null)
+          }
+        } else if (event.type === 'response') {
+          finalResponse = event.message || ''
+          finalAttachments = event.attachments || []
+        }
       })
 
-      // Generate title if first message and no title exists
+      // 添加 assistant message
+      await addMessageToStore({
+        role: 'assistant',
+        content: finalResponse,
+        agent: 'lead',
+        attachments: finalAttachments,
+      })
+
+      // Generate title if first message
       const { conversations, currentConversationId } = useConversationStore.getState()
       const currentConv = conversations.find(c => c.id === currentConversationId)
       if (messages.length === 0 && !currentConv?.title) {
-        // Generate title from first user message (simple: first 20 chars or until first punctuation)
         const title = userMessage.slice(0, 20).replace(/[？。！.!?]/, '') || '新对话'
         await updateTitle(title)
         await loadConversations()
@@ -144,8 +265,9 @@ export default function Chat() {
       })
     } finally {
       setLoading(false)
+      setToolStatus(null)
     }
-  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setCurrentAgent])
+  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setToolStatus])
 
   // Handle programmatic send from card actions
   const handleCardAction = useCallback((text: string) => {
@@ -254,6 +376,7 @@ export default function Chat() {
   const currentTarget = contextSummary.currentTarget
 
   return (
+    <ChatErrorBoundary>
     <div className="chat-container h-full flex flex-col relative">
       {/* Drag upload zone */}
       <DragUploadZone
@@ -341,8 +464,8 @@ export default function Chat() {
                 key={msg.id}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[80%] ${msg.role === 'user' ? 'order-1' : ''}`}>
-                  {msg.role === 'assistant' && msg.agent && (
+                <div className={msg.role === 'user' ? 'max-w-[70%] order-1' : 'w-[85%] max-w-[800px]'}>
+                  {msg.role === 'assistant' && msg.agent && msg.agent !== 'lead' && (
                     <div className="flex items-center gap-2 mb-2">
                       <span
                         className="agent-badge"
@@ -378,9 +501,22 @@ export default function Chat() {
                     }}
                   >
                     <div style={{ color: '#2c1810' }}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {msg.content}
-                      </ReactMarkdown>
+                      {msg.role === 'assistant' && (() => {
+                        const { thinking, response } = parseThinkingContent(msg.content)
+                        return (
+                          <>
+                            {thinking && <ThinkingBlock content={thinking} />}
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {response}
+                            </ReactMarkdown>
+                          </>
+                        )
+                      })()}
+                      {msg.role === 'user' && (
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -388,18 +524,34 @@ export default function Chat() {
             ))
           )}
 
-          {/* Loading indicator - 墨水滴落动画 */}
+          {/* Loading indicator - 简洁加载动画 + Tool Status */}
           {isLoading && (
             <div className="flex justify-start">
               <div
-                className="chat-bubble-assistant px-4 py-3"
-                style={{ background: 'var(--color-surface)' }}
+                className="px-4 py-3"
+                style={{
+                  background: '#f5f0e8',
+                  borderRadius: '16px',
+                  border: '1px solid #d4c4b0',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
+                }}
               >
-                <div className="typing-indicator-ink">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
+                {toolStatus && toolStatus.status === 'running' ? (
+                  <div className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
+                    <span className="font-body text-sm" style={{ color: 'var(--color-ink-secondary)' }}>
+                      正在调用：{toolStatus.label}
+                    </span>
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-accent)' }} />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-accent)' }} />
+                    <span className="font-body text-sm" style={{ color: 'var(--color-ink-secondary)' }}>
+                      思考中...
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -484,5 +636,6 @@ export default function Chat() {
         </div>
       </div>
     </div>
+    </ChatErrorBoundary>
   )
 }

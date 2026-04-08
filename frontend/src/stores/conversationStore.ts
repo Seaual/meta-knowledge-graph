@@ -1,6 +1,6 @@
 // frontend/src/stores/conversationStore.ts
 import { create } from 'zustand'
-import { conversationsApi, Conversation, ConversationDetail, Message } from '../lib/api'
+import { conversationsApi, Conversation, Message } from '../lib/api'
 
 interface ConversationState {
   // State
@@ -34,9 +34,12 @@ export const useConversationStore = create<ConversationState>((set, get) => ({
   loadConversations: async () => {
     set({ isLoadingHistory: true, error: null })
     try {
+      console.log('Loading conversations...')
       const conversations = await conversationsApi.list()
+      console.log('Loaded conversations:', conversations)
       set({ conversations, isLoadingHistory: false })
     } catch (err: any) {
+      console.error('Failed to load conversations:', err)
       set({ error: err.message, isLoadingHistory: false })
     }
   },
