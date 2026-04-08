@@ -40,10 +40,10 @@ app.include_router(papers.router)
 app.include_router(papers_upload.router)
 app.include_router(papers_process.router)
 
-# Concepts routes
-app.include_router(concepts.router)
+# Concepts routes (order matters: tree routes before {concept_id})
 app.include_router(concepts_tree.router)
 app.include_router(concepts_research.router)
+app.include_router(concepts.router)
 app.include_router(dedup.router)
 
 # Other routes
