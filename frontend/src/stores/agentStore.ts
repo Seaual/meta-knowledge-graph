@@ -1,5 +1,6 @@
 // frontend/src/stores/agentStore.ts
 import { create } from 'zustand'
+import type { SSEStatus } from '../lib/sse/types'
 
 export interface ContextSummary {
   currentTarget?: {
@@ -66,6 +67,9 @@ interface AgentState {
   // Tool Status (SSE streaming)
   toolStatus: ToolStatus | null
 
+  // SSE Status (background execution)
+  sseStatus: SSEStatus
+
   // Deep Research State
   researchSessionId?: string
   researchProgress: number
@@ -86,6 +90,9 @@ interface AgentState {
 
   // Tool Status Actions
   setToolStatus: (status: ToolStatus | null) => void
+
+  // SSE Status Action
+  setSSEStatus: (status: SSEStatus) => void
 
   addUploadedPapers: (papers: Array<{ doi: string; title: string }>) => void
   clearUploadedPapers: () => void
@@ -116,6 +123,9 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   // Tool Status
   toolStatus: null,
+
+  // SSE Status
+  sseStatus: 'idle',
 
   // Deep Research State
   researchSessionId: undefined,
@@ -152,6 +162,9 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   // Tool Status
   setToolStatus: (status) => set({ toolStatus: status }),
+
+  // SSE Status
+  setSSEStatus: (status) => set({ sseStatus: status }),
 
   addUploadedPapers: (papers) => set((state) => ({
     contextSummary: {
