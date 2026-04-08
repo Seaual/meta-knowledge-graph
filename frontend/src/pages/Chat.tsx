@@ -4,9 +4,7 @@
 import { useState, useRef, useEffect, useCallback, Component, ReactNode } from 'react'
 import { useAgentStore } from '../stores/agentStore'
 import { useConversationStore } from '../stores/conversationStore'
-import { agentApi } from '../lib/api'
 import { sseManager } from '../lib/sse'
-import { getToolLabel } from '../lib/textUtils'
 import { Send, X, Loader2, FileText, Sparkles, AlertTriangle, ChevronDown, ChevronUp, Brain, Wrench } from 'lucide-react'
 import DragUploadZone from '../components/DragUploadZone'
 import ConceptGraphInChat from '../components/ConceptGraphInChat'
@@ -261,7 +259,7 @@ export default function Chat() {
         },
       }
     )
-  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setToolStatus, setSSEStatus])
+  }, [input, isLoading, contextSummary, messages, addMessageToStore, updateTitle, loadConversations, setToolStatus, setSSEStatus, createConversation, setLoading, currentConversationId])
 
   // Handle programmatic send from card actions
   const handleCardAction = useCallback((text: string) => {
