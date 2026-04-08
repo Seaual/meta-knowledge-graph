@@ -4,7 +4,7 @@
  * 脱离组件生命周期，支持后台运行
  */
 
-import type { SSEStatus, SSECallbacks, SSEConnection, SSEEvent, ToolStatus } from './types'
+import type { SSEStatus, SSECallbacks, SSEConnection, SSEEvent } from './types'
 import type { AgentContextSummary, AgentMessage } from '../api/agent'
 
 class SSEManager {
@@ -50,7 +50,7 @@ class SSEManager {
     context: AgentContextSummary,
     history: AgentMessage[],
     abortController: AbortController
-  ): void {
+  ): Promise<void> {
     try {
       const response = await fetch('/api/agent/chat/stream', {
         method: 'POST',

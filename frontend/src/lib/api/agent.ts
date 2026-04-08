@@ -1,6 +1,5 @@
 // frontend/src/lib/api/agent.ts
 import api from './client'
-import type { ChatAttachment } from '../../stores/agentStore'
 
 export type AgentType = 'lead' | 'citation' | 'research' | 'deep_research' | 'paper_qa' | 'merge'
 
