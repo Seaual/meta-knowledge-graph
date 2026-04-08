@@ -196,9 +196,13 @@ async def chat_stream(request: AgentChatRequest):
     推送 tool 状态，让前端显示动态进度
     """
     from mkg.agent.nodes.lead import lead_node_stream
+    from mkg.agent.tools import init_tools
 
     db = get_db()
     init_llm_from_db(db)
+
+    # 初始化 Tools 依赖
+    init_tools(db=db, s2_client=get_s2_client(), pdf_parser=get_pdf_parser())
 
     # 检查 LLM 配置
     config = db.get_llm_config()
