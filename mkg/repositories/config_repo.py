@@ -43,7 +43,7 @@ class ConfigRepository(BaseRepository):
 
         return config
 
-    def save_llm_config(self, mode: str, providers: List[Dict]) -> None:
+    def save_llm_config(self, mode: str, providers: List[Dict]) -> Dict:
         """
         保存 LLM 配置
 
@@ -85,6 +85,8 @@ class ConfigRepository(BaseRepository):
                 provider.get('model'),
                 provider.get('is_active', True)
             ))
+
+        return self.get_llm_config()
 
     def get_llm_provider_for_function(self, function_group: str) -> Optional[dict]:
         """
