@@ -18,7 +18,7 @@ services:
       - FRONTEND_DIST=/app/frontend/dist
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8089/api/graph/stats"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8089/api/graph/stats')"]
       interval: 30s
       timeout: 10s
       retries: 3
