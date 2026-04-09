@@ -8,24 +8,24 @@ from typing import Dict, Any, Optional
 
 from ..state import AgentState
 from .. import tools  # 导入模块而不是变量
-from ..llm_config import get_llm_or_raise
+from mkg.llm import get_llm_or_raise
 
 
 RESEARCH_PROMPT = """分析概念「{target_name}」的研究机会。
 
 请按以下步骤操作：
-1. 使用 get_concept_info 获取概念信息
-2. 使用 get_concept_papers 获取关联论文
-3. 使用 search_s2_papers 搜索相关前沿工作
+1. 使用 get_concept_graph 获取概念图谱结构（子概念和父概念）
+2. 使用 analyze_research_points 分析该概念下的研究机会
+3. 必要时用 recommend_papers 推荐相关前沿论文
 
 然后生成研究点分析，包括：
-- 当前研究现状
+- 当前研究现状（基于概念图谱结构）
 - 概念的层级关系（父概念和子概念）
 - 潜在研究方向（3-5个）
 - 每个方向的研究价值和方法论建议
 - 相关高引用论文推荐
 
-请用中文回答，结构清晰。"""
+请用中文回答，结构清晰。不要重复原始数据，给出分析结论。"""
 
 
 def research_node(state: AgentState) -> Dict[str, Any]:

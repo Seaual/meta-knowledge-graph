@@ -21,6 +21,8 @@ export interface ToolStatus {
   tool: string
   label: string
   status: 'idle' | 'running' | 'completed'
+  step?: number       // 当前是第几步（从 1 开始）
+  maxSteps?: number   // 最大步数（用于显示进度，如 "步骤 2/5"）
 }
 
 // SSE 回调函数

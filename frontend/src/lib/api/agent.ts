@@ -111,7 +111,12 @@ export const agentApi = {
   },
 
   startDeepResearch: async (targetId: string, targetType: 'concept' | 'paper', query: string) => {
-    const response = await api.post<{ sessionId: string }>('/agent/deep-research/start', {
+    const response = await api.post<{
+      sessionId: string
+      status: string
+      report: string
+      dimensions: string[]
+    }>('/agent/deep-research/start', {
       targetId,
       targetType,
       query,

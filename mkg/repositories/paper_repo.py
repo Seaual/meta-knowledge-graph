@@ -379,6 +379,14 @@ class PaperRepository(BaseRepository):
             4. 如果没有，删除该概念并递归检查子概念
             5. 清理 concept_relations 记录
         """
+        # 获取该论文的 S2 ID（用于清理引用数据）
+        cursor = self.execute_read(
+            "SELECT s2_paper_id FROM papers WHERE doi = ?",
+            (doi,)
+        )
+        row = cursor.fetchone()
+        s2_id = row['s2_paper_id'] if row else None
+
         # 获取该论文关联的概念
         cursor = self.execute_read(
             "SELECT concept_id FROM paper_concepts WHERE paper_doi = ?",
@@ -404,11 +412,23 @@ class PaperRepository(BaseRepository):
             (doi,)
         )
 
-        # 删除 paper_citations 相关记录
+        # 删除 paper_citations（同时按 DOI 和 S2 ID 清理）
         self.execute_write(
             "DELETE FROM paper_citations WHERE citing_paper_id = ? OR cited_paper_id = ?",
             (doi, doi)
         )
+        # 同时按 S2 ID 清理
+        if s2_id:
+            self.execute_write(
+                "DELETE FROM paper_citations WHERE citing_s2_id = ? OR cited_s2_id = ?",
+                (s2_id, s2_id)
+            )
+        # 清理引用该论文的 S2 数据（citing_paper_id 可能是 DOI）
+        if s2_id:
+            self.execute_write(
+                "DELETE FROM paper_citations WHERE citing_paper_id = ?",
+                (s2_id,)
+            )
 
         # 删除论文
         self.execute_write("DELETE FROM papers WHERE doi = ?", (doi,))

@@ -370,6 +370,81 @@ export default function Chat() {
   return (
     <ChatErrorBoundary>
     <div className="chat-container h-full flex flex-col relative">
+      <style>{`
+        .markdown-body {
+          line-height: 1.6;
+          font-size: 0.9rem;
+        }
+        .markdown-body p {
+          margin: 0.5em 0;
+        }
+        .markdown-body p:first-child {
+          margin-top: 0;
+        }
+        .markdown-body p:last-child {
+          margin-bottom: 0;
+        }
+        .markdown-body strong {
+          color: #5a3e28;
+        }
+        .markdown-body a {
+          color: #8B4513;
+          text-decoration: underline;
+        }
+        .markdown-body code {
+          background: #F0EDE6;
+          padding: 0.15em 0.4em;
+          border-radius: 4px;
+          font-size: 0.85em;
+        }
+        .markdown-body pre {
+          background: #F0EDE6;
+          padding: 12px;
+          border-radius: 8px;
+          overflow-x: auto;
+          margin: 0.5em 0;
+        }
+        .markdown-body pre code {
+          background: none;
+          padding: 0;
+        }
+        .markdown-body table {
+          border-collapse: collapse;
+          width: 100%;
+          margin: 0.5em 0;
+          font-size: 0.85rem;
+        }
+        .markdown-body th, .markdown-body td {
+          border: 1px solid #E8E4DC;
+          padding: 6px 10px;
+          text-align: left;
+        }
+        .markdown-body th {
+          background: #F0EDE6;
+          font-weight: 600;
+          color: #5a3e28;
+        }
+        .markdown-body ul, .markdown-body ol {
+          padding-left: 1.2em;
+          margin: 0.3em 0;
+        }
+        .markdown-body li {
+          margin: 0.2em 0;
+        }
+        .markdown-body blockquote {
+          border-left: 3px solid #D4C4B0;
+          padding-left: 12px;
+          margin: 0.5em 0;
+          color: #6b5d4f;
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+          margin: 0.8em 0 0.4em 0;
+          color: #5a3e28;
+        }
+        .markdown-body h1 { font-size: 1.3em; }
+        .markdown-body h2 { font-size: 1.15em; }
+        .markdown-body h3 { font-size: 1.05em; }
+      `}</style>
       {/* Drag upload zone */}
       <DragUploadZone
         onUploadSuccess={handleUploadSuccess}
@@ -482,35 +557,46 @@ export default function Chat() {
                     <ConceptGraphInChat data={msg.conceptData} />
                   )}
                   {/* 统一消息样式 */}
-                  <div
-                    className="px-4 py-3"
-                    style={{
-                      background: '#f5f0e8',
-                      color: '#2c1810',
-                      borderRadius: '16px',
-                      border: '1px solid #d4c4b0',
-                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.05)',
-                    }}
-                  >
-                    <div style={{ color: '#2c1810' }}>
-                      {msg.role === 'assistant' && (() => {
-                        const { thinking, response } = parseThinkingContent(msg.content)
-                        return (
-                          <>
-                            {thinking && <ThinkingBlock content={thinking} />}
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                              {response}
-                            </ReactMarkdown>
-                          </>
-                        )
-                      })()}
-                      {msg.role === 'user' && (
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
-                      )}
+                  {msg.role === 'user' ? (
+                    <div
+                      className="px-4 py-3"
+                      style={{
+                        background: 'linear-gradient(135deg, #8B4513 0%, #A0522D 100%)',
+                        color: '#FFFFFF',
+                        borderRadius: '16px 16px 4px 16px',
+                        boxShadow: '0 2px 8px rgba(139, 69, 19, 0.15)',
+                      }}
+                    >
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.content}
+                      </ReactMarkdown>
                     </div>
-                  </div>
+                  ) : (
+                    <div
+                      className="px-4 py-3"
+                      style={{
+                        background: '#FAFAF7',
+                        color: '#2c1810',
+                        borderRadius: '16px 16px 16px 4px',
+                        border: '1px solid #E8E4DC',
+                        boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)',
+                      }}
+                    >
+                      <div className="markdown-body" style={{ color: '#2c1810' }}>
+                        {(() => {
+                          const { thinking, response } = parseThinkingContent(msg.content)
+                          return (
+                            <>
+                              {thinking && <ThinkingBlock content={thinking} />}
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                {response}
+                              </ReactMarkdown>
+                            </>
+                          )
+                        })()}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ))
@@ -533,6 +619,11 @@ export default function Chat() {
                     <Wrench className="w-4 h-4" style={{ color: 'var(--color-accent)' }} />
                     <span className="font-body text-sm" style={{ color: 'var(--color-ink-secondary)' }}>
                       正在调用：{toolStatus.label}
+                      {toolStatus.step && toolStatus.maxSteps && (
+                        <span className="ml-1" style={{ opacity: 0.7 }}>
+                          （步骤 {toolStatus.step}/{toolStatus.maxSteps}）
+                        </span>
+                      )}
                     </span>
                     <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--color-accent)' }} />
                   </div>

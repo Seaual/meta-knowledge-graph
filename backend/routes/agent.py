@@ -9,14 +9,14 @@ from pydantic import BaseModel
 import sys
 import json
 import asyncio
+import threading
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from backend.schemas import AgentChatRequest, AgentChatResponse, AgentMessage
-from mkg.database import Database
-from mkg.semantic_scholar import S2Client
-from mkg.pdf_parser import PDFParser
+from backend.dependencies import get_db, get_s2_client, get_pdf_parser
 from mkg.llm import init_llm_from_db, reset_llm
 
 # LangGraph imports
@@ -27,11 +27,6 @@ from mkg.agent.state import AgentState
 from mkg.agent.tools import ALL_TOOLS
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
-
-# Singleton instances
-_db = None
-_s2_client = None
-_pdf_parser = None
 
 # 工具名称中文映射
 TOOL_LABELS = {
@@ -64,30 +59,6 @@ class DeepResearchStatusResponse(BaseModel):
     progress: int
     dimensions: List[str]
     completedDimensions: List[str]
-
-
-def get_db():
-    global _db
-    if _db is None:
-        # 使用相对于项目根目录的路径
-        db_path = Path(__file__).parent.parent.parent / "mkg.db"
-        _db = Database(str(db_path))
-        _db.connect()
-    return _db
-
-
-def get_s2_client():
-    global _s2_client
-    if _s2_client is None:
-        _s2_client = S2Client()
-    return _s2_client
-
-
-def get_pdf_parser():
-    global _pdf_parser
-    if _pdf_parser is None:
-        _pdf_parser = PDFParser()
-    return _pdf_parser
 
 
 @router.post("/chat", response_model=AgentChatResponse)
@@ -165,27 +136,72 @@ def chat(request: AgentChatRequest):
 
 @router.post("/deep-research/start")
 def start_deep_research(request: DeepResearchStartRequest):
-    """启动深入研究任务"""
+    """启动深入研究任务（异步，后台运行）"""
     from mkg.agent.tools import deep_research
+    from mkg.agent.research_graph import get_deep_research_progress
+
+    # 生成唯一 session_id
+    session_id = str(uuid.uuid4())[:12]
 
     init_llm_from_db(get_db())
 
-    try:
-        result = deep_research.invoke({
-            "target_name": request.targetName,
-            "target_type": request.targetType,
-            "query": request.query,
-            "dimensions": request.dimensions
-        })
+    # 在后台线程运行
+    def _run_research():
+        try:
+            deep_research.invoke({
+                "target_name": request.targetName,
+                "target_type": request.targetType,
+                "query": request.query,
+                "session_id": session_id,
+            })
+        except Exception as e:
+            # 标记为错误状态
+            progress = get_deep_research_progress(session_id)
+            if progress:
+                progress["status"] = "error"
+                progress["error"] = str(e)
 
-        return {
-            "sessionId": "sync",
-            "status": "completed",
-            "report": result.get("report", ""),
-            "dimensions": result.get("dimensions", []),
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    thread = threading.Thread(target=_run_research, daemon=True)
+    thread.start()
+
+    return {
+        "sessionId": session_id,
+        "status": "running",
+        "report": "",
+        "dimensions": [],
+    }
+
+
+@router.get("/deep-research/{session_id}/status")
+def get_deep_research_status(session_id: str):
+    """获取深入研究任务状态"""
+    from mkg.agent.research_graph import get_deep_research_progress
+
+    progress = get_deep_research_progress(session_id)
+
+    if not progress:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    return progress
+
+
+@router.get("/deep-research/{session_id}/report")
+def get_deep_research_report(session_id: str):
+    """获取深入研究任务报告"""
+    from mkg.agent.research_graph import get_deep_research_progress
+
+    progress = get_deep_research_progress(session_id)
+
+    if not progress:
+        raise HTTPException(status_code=404, detail="任务不存在")
+
+    if progress.get("status") != "completed":
+        raise HTTPException(status_code=400, detail="任务尚未完成")
+
+    return {
+        "report": progress.get("report", ""),
+        "dimensions": progress.get("dimensions", []),
+    }
 
 
 @router.post("/chat/stream")

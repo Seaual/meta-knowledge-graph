@@ -49,7 +49,7 @@ COPY docker/start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 # Expose port
-EXPOSE 8088
+EXPOSE 8089
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1
@@ -57,7 +57,7 @@ ENV FRONTEND_DIST=/app/frontend/dist
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8088/api/graph/stats || exit 1
+    CMD curl -f http://localhost:8089/api/graph/stats || exit 1
 
 # Start command
 CMD ["/app/start.sh"]

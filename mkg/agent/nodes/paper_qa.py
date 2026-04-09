@@ -8,19 +8,19 @@ from typing import Dict, Any
 
 from ..state import AgentState
 from ..tools import PAPER_QA_TOOLS
-from ..llm_config import get_llm_or_raise
+from mkg.llm import get_llm_or_raise
 
 
 PAPER_QA_PROMPT = """回答关于论文「{target_name}」的问题：{question}
 
 请按以下策略处理：
-1. 先使用 get_paper_by_doi 或 get_paper_by_title 获取论文元数据
+1. 先用 get_paper_by_title 获取论文元数据
 2. 如果问题简单（摘要、作者、关键词、发表年份等），直接基于元数据回答
-3. 如果问题复杂（方法、实验、结论、创新点等），使用 read_pdf_content 读取全文后回答
+3. 如果问题复杂（方法、实验、结论、创新点等），使用 read_paper_content 读取全文后回答
 
 回答要求：
 - 准确：只基于论文内容回答，不要编造
-- 简洁：回答要清晰明了
+- 简洁：回答清晰明了
 - 注明来源：说明是基于摘要还是全文
 
 请用中文回答。"""
@@ -103,7 +103,7 @@ def paper_qa_node(state: AgentState) -> Dict[str, Any]:
     response_content = response.content
 
     # 添加来源标注
-    source_note = "（基于论文全文）" if "read_pdf_content" in str(response) else "（基于论文摘要）"
+    source_note = "（基于论文全文）" if "read_paper_content" in str(response) else "（基于论文摘要）"
 
     return {
         "response": response_content + f"\n\n_{source_note}_",

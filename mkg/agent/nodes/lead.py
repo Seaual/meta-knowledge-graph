@@ -38,7 +38,10 @@ def make_attachment(tool_name: str, result) -> Optional[Dict[str, Any]]:
 
 
 def summarize_for_llm(tool_name: str, result) -> str:
-    """生成给 LLM 的精简摘要，避免传入完整数据浪费 token"""
+    """生成给 LLM 的精简摘要，避免传入完整数据浪费 token
+
+    多步工具编排：摘要需要足够丰富，帮助 LLM 决定是否需要下一步。
+    """
     if isinstance(result, str):
         return result
     if isinstance(result, dict) and "error" in result:
@@ -48,27 +51,57 @@ def summarize_for_llm(tool_name: str, result) -> str:
         count = result.get("count", 0)
         papers = result.get("papers", [])
         titles = [p.get("title", "?") for p in papers[:5]]
-        return f"找到 {count} 篇论文：{', '.join(titles)}"
+        summary = f"找到 {count} 篇论文：{', '.join(titles)}"
+        if count > 5:
+            summary += f"（还有 {count - 5} 篇）"
+        return summary
 
     if tool_name == "get_paper_by_title":
-        return f"论文：{result.get('title', '?')}，作者：{', '.join((result.get('authors') or [])[:3])}，年份：{result.get('year', '?')}"
+        paper = result
+        authors = ', '.join((paper.get('authors') or [])[:3])
+        return f"论文：{paper.get('title', '?')}，作者：{authors}，年份：{paper.get('year', '?')}，摘要：{paper.get('abstract', '')[:100]}"
 
     if tool_name == "analyze_research_points":
         points = result.get("research_points", result.get("points", []))
         if isinstance(points, list):
-            titles = [p.get("title", "?") if isinstance(p, dict) else str(p) for p in points[:5]]
-            return f"发现 {len(points)} 个研究点：{', '.join(titles)}"
-        return f"研究点分析完成：{str(result)[:200]}"
+            items = []
+            for p in points[:3]:
+                if isinstance(p, dict):
+                    items.append(f"- {p.get('title', '?')}: {p.get('description', '')[:60]}")
+                else:
+                    items.append(f"- {p}")
+            return f"发现 {len(points)} 个研究点：\n" + "\n".join(items)
+        return f"研究点分析完成：{str(result)[:300]}"
 
     if tool_name == "get_concept_graph":
-        return f"已获取概念「{result.get('name', '?')}」的图谱数据"
+        children = result.get('children', [])
+        parents = result.get('parents', [])
+        child_names = ', '.join(c.get('name', '?') for c in children[:5])
+        parent_names = ', '.join(p.get('name', '?') for p in parents[:3])
+        parts = [f"概念「{result.get('name', '?')}」（{result.get('category', '')}）"]
+        if parent_names:
+            parts.append(f"父概念：{parent_names}")
+        if child_names:
+            parts.append(f"子概念：{child_names}")
+        return f"已获取图谱数据：{'，'.join(parts)}"
 
     if tool_name == "analyze_citations":
-        return f"论文「{result.get('paper', {}).get('title', '?')}」共有 {result.get('citation_count', 0)} 条引用"
+        paper = result.get('paper', {})
+        citations = result.get('citations', [])
+        cited_by = result.get('cited_by', [])
+        parts = [f"论文「{paper.get('title', '?')}」"]
+        if citations:
+            parts.append(f"引用了 {len(citations)} 篇论文：{', '.join(c.get('title', '?')[:30] for c in citations[:3])}")
+        if cited_by:
+            parts.append(f"被 {len(cited_by)} 篇论文引用：{', '.join(c.get('title', '?')[:30] for c in cited_by[:3])}")
+        if not citations and not cited_by:
+            parts.append("暂无引用数据")
+        return f"引用分析：{'，'.join(parts)}"
 
     if tool_name == "recommend_papers":
         papers = result.get("papers", [])
-        return f"推荐 {len(papers)} 篇相关论文"
+        titles = [p.get("title", "?")[:40] for p in papers[:3]]
+        return f"推荐 {len(papers)} 篇相关论文：{', '.join(titles)}"
 
     return str(result)[:500]
 
@@ -77,9 +110,15 @@ def summarize_for_llm(tool_name: str, result) -> str:
 LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 
 【核心原则】
-- 每次只调用一个工具！不要同时调用多个工具。
 - 如果用户问题不需要工具，直接回答即可。
 - 工具调用要精确匹配用户意图，不要"顺便"调用其他工具。
+- 根据问题需要，可以依次调用多个工具完成研究。每次只调用一个工具，根据结果决定是否需要下一步。
+
+【研究流程建议】
+- 搜索论文 → 分析引用 → 综合回答
+- 查看概念图谱 → 分析研究点 → 推荐论文
+- 简单问题直接回答，不要调用工具
+- 复杂问题可以分步研究，最多 5 步
 
 【回复原则 - 非常重要】
 - 调用工具后，数据会自动以卡片形式展示给用户
@@ -100,7 +139,7 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 用户说「有哪些论文」「搜索论文」→ 用 search_paper
 用户说「研究点」「研究方向」「分析...的研究点」→ 用 analyze_research_points
 用户说「查看图谱」「显示图谱」→ 用 get_concept_graph
-用户说「引用」「被引用」→ 用 analyze_citations
+用户说「引用」「被引用」「引用关系」→ 用 analyze_citations
 用户说「论文内容」「这篇论文讲什么」→ 用 read_paper_content
 用户说「推荐论文」「相关论文」「找相关工作」→ 用 recommend_papers
 
@@ -119,7 +158,7 @@ LEAD_SYSTEM_PROMPT = """你是 Meta Knowledge Graph 的研究助手。
 当前上下文：
 {context_info}
 
-请根据用户问题选择合适的工具。"""
+请根据用户问题选择合适的工具，可以分步调用多个工具完成研究。"""
 
 
 def build_context_info(state: AgentState) -> str:
@@ -185,51 +224,56 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
                         # 从消息中提取概念名
                         response.tool_calls[i]["args"]["concept_name"] = last_user_msg.replace("研究点", "").replace("研究方向", "").replace("分析", "").strip()
 
-    # 处理 tool calls
+    # 处理 tool calls — 循环处理直到 LLM 不再请求工具
     concept_data = None
     attachments: List[Dict[str, Any]] = []
     response_content = extract_text_content(response.content)
     tool_used = None  # 记录使用的工具
+    max_tool_rounds = 5  # 防止无限循环
 
-    # 只处理一轮工具调用（LLM 可能会多次迭代，但我们只执行一次）
-    if response.tool_calls:
-        tool_call = response.tool_calls[0]  # 只取第一个
-        tool_name = tool_call["name"]
-        tool_args = tool_call["args"]
-        tool_used = tool_name  # 记录工具名称
-
-        # 查找并执行工具
+    round_count = 0
+    while response.tool_calls and round_count < max_tool_rounds:
+        round_count += 1
         tool_messages = []
-        for tool_item in tools:
-            if tool_item.name == tool_name:
-                try:
-                    result = tool_item.invoke(tool_args)
 
-                    # 收集附件
-                    attachment = make_attachment(tool_name, result)
-                    if attachment:
-                        attachments.append(attachment)
+        for tool_call in response.tool_calls:
+            t_name = tool_call["name"]
+            t_args = tool_call["args"]
+            tool_used = t_name  # 记录最后使用的工具
 
-                    # 特殊处理：get_concept_graph 返回图谱数据（向后兼容）
-                    if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
-                        concept_data = result
+            # 查找并执行工具
+            for tool_item in tools:
+                if tool_item.name == t_name:
+                    try:
+                        result = tool_item.invoke(t_args)
 
-                    # 使用摘要给 LLM（节省 token）
-                    summary = summarize_for_llm(tool_name, result)
-                    tool_messages.append(ToolMessage(
-                        content=summary,
-                        tool_call_id=tool_call["id"]
-                    ))
-                except Exception as e:
-                    tool_messages.append(ToolMessage(
-                        content=f"错误: {str(e)}",
-                        tool_call_id=tool_call["id"]
-                    ))
-                break
+                        # 收集附件
+                        attachment = make_attachment(t_name, result)
+                        if attachment:
+                            attachments.append(attachment)
 
-        # 继续调用 LLM 获取最终响应（不再继续工具调用）
+                        # 特殊处理：get_concept_graph 返回图谱数据（向后兼容）
+                        if t_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
+                            concept_data = result
+
+                        # 使用摘要给 LLM（节省 token）
+                        summary = summarize_for_llm(t_name, result)
+                        tool_messages.append(ToolMessage(
+                            content=summary,
+                            tool_call_id=tool_call["id"]
+                        ))
+                    except Exception as e:
+                        tool_messages.append(ToolMessage(
+                            content=f"错误: {str(e)}",
+                            tool_call_id=tool_call["id"]
+                        ))
+                    break
+
+        # 将本轮工具调用和结果添加到消息历史
         messages.append(response)
         messages.extend(tool_messages)
+
+        # 继续调用 LLM（可能返回更多工具调用或最终回复）
         response = llm_with_tools.invoke(messages)
         response_content = extract_text_content(response.content)
 
@@ -281,53 +325,59 @@ def lead_node_stream(state: AgentState):
                     if "concept_name" not in response.tool_calls[i]["args"]:
                         response.tool_calls[i]["args"]["concept_name"] = last_user_msg.replace("研究点", "").replace("研究方向", "").replace("分析", "").strip()
 
-    # 处理 tool calls
+    # 处理 tool calls — 循环处理直到 LLM 不再请求工具
     concept_data = None
     attachments: List[Dict[str, Any]] = []
     response_content = extract_text_content(response.content)
+    max_tool_rounds = 5
+    round_count = 0
 
-    if response.tool_calls:
-        tool_call = response.tool_calls[0]
-        tool_name = tool_call["name"]
-        tool_args = tool_call["args"]
+    while response.tool_calls and round_count < max_tool_rounds:
+        round_count += 1
 
-        # 推送工具调用状态
-        yield {"type": "tool_call", "tool_name": tool_name}
+        for tool_call in response.tool_calls:
+            t_name = tool_call["name"]
+            t_args = tool_call["args"]
 
-        # 执行工具
-        tool_messages = []
-        for tool_item in tools:
-            if tool_item.name == tool_name:
-                try:
-                    result = tool_item.invoke(tool_args)
+            # 推送工具调用状态
+            yield {"type": "tool_call", "tool_name": t_name}
 
-                    attachment = make_attachment(tool_name, result)
-                    if attachment:
-                        attachments.append(attachment)
+            # 执行工具
+            tool_messages = []
+            for tool_item in tools:
+                if tool_item.name == t_name:
+                    try:
+                        result = tool_item.invoke(t_args)
 
-                    if tool_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
-                        concept_data = result
+                        attachment = make_attachment(t_name, result)
+                        if attachment:
+                            attachments.append(attachment)
 
-                    summary = summarize_for_llm(tool_name, result)
-                    tool_messages.append(ToolMessage(
-                        content=summary,
-                        tool_call_id=tool_call["id"]
-                    ))
-                except Exception as e:
-                    tool_messages.append(ToolMessage(
-                        content=f"错误: {str(e)}",
-                        tool_call_id=tool_call["id"]
-                    ))
-                break
+                        if t_name == "get_concept_graph" and isinstance(result, dict) and "id" in result:
+                            concept_data = result
 
-        # 推送工具完成状态
-        yield {"type": "tool_result"}
+                        summary = summarize_for_llm(t_name, result)
+                        tool_messages.append(ToolMessage(
+                            content=summary,
+                            tool_call_id=tool_call["id"]
+                        ))
+                    except Exception as e:
+                        tool_messages.append(ToolMessage(
+                            content=f"错误: {str(e)}",
+                            tool_call_id=tool_call["id"]
+                        ))
+                    break
 
-        # 第二次 LLM 调用获取最终响应
-        messages.append(response)
-        messages.extend(tool_messages)
-        response = llm_with_tools.invoke(messages)
-        response_content = extract_text_content(response.content)
+            # 推送工具完成状态
+            yield {"type": "tool_result"}
+
+            # 将本轮结果添加到消息历史
+            messages.append(response)
+            messages.extend(tool_messages)
+
+            # 继续调用 LLM
+            response = llm_with_tools.invoke(messages)
+            response_content = extract_text_content(response.content)
 
     # 推送最终响应
     yield {

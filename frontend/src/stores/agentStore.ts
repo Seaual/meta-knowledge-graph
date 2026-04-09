@@ -50,6 +50,8 @@ export interface ToolStatus {
   tool: string       // 工具名称 (英文)
   label: string      // 工具名称 (中文)
   status: 'idle' | 'running' | 'completed'
+  step?: number      // 当前是第几步
+  maxSteps?: number  // 最大步数
 }
 
 interface AgentState {

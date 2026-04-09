@@ -189,6 +189,7 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
 
     # 查找论文
     papers = _db.get_papers_by_status('processed')
+    papers.extend(_db.get_papers_by_status('pending'))
     paper = None
     for p in papers:
         if paper_title.lower() in (p.get('title') or '').lower():
@@ -198,19 +199,72 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
     if not paper:
         return {"error": f"未找到论文「{paper_title}」"}
 
-    # 获取引用数据
-    citations = []
-    if hasattr(_db, 'get_citations'):
-        citations = _db.get_citations(paper['doi']) or []
+    # 获取本地引用数据
+    raw_citations = []
+    try:
+        raw_citations = _db.citations.get_paper_citations(paper['doi']) or []
+    except Exception:
+        pass
 
-    # 从 S2 补充
-    if _s2_client and paper.get('s2_paper_id'):
-        try:
-            s2_data = _s2_client.get_paper_citations(paper['s2_paper_id'])
-            if s2_data:
-                citations.extend(s2_data.get('citations', []))
-        except Exception as e:
-            print(f"S2 API error: {e}")
+    # 标准化本地 DB 数据格式
+    def normalize_db_citation(item: dict) -> dict:
+        return {
+            "title": item.get("cited_title", ""),
+            "year": item.get("cited_year"),
+            "citation_count": item.get("cited_citation_count"),
+            "paper_id": item.get("cited_s2_id") or item.get("cited_paper_id"),
+            "is_internal": bool(item.get("is_internal", 0)),
+        }
+
+    # 标准化 S2 数据格式
+    def normalize_s2_citation(item: dict) -> dict:
+        authors = item.get("authors", [])
+        author_names = ", ".join([a.get("name", "") for a in authors[:3]]) if authors else ""
+        return {
+            "title": item.get("title", ""),
+            "year": item.get("year"),
+            "citation_count": item.get("citationCount"),
+            "paper_id": item.get("paperId"),
+            "is_internal": False,
+            "authors": author_names,
+        }
+
+    citations = [normalize_db_citation(c) for c in raw_citations]
+
+    # 如果本地没有引用，尝试从 S2 获取
+    if not citations and _s2_client:
+        s2_id = paper.get('s2_paper_id')
+        full_title = paper.get('title', '')
+
+        if not s2_id and paper.get('doi'):
+            # 尝试通过 S2 匹配找到 paperId
+            try:
+                matched = _s2_client.match_paper(title=full_title, doi=paper['doi'])
+                if matched:
+                    s2_id = matched.get('paperId')
+            except Exception:
+                pass
+
+        if not s2_id and full_title:
+            # 尝试用完整标题搜索 S2
+            try:
+                results = _s2_client.search_papers(full_title, limit=1)
+                if results:
+                    s2_id = results[0].get('paperId')
+            except Exception:
+                pass
+
+        if s2_id:
+            try:
+                s2_data = _s2_client.get_paper_citations(s2_id)
+                if isinstance(s2_data, list):
+                    s2_items = [normalize_s2_citation(c) for c in s2_data[:50]]
+                    citations.extend(s2_items)
+                elif isinstance(s2_data, dict):
+                    s2_items = [normalize_s2_citation(c) for c in s2_data.get('citations', [])[:50]]
+                    citations.extend(s2_items)
+            except Exception as e:
+                pass
 
     return {
         "paper": {
@@ -303,49 +357,110 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
     Returns:
         研究点分析结果，包含 LLM 生成的研究点列表
     """
-    print(f"DEBUG analyze_research_points: concept_name={concept_name}")
-
     if not _db:
-        print("DEBUG: 数据库未初始化")
         return {"error": "数据库未初始化"}
 
     concept = _db.get_concept_by_text(concept_name)
-    print(f"DEBUG: 直接匹配结果={concept}")
 
     if not concept:
         all_concepts = _db.get_all_concepts()
+        # 改进的模糊匹配：提取关键词匹配
+        # 使用简单的滑动窗口提取 2-4 字词组
+        keywords = []
+        for n in [4, 3, 2]:  # 优先匹配更长的词
+            for i in range(len(concept_name) - n + 1):
+                word = concept_name[i:i+n]
+                # 只保留中文和英文词组
+                if all('\u4e00' <= c <= '\u9fff' or c.isalpha() for c in word):
+                    if word not in ['研究', '分析', '方向', '查看', '帮我', '进行', '的']:
+                        keywords.append(word)
+
+        best_match = None
+        best_score = 0
+
         for c in all_concepts:
-            if concept_name.lower() in (c.get('text') or '').lower():
-                concept = c
-                print(f"DEBUG: 模糊匹配结果={c.get('text')}")
-                break
+            text = c.get('text') or ''
+            score = 0
+            for kw in keywords:
+                if kw.lower() in text.lower():
+                    score += len(kw)  # 关键词越长，权重越高
+            if score > best_score:
+                best_score = score
+                best_match = c
+
+        if best_match and best_score >= 4:  # 至少匹配4个字符
+            concept = best_match
 
     if not concept:
-        print(f"DEBUG: 未找到概念「{concept_name}」")
         return {"error": f"未找到概念「{concept_name}」"}
 
     concept_id = concept['id']
-    print(f"DEBUG: concept_id={concept_id}")
 
-    # 调用与概念页面相同的研究点分析 API
+    # 调用 LLM 进行研究与方向分析
     try:
-        import requests
-        url = f"http://localhost:8000/api/concepts/{concept_id}/research-points"
-        print(f"DEBUG: 调用API={url}")
-        res = requests.get(url, timeout=120)
-        print(f"DEBUG: API返回状态码={res.status_code}")
-        if res.status_code == 200:
-            data = res.json()
-            print(f"DEBUG: 研究点数量={len(data.get('research_points', []))}")
-            return {
-                "concept_name": data.get("concept_name", concept.get("text", concept_name)),
-                "research_points": data.get("research_points", []),
-                "analysis_context": data.get("analysis_context", {}),
-            }
-        else:
-            return {"error": f"研究点分析失败: HTTP {res.status_code}"}
+        from mkg.llm import get_llm_or_raise
+
+        llm = get_llm_or_raise()
+        import json
+        import re
+
+        # 构建研究点分析提示
+        child_texts = [c.get('text', '') for c in children[:5]]
+        parent_texts = [p.get('text', '') for p in parents[:3]]
+        concept_papers = _db.get_papers_by_concept(concept_id) or []
+
+        prompt = f"""分析以下概念的研究机会：
+
+概念：{concept.get('text', '')}
+子概念：{', '.join(child_texts) if child_texts else '无'}
+父概念：{', '.join(parent_texts) if parent_texts else '无'}
+相关论文数：{len(concept_papers)}
+
+请提供 3-5 个研究点，每个研究点包含：
+1. 标题
+2. 研究假设
+3. 简要描述
+4. 研究方法建议
+
+以 JSON 数组格式返回。"""
+
+        response = llm.invoke(prompt)
+        content = response.content if hasattr(response, 'content') else str(response)
+
+        # 解析 JSON
+        research_points = []
+        json_match = re.search(r'\[[\s\S]*\]', content)
+        if json_match:
+            try:
+                research_points = json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # 简单解析
+                lines = content.split("\n")
+                current = None
+                for line in lines:
+                    if line.startswith("##") or line.startswith("**") or re.match(r'^\d+\.', line):
+                        if current:
+                            research_points.append(current)
+                        title = re.sub(r'^[#*>\d.\s]+', '', line).strip()
+                        current = {"title": title, "description": ""}
+                    elif current and line.strip():
+                        current["description"] += line.strip() + " "
+                if current:
+                    research_points.append(current)
+                research_points = research_points[:5]
+
+        return {
+            "concept_name": concept.get('text', concept_name),
+            "research_points": research_points,
+            "analysis_context": {
+                "concept": {"id": concept_id, "name": concept.get("text"), "category": concept.get("category")},
+                "ancestors": [{"id": p["id"], "name": p.get("text")} for p in parents],
+                "descendants": [{"id": c["id"], "name": c.get("text")} for c in children],
+                "edge_nodes": [],
+                "related_papers": [{"title": p.get("title")} for p in concept_papers[:5]],
+            },
+        }
     except Exception as e:
-        print(f"DEBUG: 异常={e}")
         # Fallback：返回基础概念数据
         papers = _db.get_papers_by_concept(concept_id) or []
         children = _db.get_concept_children(concept_id) or []
@@ -517,7 +632,8 @@ def recommend_papers(concept_name: str, limit: int = 10) -> Dict[str, Any]:
 
 @tool
 def deep_research(target_name: str, target_type: str, query: str,
-                  dimensions: Optional[List[str]] = None) -> Dict[str, Any]:
+                  dimensions: Optional[List[str]] = None,
+                  session_id: Optional[str] = None) -> Dict[str, Any]:
     """深入研究 - 多智能体协作分析。
 
     启动多个维度的研究 agent，并行分析后综合报告。
@@ -528,6 +644,7 @@ def deep_research(target_name: str, target_type: str, query: str,
         target_type: 目标类型 ('concept' | 'paper')
         query: 研究问题
         dimensions: 研究维度（可选，默认自动生成）
+        session_id: 会话 ID（用于进度追踪，可选）
 
     Returns:
         研究报告，包含各维度分析和综合结论
@@ -539,7 +656,8 @@ def deep_research(target_name: str, target_type: str, query: str,
             target_name=target_name,
             target_type=target_type,
             query=query,
-            dimensions=dimensions
+            dimensions=dimensions,
+            session_id=session_id,
         )
         return result
     except Exception as e:
@@ -568,4 +686,27 @@ ALL_TOOLS = [
     list_folders,
     move_paper_to_folder,
     create_folder,
+]
+
+# ============================================================
+# 子 Agent 专用工具分组（用于专用节点）
+# ============================================================
+
+CITATION_TOOLS = [
+    analyze_citations,
+    get_paper_by_title,
+    search_paper,
+]
+
+RESEARCH_TOOLS = [
+    analyze_research_points,
+    get_concept_graph,
+    get_paper_by_title,
+    search_paper,
+    recommend_papers,
+]
+
+PAPER_QA_TOOLS = [
+    get_paper_by_title,
+    read_paper_content,
 ]

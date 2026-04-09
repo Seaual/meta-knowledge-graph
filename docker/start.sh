@@ -28,4 +28,4 @@ fi
 
 # Start the backend (which also serves frontend in Docker mode)
 cd /app
-exec python -m uvicorn backend.main:app --host 0.0.0.0 --port 8088
+exec python -m uvicorn backend.main:app --host 0.0.0.0 --port 8089

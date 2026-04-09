@@ -7,14 +7,17 @@ from langchain_core.messages import HumanMessage, AIMessage
 from typing import Dict, Any
 
 from ..state import AgentState
-from ..llm_config import get_llm_or_raise
+from mkg.llm import get_llm_or_raise
 
 
 SUMMARIZE_PROMPT = """以下是专业 Agent 生成的分析报告，请用简洁友好的方式总结要点：
 
 {report}
 
-请用中文总结（100字以内），突出关键发现。"""
+请用中文总结（100字以内），突出关键发现。
+- 用一两句话概括核心发现
+- 提及最重要的数据或结论
+- 语气友好，像一个助手在汇报"""
 
 
 def summarize_node(state: AgentState) -> Dict[str, Any]:

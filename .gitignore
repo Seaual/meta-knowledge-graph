@@ -44,6 +44,13 @@ backend.log
 research/
 .superpowers/
 
+# Personal configs
+.claude/
+settings.json
+skills-lock.json
+summary.txt
+send-summary.ps1
+
 # Desktop Client (not ready for release)
 app/
 
@@ -63,11 +70,11 @@ Thumbs.db
 # Semantic Scholar cache
 .s2_cache/
 
-# Demo/temp databases
-mkg-demo.db
+# Demo/temp databases (top-level, in case they exist)
 mkg.db
 mkg.db-shm
 mkg.db-wal
+mkg-demo.db
 
 # Test files
 test_*.pdf
@@ -78,3 +85,6 @@ test_*.txt
 concept_tree_output.json
 paper_analysis.json
 demo_papers*.json
+
+# Redis dump
+dump.rdb

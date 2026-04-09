@@ -5,78 +5,59 @@
 <h1 align="center">Meta Knowledge Graph</h1>
 
 <p align="center">
-  <strong>简体中文</strong> | <a href="README.md">English</a>
+  <a href="README.md">English</a> | <strong>简体中文</strong>
 </p>
 
 <p align="center">
-  <strong>基于 LLM 的学术知识图谱引擎</strong>
+  <strong>AI 研究助手 — LLM 驱动的学术知识图谱引擎</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Seaual/meta-knowledge-graph/stargazers"><img src="https://img.shields.io/github/stars/Seaual/meta-knowledge-graph?style=social" alt="Stars" /></a>
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
+  <a href="https://github.com/Seaual/meta-knowledge-graph/stargazers"><img src="https://img.shields.io/github/stars/Seaual/meta-knowledge-graph?style=social" alt="Stars"></a>
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/github/license/Seaual/meta-knowledge-graph" alt="License">
-  <img src="https://img.shields.io/github/v/release/Seaual/meta-knowledge-graph" alt="Release">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini%20%7C%20Qwen-8A2BE2" alt="LLM">
 </p>
 
 <p align="center">
-  从 PDF 论文自动提取概念层级结构，以交互式力导向图可视化展示
+  上传论文 PDF → LLM 自动提取层次化概念 →<br>
+  构建可交互知识图谱 → AI Agent 发现研究机会
 </p>
 
 <p align="center">
   <a href="#快速开始">快速开始</a> •
-  <a href="#核心特性">功能</a> •
-  <a href="#概念层级">概念体系</a> •
-  <a href="#开发计划">Roadmap</a> •
-  <a href="https://github.com/Seaual/meta-knowledge-graph/issues">Issues</a>
+  <a href="#核心特性">核心特性</a> •
+  <a href="#ai-代理系统">AI 代理</a> •
+  <a href="#架构">架构</a> •
+  <a href="#路线图">路线图</a>
 </p>
 
 ---
 
-## v2.2 新特性
+## 核心特性
 
-| 功能 | 描述 |
+| 特性 | 描述 |
 |------|------|
-| 💬 **Chat 附件系统** | LLM Agent 对话驱动，支持研究点/论文详情/推荐等卡片交互 |
-| 🛠️ **Agent 工具优化** | 修复 LLM 过度调用多个工具的问题，每次只处理一个工具 |
-| 🌐 **双语概念完善** | 数据库新增 `text_zh` 字段，完整支持中英双语概念名 |
-| 🔧 **去重 Prompt 改进** | 优化概念合并判断和漂浮概念修复的提示词 |
-
----
-
-## v2.1 新特性
-
-| 功能 | 描述 |
-|------|------|
-| 🧠 **优化提取 Prompt** | 两阶段 prompt 优化，更好地区分背景/新概念 |
-| 🌐 **双语概念名称** | 概念同时存储中英文名称，优化 S2 论文搜索 |
-| 📚 **论文推荐** | 根据概念在 Semantic Scholar 搜索相关论文 |
-| 🔍 **研究点发现增强** | 修复研究点发现功能，增加 S2 领域趋势分析 |
-| 🎨 **界面优化** | 修复语言切换、期刊名称溢出等问题 |
-
----
-
-## v2.0 新特性
-
-| 功能 | 描述 |
-|------|------|
-| 🎨 **浅色学术风界面** | 温暖的奶油/褐石色调配色，优雅的排版设计（Playfair Display + Source Sans） |
-| 🌐 **中英文双语支持** | 完整的中英文界面，自动检测浏览器语言 |
-| 📚 **Semantic Scholar 集成** | 自动获取论文元数据（DOI、引用数、期刊、作者等） |
-| 🔍 **图谱搜索与筛选** | 按名称搜索概念，按类别筛选并高亮显示 |
-| 📊 **类别层级节点大小** | 节点大小按层级递减（领域 → 方向 → ... → 技术） |
-| 🎓 **新手引导教程** | 首次使用自动展示功能介绍，附带 10 篇 LLM 经典论文演示数据 |
+| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要 |
+| 🧠 **两阶段概念提取** | 阶段一：论文理解 → 阶段二：8 类别层次化概念提取 |
+| 🌐 **Semantic Scholar 集成** | 自动增强论文元数据（DOI、引用数、期刊、被引次数） |
+| 📊 **交互式图谱可视化** | 力导向图 + 类别节点大小 + 搜索筛选 |
+| 🔍 **研究点发现** | 4 种方法论：填补空白、叶子延伸、瓶颈突破、迁移应用 |
+| 📤 **多格式导出** | HTML 交互式图谱、Obsidian Canvas、Markdown 双链 |
+| 📁 **文件夹管理** | 侧边栏分类组织论文 |
+| ⚡ **队列处理** | 顺序批量处理 + 时间预估 |
+| 🔄 **智能去重** | 同义词合并、吸收、翻译检测 |
+| 🤖 **AI 研究代理** | 基于聊天的论文问答、引用分析、深度研究 |
 
 ---
 
 ## 演示
 
-### 概念图谱浏览
+### 知识图谱浏览
 
-![概念图谱浏览](docs/概念浏览.gif)
+![知识图谱浏览](docs/概念浏览.gif)
 
 *拖拽节点、缩放、搜索概念、按类别筛选*
 
@@ -86,35 +67,102 @@
 
 *点击概念 → 发现研究点 → 查看分析上下文*
 
-### 功能展示
+### 功能概览
 
 ![功能展示](docs/功能展示.gif)
 
-*上传 PDF → 处理 → 浏览图谱 → 导出*
+*上传 PDF → 处理 → 探索图谱 → 导出*
 
 ### LLM 配置
 
-![LLM 配置](docs/配置LLM.gif)
+![配置 LLM](docs/配置LLM.gif)
 
 *配置 API Key → 测试连接 → 开始处理*
 
 ---
 
-## 核心特性
+## 快速开始
 
-| 功能 | 描述 |
-|------|------|
-| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要等元数据 |
-| 🧠 **两阶段概念提取** | Stage 1: 论文理解 → Stage 2: 核心概念提取 |
-| 📊 **知识图谱可视化** | 类似 Obsidian/Neo4j 的力导向图，节点大小按层级显示 |
-| 🔍 **研究点发现** | 四种方法论：空白地带、末端延伸、瓶颈识别、迁移应用 |
-| 🔄 **智能概念去重** | 三种合并类型：同义词、粒度吸收、翻译对应 |
-| 📤 **多格式导出** | 支持 HTML、Obsidian Canvas、Markdown |
-| 📁 **文件夹管理** | 可折叠侧边栏，论文分类管理 |
-| ⚡ **队列处理** | 顺序批量处理，实时预估剩余时间 |
-| 🌐 **双语界面** | 完整中英文支持，自动检测语言 |
-| 📚 **S2 元数据增强** | 自动从 Semantic Scholar 获取论文元数据 |
-| 🐳 **Docker 部署** | 一键拉取镜像，快速部署使用 |
+### 方式一：Docker（推荐）
+
+```bash
+docker pull danceinsophy/meta-knowledge-graph:latest
+docker run -d -p 8089:8089 \
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  --restart unless-stopped \
+  danceinsophy/meta-knowledge-graph:latest
+```
+
+打开 http://localhost:8089，在 **设置** 页面配置 LLM API Key。
+
+> API Key 保存在本地数据库中，无需配置环境变量。支持 Claude、OpenAI、Gemini、Qwen、DeepSeek 等。
+
+### 方式二：Docker Compose
+
+```bash
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph/docker
+docker-compose up -d
+```
+
+### 方式三：手动安装
+
+```bash
+# 克隆
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph
+
+# 后端
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8089 --reload
+
+# 前端（另一个终端）
+cd frontend && npm install && npm run dev
+```
+
+开发环境访问 http://localhost:5173，享受热更新体验。
+
+---
+
+## AI 代理系统
+
+MKG 内置了基于 LangGraph 的多代理系统，提供智能研究辅助：
+
+### 路由代理（Lead Node）
+自动将你的问题分派给专业代理：
+- **概念搜索** — 在知识图谱中查找概念
+- **论文搜索** — 按标题或概念查找论文
+- **论文推荐** — 推荐相关论文
+
+### 论文问答代理
+回答关于特定论文的详细问题：
+- 从数据库获取论文元数据
+- 必要时读取论文全文
+- 基于论文内容给出准确回答并注明来源
+
+### 引用分析代理
+分析论文的引用关系：
+- 引用统计与趋势
+- 关键引用论文及其影响
+- 集合内的引用网络
+
+### 研究代理
+深入分析概念与研究机会：
+- 获取概念图谱结构（父子概念）
+- 使用 4 种方法论分析研究空白
+- 从 Semantic Scholar 推荐前沿论文
+
+### 深度研究
+异步运行的多维度研究合成：
+- 按维度启动专业研究代理
+- 综合发现生成完整报告
+- 通过会话 ID 跟踪进度
+
+### 汇总节点
+自动将冗长的代理输出精炼为简洁摘要。
 
 ---
 
@@ -122,205 +170,103 @@
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                  前端                            │
+│                   前端                           │
 │         React + TypeScript + D3.js               │
 └─────────────────────┬───────────────────────────┘
                       │ REST API
 ┌─────────────────────▼───────────────────────────┐
-│                  后端                            │
-│      FastAPI + SQLite + PyMuPDF                  │
+│                   后端                           │
+│      FastAPI + SQLite + LangGraph Agents         │
 └─────────────────────┬───────────────────────────┘
                       │ LLM API / S2 API
 ┌─────────────────────▼───────────────────────────┐
-│              外部服务                             │
+│                 外部服务                         │
 │   LLM: Claude/Gemini/Qwen   S2: 元数据 API       │
 └─────────────────────────────────────────────────┘
 ```
 
-**数据流：** `PDF → S2 元数据增强 → LLM 提取 (两阶段) → 知识图谱 → 导出`
-
----
-
-## 快速开始
-
-### 一键部署（推荐）
-
-**Linux / Mac:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.sh | bash
-```
-
-**Windows:**
-```cmd
-curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.bat -o deploy.bat && deploy.bat
-```
-
-或下载脚本后运行：
-- Linux/Mac: `chmod +x deploy.sh && ./deploy.sh`
-- Windows: 双击 `deploy.bat`
-
-访问 http://localhost:8088 即可使用。
-
-**配置 LLM**：进入浏览器中的「设置」页面配置 API Key（支持 Claude、OpenAI、Gemini、通义千问、DeepSeek 等）
-
-> 💡 API Key 保存在本地数据库中，无需设置环境变量。
-
-### Docker 手动部署
-
-```bash
-# 拉取并运行
-docker pull danceinsophy/meta-knowledge-graph:latest
-docker run -d -p 8088:8088 \
-  -v mkg-data:/app/data \
-  -v mkg-papers:/app/papers \
-  --restart unless-stopped \
-  danceinsophy/meta-knowledge-graph:latest
-```
-
-访问 http://localhost:8088
-
-### Docker Compose 部署
-
-```bash
-# 克隆项目
-git clone https://github.com/Seaual/meta-knowledge-graph.git
-cd meta-knowledge-graph/docker
-
-# 启动服务
-docker-compose up -d
-```
-
-### 手动部署
-
-<details>
-<summary>点击展开详细步骤</summary>
-
-```bash
-# 克隆项目
-git clone https://github.com/Seaual/meta-knowledge-graph.git
-cd meta-knowledge-graph
-
-# 后端配置
-python -m venv venv
-source venv/bin/activate  # Linux/Mac，Windows 用: venv\Scripts\activate
-pip install -r requirements.txt
-
-# 启动后端
-python -m uvicorn backend.main:app --port 8088 --reload &
-
-# 启动前端
-cd frontend && npm run dev
-```
-
-访问 http://localhost:5173，在「设置」页面配置 API Key。
-
-</details>
-
----
-
-## 功能详解
-
-### 两阶段概念提取
-
-```
-Stage 1: 论文理解
-├── 研究背景识别
-├── 核心贡献区分
-├── 背景/新概念分类
-└── 双语输出（英文 + 中文）
-
-Stage 2: 概念提取
-├── 锚点路径（定位论文归属）
-├── 贡献子树（论文真正贡献）
-├── 贡献角色标注（proposed/improved/applied/analyzed）
-└── 类别分配（field/direction/subdirection/task/method/technique/dataset/finding）
-```
-
-### 研究点发现方法论
-
-| 方法 | 描述 |
-|------|------|
-| 🔍 **空白地带法** | 图谱中两个本应有联系的分支缺少连接 |
-| 🌱 **末端延伸法** | 叶子节点能否应用到其他分支 |
-| 🔥 **瓶颈识别法** | 某节点连接大量子节点但缺少兄弟节点 |
-| 🔄 **迁移应用法** | 成熟方法能否迁移到另一个未解决的问题 |
+**数据流：** `PDF → S2 增强 → LLM 提取（两阶段） → 知识图谱 → Agent 分析`
 
 ### 概念层级
 
 | 类别 | 描述 | 示例 | 节点大小 |
 |------|------|------|----------|
-| field | 大领域 | 人工智能、运筹学 | 最大 |
+| field | 主要领域 | 人工智能 | 最大 |
 | direction | 研究方向 | 多智能体强化学习 | 大 |
-| subdirection | 子方向 | 值分解方法 | 中 |
-| task | 研究任务 | 信用分配问题 | 小 |
-| method | 方法/算法 | QMIX | 较小 |
+| subdirection | 子方向 | 价值分解 | 中 |
+| task | 研究任务 | 信用分配 | 小 |
+| method | 算法 | QMIX | 较小 |
 | technique | 技术细节 | 注意力加权混合 | 最小 |
 | dataset | 基准/数据集 | ImageNet, SMAC | 中 |
-| finding | 关键发现 | Scaling Laws | 中 |
+| finding | 关键发现 | 缩放定律 | 中 |
+
+### 研究发现方法
+
+| 方法 | 描述 |
+|------|------|
+| 🔍 **填补空白** | 相关分支间缺失的连接 |
+| 🌱 **叶子延伸** | 叶子节点应用到其他分支 |
+| 🔥 **瓶颈突破** | 子节点多但兄弟节点少的节点 |
+| 🔄 **迁移应用** | 成熟方法迁移到未解决的问题 |
 
 ---
 
-## 使用说明
+## 使用指南
 
-### 上传论文
-1. 进入「论文」页面
-2. 点击上传按钮，选择 PDF 文件（支持批量）
-3. 论文将出现在「待处理」列表中，自动从 Semantic Scholar 获取元数据
+### 1. 上传论文
+- 进入 **论文** 页面 → 上传 PDF 文件（支持批量）
+- 论文出现在 **待处理** 列表，Semantic Scholar 自动增强元数据
 
-### 处理论文
-1. 点击「处理」按钮或「批量处理」
-2. LLM 自动提取概念树（含中英文名称）
-3. 概念添加到知识图谱
+### 2. 处理论文
+- 点击 **处理** 或 **批量处理**
+- LLM 提取带中英双语名称的概念树
+- 概念合并到知识图谱中
 
-### 浏览图谱
-1. 进入「概念」页面
-2. 拖拽节点、滚轮缩放
-3. 使用搜索框搜索概念，按类别筛选
-4. 点击概念查看详情
+### 3. 探索图谱
+- 进入 **概念** 页面 → 拖拽节点、滚动缩放
+- 按名称搜索概念，按类别筛选
+- 点击任意概念查看详情
 
-### 发现研究点
-1. 点击概念节点
-2. 点击「发现研究点」
-3. LLM 分析图谱结构，生成 3-5 个研究方向（含 S2 趋势分析）
+### 4. 发现研究点
+- 点击概念 → **发现研究点**
+- LLM 分析图谱结构，生成 3-5 个研究方向
 
-### 搜索相关论文
-1. 点击概念节点
-2. 点击「搜索论文」
-3. 查看 Semantic Scholar 上的相关论文（使用英文概念名搜索）
+### 5. 与代理对话
+- 进入 **聊天** 页面 → 提问关于论文或概念的问题
+- 代理自动路由到合适的专家，返回结构化结果和交互式卡片
 
-### 概念去重
-1. 点击「去重扫描」
-2. 查看合并建议（同义词/粒度吸收/翻译对应）
-3. 执行选中的合并
+### 6. 去重
+- 点击 **去重扫描** → 查看合并建议 → 执行选中的合并
 
-### 导出图谱
-- **HTML** - 交互式 D3.js 力导向图（可独立运行）
-- **Canvas** - Obsidian Canvas 格式
-- **Markdown** - 双链格式笔记
+### 7. 导出
+- **HTML** — 独立交互式 D3.js 图谱
+- **Canvas** — Obsidian Canvas 格式
+- **Markdown** — 双链笔记格式
 
 ---
 
 ## 支持的 LLM 提供商
 
-| 提供商 | 类型 | 配置方式 |
-|--------|------|----------|
+| 提供商 | 类型 | 配置 |
+|--------|------|------|
 | **Anthropic Claude** | 原生 API | `ANTHROPIC_API_KEY` |
-| **Claude CLI** | 本地 CLI | 自动检测 |
 | **Google Gemini** | 原生 API | `GOOGLE_API_KEY` |
-| **阿里云 DashScope** | OpenAI 兼容 | `DASHSCOPE_API_KEY` |
-| **OpenRouter** | OpenAI 兼容 | 自定义 base_url |
+| **OpenAI** | OpenAI 兼容 | `OPENAI_API_KEY` |
+| **阿里 DashScope** | OpenAI 兼容 | `DASHSCOPE_API_KEY` |
+| **Qwen** | OpenAI 兼容 | 自定义 base_url |
 | **DeepSeek** | OpenAI 兼容 | 自定义 base_url |
+| **OpenRouter** | OpenAI 兼容 | `OPENAI_API_KEY` + base_url |
 | **MiniMax** | OpenAI 兼容 | 自定义 base_url |
 
 ---
 
 ## 技术栈
 
-**后端：** Python 3.10+ • FastAPI • SQLite • PyMuPDF
+**后端：** Python 3.10+ • FastAPI • SQLite • PyMuPDF • LangGraph
 
 **前端：** React 18 • TypeScript • Vite • TailwindCSS • D3.js
 
-**LLM：** Claude / Gemini / Qwen / DeepSeek / OpenRouter
+**LLM：** Claude / Gemini / Qwen / DeepSeek / OpenRouter / OpenAI
 
 **外部 API：** Semantic Scholar（论文元数据增强）
 
@@ -330,69 +276,80 @@ Stage 2: 概念提取
 
 ```
 meta-knowledge-graph/
-├── backend/           # FastAPI 后端
-│   ├── main.py        # 应用入口
-│   ├── routes/        # API 路由
-│   └── schemas.py     # 数据模型
-├── frontend/          # React 前端
+├── backend/                  # FastAPI 后端
+│   ├── main.py               # 应用入口、CORS、路由注册
+│   ├── routes/               # API 路由处理器
+│   ├── services/             # 业务逻辑服务
+│   ├── schemas.py            # Pydantic 数据模型
+│   └── dependencies.py       # 依赖注入
+├── frontend/                 # React + TypeScript 前端
 │   └── src/
-│       ├── pages/     # 页面组件
-│       ├── components/
-│       └── i18n/      # 国际化（中/英）
-├── mkg/               # 核心库
-│   ├── database.py    # 数据库操作
-│   ├── graph.py       # 图谱操作
-│   ├── pdf_parser.py  # PDF 解析 & LLM 提取
-│   ├── semantic_scholar.py  # S2 API 客户端
-│   └── dedup/         # 去重模块
-├── papers/            # 论文存储
-├── scripts/           # 工具脚本（演示数据等）
-├── icon/              # 项目图标
-└── PROMPT_GUIDE.md    # Prompt 工程指南
+│       ├── pages/            # 页面组件
+│       ├── components/       # 共享组件 + 卡片
+│       ├── i18n/             # 中英翻译
+│       ├── lib/api/          # API 客户端模块
+│       └── store/            # Zustand 状态管理
+├── mkg/                      # 核心库
+│   ├── database.py           # SQLite 数据库管理器
+│   ├── repositories/         # 数据访问层
+│   ├── agent/                # LangGraph 代理系统
+│   │   ├── nodes/            # 代理节点
+│   │   ├── tools.py          # 工具定义
+│   │   └── research_graph.py # 深度研究编排
+│   ├── dedup/                # 概念去重模块
+│   ├── semantic_scholar.py   # S2 API 客户端
+│   └── llm.py                # LLM 提供商抽象
+├── scripts/                  # 工具脚本（演示数据生成）
+├── docker/                   # Docker 配置
+├── icon/                     # 项目图标
+├── docs/                     # 演示截图和 GIF
+└── Dockerfile                # 多阶段 Docker 构建
 ```
 
 ---
 
-## API 文档
+## API 参考
 
-启动后访问 http://localhost:8088/docs
+启动后端后访问 http://localhost:8089/docs 查看完整 API 文档。
 
-| 接口 | 方法 | 描述 |
+| 端点 | 方法 | 描述 |
 |------|------|------|
-| `/api/papers/upload` | POST | 上传 PDF |
-| `/api/papers/batch-upload` | POST | 批量上传 |
-| `/api/papers/batch-process` | POST | 批量处理 |
-| `/api/s2/papers/{doi}/enhance` | POST | 从 S2 增强元数据 |
+| `/api/papers/upload` | POST | 上传 PDF 文件 |
+| `/api/papers/batch-upload` | POST | 批量上传 PDF |
+| `/api/papers/batch-process` | POST | 批量处理论文 |
 | `/api/concepts/` | GET | 获取所有概念 |
 | `/api/concepts/{id}/research-points` | GET | 发现研究点 |
 | `/api/concepts/{id}/search-papers` | GET | 按概念搜索论文 |
 | `/api/concepts/dedup/scan` | POST | 扫描重复概念 |
-| `/api/graph/export/obsidian/html` | GET | 导出 HTML |
+| `/api/graph/export/obsidian/html` | GET | 导出交互式 HTML |
+| `/api/agent/chat` | POST | 与 AI 代理对话 |
+| `/api/agent/deep-research/start` | POST | 启动深度研究 |
+| `/api/agent/deep-research/{id}/status` | GET | 查看研究进度 |
 
 ---
 
-## 开发计划
+## 路线图
 
-- [x] 支持更多 LLM（DeepSeek、OpenRouter、MiniMax）
-- [x] 概念合并与去重
-- [x] 多格式导出
-- [x] 批量处理
 - [x] 两阶段概念提取
-- [x] 研究点发现方法论
-- [x] 浅色学术风界面
-- [x] 中英文双语支持
+- [x] 研究点发现（4 种方法论）
+- [x] 学术轻量主题 UI
+- [x] 双语支持（中文/英文）
 - [x] Semantic Scholar 元数据增强
 - [x] 图谱搜索与筛选
-- [x] 双语概念名称优化 S2 搜索
-- [x] 按概念推荐论文
-- [ ] 协作功能
+- [x] 概念去重
+- [x] 多格式导出
+- [x] 批量处理
+- [x] 多 LLM 后端
+- [x] AI 研究代理（聊天、论文问答、引用分析、研究）
+- [x] 异步深度研究 + 进度跟踪
+- [ ] 实时协作
 - [ ] Neo4j 支持
 
 ---
 
 ## 贡献
 
-欢迎 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request！
 
 ## 许可证
 

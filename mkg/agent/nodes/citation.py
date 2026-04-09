@@ -8,23 +8,23 @@ from typing import Dict, Any
 
 from ..state import AgentState
 from ..tools import CITATION_TOOLS
-from ..llm_config import get_llm_or_raise
+from mkg.llm import get_llm_or_raise
 
 
 CITATION_PROMPT = """分析论文「{target_name}」的引用关系。
 
 请按以下步骤操作：
-1. 使用 get_paper_by_doi 或 get_paper_by_title 获取论文信息
-2. 使用 get_paper_citations 获取引用数据
-3. 必要时使用 search_s2_papers 从 Semantic Scholar 补充数据
+1. 使用 analyze_citations 工具获取该论文的引用数据
+2. 如果找不到论文，先用 get_paper_by_title 确认论文存在
+3. 必要时用 search_paper 补充查找
 
 然后生成分析报告，包括：
-- 被引统计（总数、年均、近年趋势）
-- 高影响力引用者（引用数高的论文）
+- 被引统计（总数、近年趋势）
+- 关键引用者（引用该论文的论文）
+- 该论文引用的重要文献
 - 引用领域分布
-- 关键洞察
 
-请用中文回答，结构清晰。"""
+请用中文回答，结构清晰。不要重复原始数据，给出分析结论。"""
 
 
 def citation_node(state: AgentState) -> Dict[str, Any]:

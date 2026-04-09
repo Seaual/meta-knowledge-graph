@@ -20,6 +20,9 @@ def get_db():
         db_path = Path(__file__).parent.parent / "mkg.db"
         _db_instance = Database(str(db_path))
         _db_instance.connect()
+    elif _db_instance.conn is None:
+        # 实例存在但连接已关闭，重新连接
+        _db_instance.connect()
     return _db_instance
 
 

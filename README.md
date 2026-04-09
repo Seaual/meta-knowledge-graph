@@ -5,71 +5,51 @@
 <h1 align="center">Meta Knowledge Graph</h1>
 
 <p align="center">
-  <a href="README_CN.md">简体中文</a> | <strong>English</strong>
+  <strong>English</strong> | <a href="README_CN.md">简体中文</a>
 </p>
 
 <p align="center">
-  <strong>LLM-powered Academic Knowledge Graph Engine</strong>
+  <strong>AI Research Agent — Academic Knowledge Graph Engine powered by LLM</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/Seaual/meta-knowledge-graph/stargazers"><img src="https://img.shields.io/github/stars/Seaual/meta-knowledge-graph?style=social" alt="Stars" /></a>
-  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker Ready">
+  <a href="https://github.com/Seaual/meta-knowledge-graph/stargazers"><img src="https://img.shields.io/github/stars/Seaual/meta-knowledge-graph?style=social" alt="Stars"></a>
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white" alt="Docker">
   <img src="https://img.shields.io/github/license/Seaual/meta-knowledge-graph" alt="License">
-  <img src="https://img.shields.io/github/v/release/Seaual/meta-knowledge-graph" alt="Release">
   <img src="https://img.shields.io/badge/Python-3.10+-3776AB?logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/LLM-Claude%20%7C%20Gemini%20%7C%20Qwen-8A2BE2" alt="LLM">
 </p>
 
 <p align="center">
-  Automatically extract hierarchical concepts from PDF papers<br>
-  with interactive force-directed graph visualization
+  Upload research PDFs → LLM extracts hierarchical concepts →<br>
+  build an interactive knowledge graph → discover research opportunities via AI Agents
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> •
   <a href="#key-features">Features</a> •
-  <a href="#concept-hierarchy">Concepts</a> •
-  <a href="#roadmap">Roadmap</a> •
-  <a href="https://github.com/Seaual/meta-knowledge-graph/issues">Issues</a>
+  <a href="#ai-agent-system">AI Agents</a> •
+  <a href="#architecture">Architecture</a> •
+  <a href="#roadmap">Roadmap</a>
 </p>
 
 ---
 
-## What's New in v2.2
+## Key Features
 
 | Feature | Description |
 |---------|-------------|
-| 💬 **Chat Attachments** | LLM Agent conversation-driven with interactive cards for research points, paper details, recommendations, etc. |
-| 🛠️ **Agent Tool Optimization** | Fixed LLM over-calling multiple tools, now processes one tool per turn |
-| 🌐 **Full Bilingual Support** | Added `text_zh` database field for complete Chinese/English concept names |
-| 🔧 **Improved Dedup Prompts** | Optimized prompts for concept merge judgment and floating concept fixing |
-
----
-
-## What's New in v2.1
-
-| Feature | Description |
-|---------|-------------|
-| 🧠 **Improved Extraction Prompt** | Two-stage prompt optimized for better background/novel concept distinction |
-| 🌐 **Bilingual Concepts** | Concepts stored in both Chinese and English for better S2 paper search |
-| 📚 **Paper Recommendation** | Search related papers by concept on Semantic Scholar |
-| 🔍 **Enhanced Research Discovery** | Fixed research points discovery with S2 trend analysis |
-| 🎨 **UI Improvements** | Fixed language switching, venue display overflow, and more |
-
----
-
-## What's New in v2.0
-
-| Feature | Description |
-|---------|-------------|
-| 🎨 **Academic Light Theme** | Warm cream/sepia color palette with elegant typography (Playfair Display + Source Sans) |
-| 🌐 **Bilingual Support** | Full Chinese/English UI with automatic language detection |
-| 📚 **Semantic Scholar Integration** | Auto-enhance paper metadata (DOI, citations, venue, authors) |
-| 🔍 **Graph Search & Filter** | Search concepts by name, filter by category with visual highlighting |
-| 📊 **Category-based Node Sizes** | Node sizes decrease by hierarchy (field → direction → ... → technique) |
-| 🎓 **Onboarding Tutorial** | First-time user guide with demo data (10 classic LLM papers) |
+| 📄 **PDF Parsing** | Auto-extract title, authors, abstract from research papers |
+| 🧠 **Two-Stage Concept Extraction** | Stage 1: Paper understanding → Stage 2: Hierarchical concept extraction with 8 categories |
+| 🌐 **Semantic Scholar Integration** | Auto-enhance paper metadata (DOI, citations, venue, citation count) |
+| 📊 **Interactive Graph Visualization** | Force-directed graph with category-based node sizes, search & filter |
+| 🔍 **Research Point Discovery** | 4 methodologies: Gap Filling, Leaf Extension, Bottleneck, Transfer |
+| 📤 **Multi-format Export** | HTML (interactive D3), Obsidian Canvas, Markdown |
+| 📁 **Folder Management** | Organize papers into folders with sidebar navigation |
+| ⚡ **Queue Processing** | Sequential batch processing with time estimation |
+| 🔄 **Smart Deduplication** | Synonym merging, absorption, translation detection |
+| 🤖 **AI Research Agents** | Chat-based agents for paper Q&A, citation analysis, deep research |
 
 ---
 
@@ -101,21 +81,88 @@
 
 ---
 
-## Key Features
+## Quick Start
 
-| Feature | Description |
-|---------|-------------|
-| 📄 **PDF Parsing** | Extract title, authors, abstract automatically |
-| 🧠 **Two-Stage Extraction** | Stage 1: Paper understanding → Stage 2: Core concept extraction |
-| 📊 **Visualization** | Obsidian/Neo4j-style force-directed graph with category-based node sizes |
-| 🔍 **Research Discovery** | Four methodologies: gap filling, leaf extension, bottleneck, transfer |
-| 🔄 **Smart Deduplication** | Three merge types: synonym, absorption, translation |
-| 📤 **Multi-format Export** | HTML, Obsidian Canvas, Markdown |
-| 📁 **Folder Management** | Collapsible sidebar for paper organization |
-| ⚡ **Queue Processing** | Sequential batch processing with time estimation |
-| 🌐 **Bilingual UI** | Full Chinese/English support with auto-detection |
-| 📚 **S2 Enhancement** | Auto-fetch metadata from Semantic Scholar API |
-| 🐳 **Docker Ready** | One-command deployment with Docker Hub image |
+### Option 1: Docker (Recommended)
+
+```bash
+docker pull danceinsophy/meta-knowledge-graph:latest
+docker run -d -p 8089:8089 \
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  --restart unless-stopped \
+  danceinsophy/meta-knowledge-graph:latest
+```
+
+Open http://localhost:8089 — configure your LLM API key in the **Settings** page.
+
+> API Keys are saved locally in the database. Supports Claude, OpenAI, Gemini, Qwen, DeepSeek, and more.
+
+### Option 2: Docker Compose
+
+```bash
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph/docker
+docker-compose up -d
+```
+
+### Option 3: Manual Setup
+
+```bash
+# Clone
+git clone https://github.com/Seaual/meta-knowledge-graph.git
+cd meta-knowledge-graph
+
+# Backend
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8089 --reload
+
+# Frontend (in another terminal)
+cd frontend && npm install && npm run dev
+```
+
+Open http://localhost:5173 for the full dev experience with hot reload.
+
+---
+
+## AI Agent System
+
+MKG includes a multi-agent system built on LangGraph for intelligent research assistance:
+
+### Chat Agent (Lead Node)
+Routes your question to the appropriate specialist agent:
+- **Concept Search** — find concepts in the knowledge graph
+- **Paper Search** — find papers by title or concept
+- **Recommendation** — recommend relevant papers
+
+### Paper Q&A Agent
+Answer detailed questions about specific papers:
+- Fetches paper metadata from the database
+- Reads full paper content when needed
+- Provides accurate answers sourced from the paper
+
+### Citation Analysis Agent
+Analyzes paper citation relationships:
+- Citation statistics and trends
+- Key citing papers and their impact
+- Citation network within your collection
+
+### Research Agent
+Deep analysis of concepts and research opportunities:
+- Retrieves concept graph structure (parent/child concepts)
+- Analyzes research gaps using 4 methodologies
+- Recommends frontier papers from Semantic Scholar
+
+### Deep Research
+Multi-dimensional research synthesis running asynchronously:
+- Spawns specialized research agents per dimension
+- Synthesizes findings into a comprehensive report
+- Progress tracking via session ID
+
+### Summarize Node
+Automatically condenses long agent outputs into concise summaries.
 
 ---
 
@@ -129,7 +176,7 @@
                       │ REST API
 ┌─────────────────────▼───────────────────────────┐
 │                  Backend                         │
-│      FastAPI + SQLite + PyMuPDF                  │
+│      FastAPI + SQLite + LangGraph Agents         │
 └─────────────────────┬───────────────────────────┘
                       │ LLM API / S2 API
 ┌─────────────────────▼───────────────────────────┐
@@ -138,113 +185,7 @@
 └─────────────────────────────────────────────────┘
 ```
 
-**Data Flow:** `PDF → S2 Enhancement → LLM Extract (Two-Stage) → Knowledge Graph → Export`
-
----
-
-## Quick Start
-
-### One-Click Deploy (Recommended)
-
-**Linux / Mac:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.sh | bash
-```
-
-**Windows:**
-```cmd
-curl -fsSL https://raw.githubusercontent.com/Seaual/meta-knowledge-graph/main/deploy.bat -o deploy.bat && deploy.bat
-```
-
-Or download and run:
-- Linux/Mac: `chmod +x deploy.sh && ./deploy.sh`
-- Windows: Double-click `deploy.bat`
-
-Open http://localhost:8088
-
-**Configure LLM**: Go to **Settings** page in the browser to configure your API Key (supports Claude, OpenAI, Gemini, Qwen, DeepSeek, etc.)
-
-> 💡 API Keys are saved locally in the database, no environment variables needed.
-
-### Docker Manual
-
-```bash
-# Pull and run
-docker pull danceinsophy/meta-knowledge-graph:latest
-docker run -d -p 8088:8088 \
-  -v mkg-data:/app/data \
-  -v mkg-papers:/app/papers \
-  --restart unless-stopped \
-  danceinsophy/meta-knowledge-graph:latest
-```
-
-Open http://localhost:8088
-
-### Docker Compose
-
-```bash
-# Clone and run
-git clone https://github.com/Seaual/meta-knowledge-graph.git
-cd meta-knowledge-graph/docker
-
-# Start
-docker-compose up -d
-```
-
-### Manual Setup
-
-<details>
-<summary>Click to expand</summary>
-
-```bash
-# Clone
-git clone https://github.com/Seaual/meta-knowledge-graph.git
-cd meta-knowledge-graph
-
-# Backend
-python -m venv venv
-source venv/bin/activate  # Linux/Mac, or: venv\Scripts\activate (Windows)
-pip install -r requirements.txt
-
-# Start Backend
-python -m uvicorn backend.main:app --port 8088 --reload &
-
-# Start Frontend
-cd frontend && npm run dev
-```
-
-Open http://localhost:5173 and configure your API Key in **Settings** page.
-
-</details>
-
----
-
-## Feature Details
-
-### Two-Stage Concept Extraction
-
-```
-Stage 1: Paper Understanding
-├── Research context identification
-├── Core contribution distinction
-├── Background/novel concept classification
-└── Bilingual output (English + Chinese)
-
-Stage 2: Concept Extraction
-├── Anchor path (paper positioning)
-├── Contribution subtree (actual contributions)
-├── Contribution role annotation (proposed/improved/applied/analyzed)
-└── Category assignment (field/direction/subdirection/task/method/technique/dataset/finding)
-```
-
-### Research Point Discovery Methods
-
-| Method | Description |
-|--------|-------------|
-| 🔍 **Gap Filling** | Missing connections between related branches |
-| 🌱 **Leaf Extension** | Leaf nodes applied to other branches |
-| 🔥 **Bottleneck** | Node with many children but few siblings |
-| 🔄 **Transfer** | Mature methods transferred to unsolved problems |
+**Data Flow:** `PDF → S2 Enhancement → LLM Extract (Two-Stage) → Knowledge Graph → Agent Analysis`
 
 ### Concept Hierarchy
 
@@ -259,45 +200,48 @@ Stage 2: Concept Extraction
 | dataset | Benchmark/Dataset | ImageNet, SMAC | Medium |
 | finding | Key discovery | Scaling Laws | Medium |
 
+### Research Discovery Methods
+
+| Method | Description |
+|--------|-------------|
+| 🔍 **Gap Filling** | Missing connections between related branches |
+| 🌱 **Leaf Extension** | Leaf nodes applied to other branches |
+| 🔥 **Bottleneck** | Node with many children but few siblings |
+| 🔄 **Transfer** | Mature methods transferred to unsolved problems |
+
 ---
 
-## Usage
+## Usage Guide
 
-### Upload Papers
-1. Go to **Papers** page
-2. Click upload button, select PDF files (batch supported)
-3. Papers appear in **Pending** list with auto-enhanced metadata from Semantic Scholar
+### 1. Upload Papers
+- Go to **Papers** page → Upload PDF files (batch supported)
+- Papers appear in **Pending** list with auto-enhanced metadata from Semantic Scholar
 
-### Process Papers
-1. Click **Process** or **Batch Process**
-2. LLM extracts concept tree with bilingual names
-3. Concepts added to knowledge graph
+### 2. Process Papers
+- Click **Process** or **Batch Process**
+- LLM extracts concept trees with bilingual names (EN/ZH)
+- Concepts are merged into the knowledge graph
 
-### Explore Graph
-1. Go to **Concepts** page
-2. Drag nodes, scroll to zoom
-3. Use search box to find concepts, filter by category
-4. Click concept for details
+### 3. Explore Graph
+- Go to **Concepts** page → drag nodes, scroll to zoom
+- Search concepts by name, filter by category
+- Click any concept for details
 
-### Discover Research Points
-1. Click a concept node
-2. Click **Discover Research Points**
-3. LLM analyzes graph structure, generates 3-5 research directions with S2 trend analysis
+### 4. Discover Research Points
+- Click a concept → **Discover Research Points**
+- LLM analyzes graph structure, generates 3-5 research directions
 
-### Find Related Papers
-1. Click a concept node
-2. Click **Search Papers**
-3. View related papers from Semantic Scholar (searches using English concept names)
+### 5. Chat with Agents
+- Go to **Chat** page → ask questions about your papers or concepts
+- Agents automatically route to the right specialist and return structured results with interactive cards
 
-### Deduplicate
-1. Click **Dedup Scan**
-2. Review merge suggestions (synonym/absorption/translation)
-3. Execute selected merges
+### 6. Deduplicate
+- Click **Dedup Scan** → review merge suggestions → execute selected merges
 
-### Export Graph
-- **HTML** - Interactive D3.js force-directed graph (standalone)
-- **Canvas** - Obsidian Canvas format
-- **Markdown** - Double-link format notes
+### 7. Export
+- **HTML** — standalone interactive D3.js graph
+- **Canvas** — Obsidian Canvas format
+- **Markdown** — double-link format for notes
 
 ---
 
@@ -306,22 +250,23 @@ Stage 2: Concept Extraction
 | Provider | Type | Configuration |
 |----------|------|---------------|
 | **Anthropic Claude** | Native API | `ANTHROPIC_API_KEY` |
-| **Claude CLI** | Local CLI | Automatic |
 | **Google Gemini** | Native API | `GOOGLE_API_KEY` |
+| **OpenAI** | OpenAI Compatible | `OPENAI_API_KEY` |
 | **Alibaba DashScope** | OpenAI Compatible | `DASHSCOPE_API_KEY` |
-| **OpenRouter** | OpenAI Compatible | `OPENAI_API_KEY` + base_url |
+| **Qwen** | OpenAI Compatible | Custom base_url |
 | **DeepSeek** | OpenAI Compatible | Custom base_url |
+| **OpenRouter** | OpenAI Compatible | `OPENAI_API_KEY` + base_url |
 | **MiniMax** | OpenAI Compatible | Custom base_url |
 
 ---
 
 ## Tech Stack
 
-**Backend:** Python 3.10+ • FastAPI • SQLite • PyMuPDF
+**Backend:** Python 3.10+ • FastAPI • SQLite • PyMuPDF • LangGraph
 
 **Frontend:** React 18 • TypeScript • Vite • TailwindCSS • D3.js
 
-**LLM:** Claude / Gemini / Qwen / DeepSeek / OpenRouter
+**LLM:** Claude / Gemini / Qwen / DeepSeek / OpenRouter / OpenAI
 
 **External APIs:** Semantic Scholar (paper metadata enhancement)
 
@@ -331,69 +276,80 @@ Stage 2: Concept Extraction
 
 ```
 meta-knowledge-graph/
-├── backend/           # FastAPI backend
-│   ├── main.py        # App entry
-│   ├── routes/        # API routes
-│   └── schemas.py     # Data models
-├── frontend/          # React frontend
+├── backend/                  # FastAPI backend
+│   ├── main.py               # App entry, CORS, router registration
+│   ├── routes/               # API route handlers
+│   ├── services/             # Business logic services
+│   ├── schemas.py            # Pydantic models
+│   └── dependencies.py       # DI providers
+├── frontend/                 # React + TypeScript frontend
 │   └── src/
-│       ├── pages/     # Page components
-│       ├── components/
-│       └── i18n/      # Internationalization (zh/en)
-├── mkg/               # Core library
-│   ├── database.py    # Database operations
-│   ├── graph.py       # Graph operations
-│   ├── pdf_parser.py  # PDF parsing & LLM extraction
-│   ├── semantic_scholar.py  # S2 API client
-│   └── dedup/         # Deduplication module
-├── papers/            # Paper storage
-├── scripts/           # Utility scripts (demo data, etc.)
-├── icon/              # Project icons
-└── PROMPT_GUIDE.md    # Prompt engineering guide
+│       ├── pages/            # Page components
+│       ├── components/       # Shared components + cards
+│       ├── i18n/             # Chinese/English translations
+│       ├── lib/api/          # API client modules
+│       └── store/            # Zustand state management
+├── mkg/                      # Core library
+│   ├── database.py           # SQLite database manager
+│   ├── repositories/         # Data access layer
+│   ├── agent/                # LangGraph agent system
+│   │   ├── nodes/            # Agent nodes (lead, research, citation, etc.)
+│   │   ├── tools.py          # Tool definitions
+│   │   └── research_graph.py # Deep research orchestration
+│   ├── dedup/                # Concept deduplication module
+│   ├── semantic_scholar.py   # S2 API client
+│   └── llm.py                # LLM provider abstraction
+├── scripts/                  # Utility scripts (demo data generation)
+├── docker/                   # Docker configuration
+├── icon/                     # Project icons
+├── docs/                     # Demo screenshots and gifs
+└── Dockerfile                # Multi-stage Docker build
 ```
 
 ---
 
 ## API Reference
 
-Access http://localhost:8088/docs after starting
+Access http://localhost:8089/docs after starting the backend.
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/papers/upload` | POST | Upload PDF |
-| `/api/papers/batch-upload` | POST | Batch upload |
-| `/api/papers/batch-process` | POST | Batch process |
-| `/api/s2/papers/{doi}/enhance` | POST | Enhance metadata from S2 |
+| `/api/papers/upload` | POST | Upload PDF file |
+| `/api/papers/batch-upload` | POST | Batch upload PDFs |
+| `/api/papers/batch-process` | POST | Batch process papers |
 | `/api/concepts/` | GET | Get all concepts |
 | `/api/concepts/{id}/research-points` | GET | Discover research points |
 | `/api/concepts/{id}/search-papers` | GET | Search papers by concept |
-| `/api/concepts/dedup/scan` | POST | Scan duplicates |
-| `/api/graph/export/obsidian/html` | GET | Export HTML |
+| `/api/concepts/dedup/scan` | POST | Scan for duplicates |
+| `/api/graph/export/obsidian/html` | GET | Export interactive HTML |
+| `/api/agent/chat` | POST | Chat with AI agents |
+| `/api/agent/deep-research/start` | POST | Start deep research session |
+| `/api/agent/deep-research/{id}/status` | GET | Check research progress |
 
 ---
 
 ## Roadmap
 
-- [x] More LLM backends (DeepSeek, OpenRouter, MiniMax)
-- [x] Concept deduplication
-- [x] Multi-format export
-- [x] Batch processing
 - [x] Two-stage concept extraction
-- [x] Research point discovery methodologies
+- [x] Research point discovery (4 methodologies)
 - [x] Academic light theme UI
 - [x] Bilingual support (Chinese/English)
 - [x] Semantic Scholar metadata enhancement
 - [x] Graph search and filter
-- [x] Bilingual concept names for better S2 search
-- [x] Paper recommendation by concept
-- [ ] Collaboration features
+- [x] Concept deduplication
+- [x] Multi-format export
+- [x] Batch processing
+- [x] Multiple LLM backends
+- [x] AI Research Agents (Chat, Paper Q&A, Citation Analysis, Research)
+- [x] Deep Research with async progress tracking
+- [ ] Real-time collaboration
 - [ ] Neo4j support
 
 ---
 
 ## Contributing
 
-Issues and Pull Requests welcome!
+Issues and Pull Requests are welcome!
 
 ## License
 

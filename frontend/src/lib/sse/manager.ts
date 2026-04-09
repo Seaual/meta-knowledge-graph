@@ -10,6 +10,7 @@ import type { AgentContextSummary, AgentMessage } from '../api/agent'
 class SSEManager {
   private connection: SSEConnection | null = null
   private callbacks: SSECallbacks | null = null
+  private _toolStepCount = 0
 
   /**
    * 获取当前 SSE 状态
@@ -29,6 +30,9 @@ class SSEManager {
   ): void {
     // 新连接启动前，断开旧连接
     this.disconnect()
+
+    // 重置步骤计数
+    this._toolStepCount = 0
 
     // 创建 AbortController 用于取消请求
     const abortController = new AbortController()
@@ -129,18 +133,29 @@ class SSEManager {
 
     if (event.type === 'tool') {
       if (event.status === 'running') {
+        this._toolStepCount += 1
         this.callbacks.onToolStatus({
           tool: event.tool || '',
           label: event.label || event.tool || '',
           status: 'running',
+          step: this._toolStepCount,
+          maxSteps: 5,
         })
       } else if (event.status === 'completed') {
         this.callbacks.onToolStatus(null)
       }
     } else if (event.type === 'response') {
       this.callbacks.onResponse(event.message || '', event.attachments || [])
+      // response 事件即完成
+      this.callbacks.onComplete()
+      // 完成后清理，防止后续事件重复触发
+      this._cleanup()
     } else if (event.type === 'status' && event.status === 'completed') {
-      // 最终完成状态
+      // 最终完成状态（兜底）
+      if (this.callbacks) {
+        this.callbacks.onComplete()
+      }
+      this._cleanup()
     } else if (event.type === 'error') {
       this.callbacks.onError(event.message || 'Unknown error')
     }
@@ -153,6 +168,7 @@ class SSEManager {
     if (this.callbacks) {
       this.callbacks.onComplete()
     }
+    // 确保清理，防止重复触发
     this._cleanup()
   }
 

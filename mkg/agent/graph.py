@@ -52,6 +52,9 @@ def get_agent_graph(db=None, s2_client=None, pdf_parser=None):
     """获取编译后的 Agent 图（单例）"""
     global _compiled_graph
 
+    # 每次都初始化工具依赖（确保数据库等依赖正确设置）
+    init_tools(db=db, s2_client=s2_client, pdf_parser=pdf_parser)
+
     # 初始化 LLM
     init_llm_from_db(db)
 
