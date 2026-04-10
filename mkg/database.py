@@ -7,13 +7,11 @@ SQLite 数据库管理 - 论文、概念、动态层级关系存储
 - paper_concepts 表：论文 - 概念多对多关联
 """
 
-import sqlite3
 import json
+import sqlite3
 import threading
 import uuid
 from pathlib import Path
-from datetime import datetime
-from typing import Optional, List, Dict
 
 
 class Database:
@@ -21,7 +19,7 @@ class Database:
 
     def __init__(self, db_path: str = "mkg.db"):
         self.db_path = Path(db_path)
-        self.conn: Optional[sqlite3.Connection] = None
+        self.conn: sqlite3.Connection | None = None
         self._lock = threading.Lock()
 
         # Repository 实例（延迟初始化）
@@ -32,6 +30,7 @@ class Database:
         self._conversations = None
         self._research = None
         self._citations = None
+        self._neo4j_store = None  # Neo4j 存储（延迟初始化）
 
     def connect(self):
         """连接到数据库"""
@@ -68,6 +67,9 @@ class Database:
 
     def close(self):
         """关闭连接"""
+        if self._neo4j_store:
+            self._neo4j_store.close()
+            self._neo4j_store = None
         if self.conn:
             self.conn.close()
             self.conn = None
@@ -129,6 +131,16 @@ class Database:
             from .repositories import CitationRepository
             self._citations = CitationRepository(self)
         return self._citations
+
+    @property
+    def neo4j_store(self) -> 'Neo4jStore | None':
+        """获取 Neo4j 存储（延迟初始化，如果启用）"""
+        if self._neo4j_store is None:
+            import os
+            if os.getenv("USE_NEO4J", "").lower() in ("true", "1", "yes"):
+                from .neo4j_store import Neo4jStore
+                self._neo4j_store = Neo4jStore()
+        return self._neo4j_store
 
     def _init_tables(self):
         """初始化数据表"""
@@ -711,7 +723,7 @@ class Database:
         """, (pdf_path, doi))
         self.conn.commit()
 
-    def get_paper(self, identifier: str) -> Optional[dict]:
+    def get_paper(self, identifier: str) -> dict | None:
         """获取论文（支持 DOI、arXiv ID 或 S2 Paper ID）"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -744,7 +756,7 @@ class Database:
             return paper
         return None
 
-    def get_paper_by_s2_id(self, s2_paper_id: str) -> Optional[dict]:
+    def get_paper_by_s2_id(self, s2_paper_id: str) -> dict | None:
         """通过 S2 paper ID 获取论文"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM papers WHERE s2_paper_id = ?", (s2_paper_id,))
@@ -945,7 +957,7 @@ class Database:
         """, (parent_id, child_id, relation_type))
         self.conn.commit()
 
-    def get_concept(self, concept_id: str) -> Optional[dict]:
+    def get_concept(self, concept_id: str) -> dict | None:
         """获取概念"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM concepts WHERE id = ?", (concept_id,))
@@ -954,7 +966,7 @@ class Database:
             return dict(row)
         return None
 
-    def get_concept_by_text(self, text: str) -> Optional[dict]:
+    def get_concept_by_text(self, text: str) -> dict | None:
         """通过文本获取概念"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM concepts WHERE LOWER(text) = LOWER(?)", (text,))
@@ -1095,7 +1107,7 @@ class Database:
         """, (paper_doi, json.dumps(hierarchy), raw_response))
         self.conn.commit()
 
-    def get_concept_extraction(self, paper_doi: str) -> Optional[dict]:
+    def get_concept_extraction(self, paper_doi: str) -> dict | None:
         """获取已保存的概念提取结果"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -1221,8 +1233,8 @@ class Database:
 
     def _to_slug(self, text: str) -> str:
         """将文本转换为 slug ID（支持中文）"""
-        import re
         import hashlib
+        import re
 
         # 尝试转换为拼音（如果安装了 pypinyin）
         try:
@@ -1374,7 +1386,7 @@ class Database:
         """, (job_id, total))
         self.conn.commit()
 
-    def get_batch_job(self, job_id: str) -> Optional[dict]:
+    def get_batch_job(self, job_id: str) -> dict | None:
         """获取批量任务状态"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM batch_jobs WHERE id = ?", (job_id,))
@@ -1403,7 +1415,7 @@ class Database:
         """, (scan_id, total_concepts, time.time()))
         self.conn.commit()
 
-    def get_scan_job(self, scan_id: str) -> Optional[dict]:
+    def get_scan_job(self, scan_id: str) -> dict | None:
         """获取扫描任务状态"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM scan_jobs WHERE id = ?", (scan_id,))
@@ -1422,7 +1434,6 @@ class Database:
 
     def update_scan_job(self, scan_id: str, **kwargs):
         """更新扫描任务状态"""
-        import time
         cursor = self.conn.cursor()
 
         # Build dynamic update query
@@ -1474,7 +1485,7 @@ class Database:
 
     # ========== LLM Configuration ==========
 
-    def get_llm_config(self) -> Optional[Dict]:
+    def get_llm_config(self) -> dict | None:
         """Get current LLM configuration"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM llm_config ORDER BY id DESC LIMIT 1")
@@ -1492,7 +1503,7 @@ class Database:
 
         return config
 
-    def save_llm_config(self, mode: str, providers: List[Dict]) -> Dict:
+    def save_llm_config(self, mode: str, providers: list[dict]) -> dict:
         """Save LLM configuration"""
         cursor = self.conn.cursor()
 
@@ -1526,7 +1537,7 @@ class Database:
         self.conn.commit()
         return self.get_llm_config()
 
-    def get_llm_provider_for_function(self, function_group: str) -> Optional[Dict]:
+    def get_llm_provider_for_function(self, function_group: str) -> dict | None:
         """Get provider config for a specific function"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -1537,7 +1548,7 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def get_active_llm_provider(self) -> Optional[Dict]:
+    def get_active_llm_provider(self) -> dict | None:
         """Get the active provider (for single mode)"""
         cursor = self.conn.cursor()
         cursor.execute("""
@@ -1557,7 +1568,7 @@ class Database:
         cursor.execute("SELECT * FROM folders ORDER BY created_at")
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_folder(self, folder_id: str) -> Optional[dict]:
+    def get_folder(self, folder_id: str) -> dict | None:
         """获取单个文件夹"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM folders WHERE id = ?", (folder_id,))
@@ -1799,7 +1810,7 @@ class Database:
 
     # ==================== Semantic Scholar Config ====================
 
-    def get_s2_config(self) -> Optional[Dict]:
+    def get_s2_config(self) -> dict | None:
         """获取 Semantic Scholar 配置"""
         cursor = self.execute_read("SELECT * FROM s2_config WHERE id = 1")
         row = cursor.fetchone()
@@ -1807,7 +1818,7 @@ class Database:
             return dict(row)
         return None
 
-    def save_s2_config(self, api_key: str, enabled: bool = True) -> Dict:
+    def save_s2_config(self, api_key: str, enabled: bool = True) -> dict:
         """保存 Semantic Scholar 配置"""
         cursor = self.execute_write("""
             INSERT INTO s2_config (id, api_key, enabled, updated_at)
@@ -1821,7 +1832,7 @@ class Database:
 
     # ==================== Paper Citations ====================
 
-    def add_paper_citation(self, data: Dict):
+    def add_paper_citation(self, data: dict):
         """
         添加论文引用关系
 
@@ -1862,7 +1873,7 @@ class Database:
             data.get('is_internal', False)
         ))
 
-    def get_paper_citations(self, paper_id: str) -> List[Dict]:
+    def get_paper_citations(self, paper_id: str) -> list[dict]:
         """获取论文引用的所有论文（这篇论文引用了谁）"""
         cursor = self.execute_read("""
             SELECT * FROM paper_citations
@@ -1871,7 +1882,7 @@ class Database:
         """, (paper_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_paper_cited_by(self, paper_id: str) -> List[Dict]:
+    def get_paper_cited_by(self, paper_id: str) -> list[dict]:
         """获取引用了这篇论文的所有论文（谁引用了这篇论文）
 
         同时检查 DOI 和 S2 ID 匹配
@@ -1895,7 +1906,7 @@ class Database:
             """, (paper_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_internal_citation_edges(self) -> List[Dict]:
+    def get_internal_citation_edges(self) -> list[dict]:
         """获取所有内部引用边（两端都在图谱中）
 
         通过 S2 ID 匹配来判断是否为内部引用
@@ -1913,7 +1924,7 @@ class Database:
         """)
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_papers_with_s2_id(self) -> List[Dict]:
+    def get_papers_with_s2_id(self) -> list[dict]:
         """获取所有有 S2 paper ID 的论文"""
         cursor = self.execute_read("""
             SELECT doi, title, s2_paper_id, citation_count, year, venue
@@ -1923,7 +1934,7 @@ class Database:
         """)
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_all_papers_basic(self) -> List[Dict]:
+    def get_all_papers_basic(self) -> list[dict]:
         """获取所有论文的基本信息（用于引用图谱）"""
         cursor = self.execute_read("""
             SELECT doi, title, s2_paper_id, citation_count, year, venue
@@ -1932,12 +1943,12 @@ class Database:
         """)
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_all_citations(self) -> List[Dict]:
+    def get_all_citations(self) -> list[dict]:
         """获取所有引用数据"""
         cursor = self.execute_read("SELECT * FROM paper_citations")
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_citation_by_s2_id(self, s2_id: str) -> Dict:
+    def get_citation_by_s2_id(self, s2_id: str) -> dict:
         """根据 S2 ID 获取引用信息"""
         cursor = self.execute_read("""
             SELECT cited_title, cited_year, cited_citation_count
@@ -1948,7 +1959,7 @@ class Database:
         row = cursor.fetchone()
         return dict(row) if row else None
 
-    def get_all_citation_edges(self) -> List[Dict]:
+    def get_all_citation_edges(self) -> list[dict]:
         """获取所有引用边（用于引用图谱可视化）"""
         cursor = self.execute_read("""
             SELECT
@@ -1974,7 +1985,7 @@ class Database:
 
     # ==================== S2 Recommendations ====================
 
-    def add_s2_recommendation(self, data: Dict):
+    def add_s2_recommendation(self, data: dict):
         """添加推荐论文"""
         self.execute_write("""
             INSERT INTO s2_recommendations (
@@ -1997,7 +2008,7 @@ class Database:
             data.get('score')
         ))
 
-    def get_s2_recommendations(self, source_type: str, source_id: str) -> List[Dict]:
+    def get_s2_recommendations(self, source_type: str, source_id: str) -> list[dict]:
         """获取推荐论文"""
         cursor = self.execute_read("""
             SELECT * FROM s2_recommendations
@@ -2023,7 +2034,7 @@ class Database:
 
     # ==================== S2 Metadata Update ====================
 
-    def update_paper_s2_metadata(self, doi: str, metadata: Dict):
+    def update_paper_s2_metadata(self, doi: str, metadata: dict):
         """
         更新论文的 S2 元数据
 
@@ -2064,14 +2075,14 @@ class Database:
     # ========== Research Session Methods ==========
 
     def create_research_session(self, session_id: str, target_type: str, target_id: str,
-                                 target_name: str, query: str, dimensions: List[str]) -> None:
+                                 target_name: str, query: str, dimensions: list[str]) -> None:
         """创建新的研究会话"""
         self.execute_write("""
             INSERT INTO research_sessions (id, target_type, target_id, target_name, query, dimensions, status, progress)
             VALUES (?, ?, ?, ?, ?, ?, 'running', 0)
         """, (session_id, target_type, target_id, target_name, query, json.dumps(dimensions)))
 
-    def get_research_session(self, session_id: str) -> Optional[Dict]:
+    def get_research_session(self, session_id: str) -> dict | None:
         """获取研究会话"""
         row = self.execute_read(
             "SELECT * FROM research_sessions WHERE id = ?", (session_id,)
@@ -2081,7 +2092,7 @@ class Database:
         return None
 
     def update_research_progress(self, session_id: str, progress: int,
-                                  completed_dimensions: List[str]) -> None:
+                                  completed_dimensions: list[str]) -> None:
         """更新研究进度"""
         self.execute_write("""
             UPDATE research_sessions
@@ -2090,7 +2101,7 @@ class Database:
         """, (progress, json.dumps(completed_dimensions), session_id))
 
     def save_research_finding(self, session_id: str, dimension: str,
-                              finding_type: str, content: str, sources: List[str],
+                              finding_type: str, content: str, sources: list[str],
                               confidence: float) -> None:
         """保存研究发现"""
         self.execute_write("""
@@ -2098,7 +2109,7 @@ class Database:
             VALUES (?, ?, ?, ?, ?, ?)
         """, (session_id, dimension, finding_type, content, json.dumps(sources), confidence))
 
-    def get_research_findings(self, session_id: str) -> List[Dict]:
+    def get_research_findings(self, session_id: str) -> list[dict]:
         """获取会话的所有发现"""
         rows = self.execute_read(
             "SELECT * FROM research_findings WHERE session_id = ? ORDER BY created_at",
@@ -2125,7 +2136,7 @@ class Database:
         )
         return conv_id
 
-    def get_conversations(self, device_id: str, limit: int = 50) -> List[Dict]:
+    def get_conversations(self, device_id: str, limit: int = 50) -> list[dict]:
         """获取设备的对话列表（按更新时间倒序）"""
         cursor = self.execute_read(
             """SELECT id, title, created_at, updated_at
@@ -2138,7 +2149,7 @@ class Database:
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
 
-    def get_conversation(self, conv_id: str) -> Optional[Dict]:
+    def get_conversation(self, conv_id: str) -> dict | None:
         """获取单个对话信息"""
         cursor = self.execute_read(
             "SELECT id, device_id, title, created_at, updated_at FROM conversations WHERE id = ?",
@@ -2170,7 +2181,7 @@ class Database:
 
     # ========== Message Methods ==========
 
-    def add_message(self, conv_id: str, role: str, content: str, agent: Optional[str] = None, attachments: Optional[List] = None):
+    def add_message(self, conv_id: str, role: str, content: str, agent: str | None = None, attachments: list | None = None):
         """添加消息到对话"""
         msg_id = str(uuid.uuid4())
         attachments_json = json.dumps(attachments) if attachments else None
@@ -2183,7 +2194,7 @@ class Database:
         # 更新对话时间戳
         self.update_conversation_timestamp(conv_id)
 
-    def get_messages(self, conv_id: str) -> List[Dict]:
+    def get_messages(self, conv_id: str) -> list[dict]:
         """获取对话的所有消息"""
         cursor = self.execute_read(
             """SELECT id, role, content, agent, attachments, created_at

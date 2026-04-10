@@ -3,11 +3,10 @@
 ConceptRepository - 概念相关数据库操作
 """
 
-import json
-import re
 import hashlib
-from typing import Optional, Dict, List, Any, Set
+import re
 from collections import deque
+
 from .base import BaseRepository
 
 
@@ -62,9 +61,13 @@ class ConceptRepository(BaseRepository):
                 concept_data.get('category'),
             ))
 
+        # 同步到 Neo4j
+        if self._db.neo4j_store:
+            self._db.neo4j_store.sync_concept(concept_data)
+
         return concept_id
 
-    def get(self, concept_id: str) -> Optional[dict]:
+    def get(self, concept_id: str) -> dict | None:
         """
         获取概念
 
@@ -83,7 +86,7 @@ class ConceptRepository(BaseRepository):
             return dict(row)
         return None
 
-    def get_by_text(self, text: str) -> Optional[dict]:
+    def get_by_text(self, text: str) -> dict | None:
         """
         通过文本获取概念
 
@@ -102,7 +105,7 @@ class ConceptRepository(BaseRepository):
             return dict(row)
         return None
 
-    def get_all(self) -> List[dict]:
+    def get_all(self) -> list[dict]:
         """
         获取所有概念
 
@@ -114,7 +117,7 @@ class ConceptRepository(BaseRepository):
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_root(self) -> List[dict]:
+    def get_root(self) -> list[dict]:
         """
         获取根概念（没有父节点的概念）
 
@@ -177,7 +180,7 @@ class ConceptRepository(BaseRepository):
 
     # ========== 层级关系 ==========
 
-    def get_children(self, concept_id: str) -> List[dict]:
+    def get_children(self, concept_id: str) -> list[dict]:
         """
         获取概念的子节点
 
@@ -195,7 +198,7 @@ class ConceptRepository(BaseRepository):
         """, (concept_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_parents(self, concept_id: str) -> List[dict]:
+    def get_parents(self, concept_id: str) -> list[dict]:
         """
         获取概念的父节点
 
@@ -266,6 +269,10 @@ class ConceptRepository(BaseRepository):
             VALUES (?, ?, ?)
         """, (parent_id, child_id, internal_type))
 
+        # 同步到 Neo4j
+        if self._db.neo4j_store:
+            self._db.neo4j_store.sync_relation(parent_id, child_id, relation_type)
+
     def update_relations(self, concept_id: str, relations: dict):
         """
         更新概念的父子关系
@@ -295,7 +302,7 @@ class ConceptRepository(BaseRepository):
 
     # ========== 分类与文件夹 ==========
 
-    def get_by_category(self, category: str) -> List[dict]:
+    def get_by_category(self, category: str) -> list[dict]:
         """
         按类别获取概念
 
@@ -310,7 +317,7 @@ class ConceptRepository(BaseRepository):
         """, (category,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_by_category_and_folder(self, category: str, folder_id: str) -> List[dict]:
+    def get_by_category_and_folder(self, category: str, folder_id: str) -> list[dict]:
         """
         按类别和文件夹获取概念
 
@@ -331,7 +338,7 @@ class ConceptRepository(BaseRepository):
         """, (category, folder_id))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_by_folder(self, folder_id: str) -> List[dict]:
+    def get_by_folder(self, folder_id: str) -> list[dict]:
         """
         获取指定文件夹中的论文关联的所有概念
 
@@ -350,7 +357,7 @@ class ConceptRepository(BaseRepository):
         """, (folder_id,))
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_relations_by_folder(self, folder_id: str) -> List[dict]:
+    def get_relations_by_folder(self, folder_id: str) -> list[dict]:
         """
         获取指定文件夹中的概念关系（确保两端节点都在文件夹中）
 
@@ -368,7 +375,7 @@ class ConceptRepository(BaseRepository):
             JOIN papers p ON pc.paper_doi = p.doi
             WHERE p.folder_id = ?
         """, (folder_id,))
-        concept_ids: Set[str] = set(row['id'] for row in cursor.fetchall())
+        concept_ids: set[str] = set(row['id'] for row in cursor.fetchall())
 
         # 获取所有关系，然后过滤
         cursor = self.execute_read("""
@@ -388,7 +395,7 @@ class ConceptRepository(BaseRepository):
 
     # ========== 论文关联 ==========
 
-    def get_papers(self, concept_id: str) -> List[dict]:
+    def get_papers(self, concept_id: str) -> list[dict]:
         """
         获取概念关联的论文
 
@@ -441,7 +448,7 @@ class ConceptRepository(BaseRepository):
             VALUES (?, ?, ?)
         """, (paper_doi, self._serialize_json(hierarchy), raw_response))
 
-    def get_extraction(self, paper_doi: str) -> Optional[dict]:
+    def get_extraction(self, paper_doi: str) -> dict | None:
         """
         获取已保存的概念提取结果
 
@@ -539,7 +546,15 @@ class ConceptRepository(BaseRepository):
             ) WHERE id = ?
         """, (concept_id, concept_id))
 
-    def _calculate_depth(self, concept_id: str, visited: Set[str] = None) -> int:
+        # 同步到 Neo4j
+        if self._db.neo4j_store:
+            count = self.execute_read(
+                "SELECT COUNT(DISTINCT paper_doi) as count FROM paper_concepts WHERE concept_id = ?",
+                (concept_id,)
+            ).fetchone()['count']
+            self._db.neo4j_store.update_paper_count(concept_id, count)
+
+    def _calculate_depth(self, concept_id: str, visited: set[str] = None) -> int:
         """
         计算概念的深度（从根节点到该节点的层数）
 
