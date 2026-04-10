@@ -525,7 +525,7 @@ class PDFParser:
                         metadata = json.load(f)
 
                 title = self._extract_title_from_markdown(full_text, metadata)
-                authors = self._extract_authors_from_metadata(metadata)
+                authors = self._extract_authors_from_metadata(metadata, full_text)
                 abstract = self._extract_abstract_from_markdown(full_text)
                 sections = self._extract_sections_from_markdown(full_text)
                 doi = self._extract_doi_from_metadata(metadata, full_text)
@@ -639,32 +639,33 @@ class PDFParser:
     def _extract_title_from_markdown(self, markdown: str, metadata: dict) -> str:
         """
         从 Markdown 或 JSON 元数据提取标题
+
+        优先级: JSON 元数据 → H2 标题 → H1 标题（跳过 arxiv/日期模式）
         """
         # 优先级1: JSON 元数据中的标题
         meta_title = metadata.get("title", "")
         if meta_title and len(meta_title) > 10 and not self._is_suspicious_title(meta_title):
             return meta_title.strip()
 
-        # 优先级2: Markdown 第一个 H1 标题
-        match = re.match(r"^#\s+(.+)$", markdown, re.MULTILINE)
-        if match:
-            title = match.group(1).strip()
+        # 优先级2: 第一个 H2 标题（学术论文标题通常是 H2）
+        match_h2 = re.search(r"^##\s+(.+)$", markdown, re.MULTILINE)
+        if match_h2:
+            title = match_h2.group(1).strip()
             if len(title) > 10 and not self._is_suspicious_title(title):
                 return title
 
-        # 优先级3: 第二个 H1（有些 PDF 第一行是期刊信息）
-        matches = re.findall(r"^#\s+(.+)$", markdown, re.MULTILINE)
-        if len(matches) > 1:
-            for candidate in matches[1:3]:
-                candidate = candidate.strip()
-                if len(candidate) > 10 and not self._is_suspicious_title(candidate):
-                    return candidate
+        # 优先级3: H1 标题（跳过 arxiv/日期/期刊信息模式）
+        h1_matches = re.findall(r"^#\s+(.+)$", markdown, re.MULTILINE)
+        for candidate in h1_matches:
+            candidate = candidate.strip()
+            if len(candidate) > 10 and not self._is_suspicious_title(candidate):
+                return candidate
 
         return meta_title or "Unknown"
 
-    def _extract_authors_from_metadata(self, metadata: dict) -> List[str]:
+    def _extract_authors_from_metadata(self, metadata: dict, markdown: str = "") -> List[str]:
         """
-        从 JSON 元数据提取作者列表
+        从 JSON 元数据提取作者列表，若元数据为空则从 Markdown 中提取
         """
         authors = metadata.get("authors", [])
         if isinstance(authors, str):
@@ -682,7 +683,79 @@ class PDFParser:
                     cleaned.append(name)
             authors = cleaned
 
+        if not authors:
+            authors = self._extract_authors_from_markdown_fallback(markdown)
+
         return authors[:10]
+
+    def _extract_authors_from_markdown_fallback(self, markdown: str) -> List[str]:
+        """
+        从 Markdown 提取作者（当 JSON 元数据为空时的 fallback）
+        策略：查找标题后、摘要/正文前的作者行
+        """
+        text_lower = markdown.lower()
+
+        # 找到标题位置
+        title_match = re.search(r"^##\s+(.+)$", markdown, re.MULTILINE)
+        if not title_match:
+            return []
+
+        start = title_match.end()
+        # 在标题后 500 字符内搜索作者行
+        candidate = markdown[start:start + 800]
+        candidate_lower = candidate.lower()
+
+        # 找摘要或 introduction 之前的行
+        abstract_idx = candidate_lower.find("## abstract")
+        intro_idx = candidate_lower.find("## introduction")
+        end_idx = min(
+            abstract_idx if abstract_idx != -1 else len(candidate),
+            intro_idx if intro_idx != -1 else len(candidate)
+        )
+        candidate = candidate[:end_idx]
+
+        # 提取作者行（排除 URL、邮箱、机构行）
+        lines = [l.strip() for l in candidate.split('\n') if l.strip()]
+        author_lines = []
+        for line in lines:
+            low = line.lower()
+            if low.startswith(('http', 'ftp', 'mailto', 'email', 'correspond')):
+                break  # 遇到 URL/邮箱，作者行结束
+            if 'university' in low or 'institute' in low or 'department' in low:
+                break  # 遇到机构行
+            if line.startswith(('## ', '### ')):
+                continue  # 跳过 H2/H3 标题行（通常是论文标题和小节标题）
+            if re.match(r'^#{4,6}\s+(.+)$', line):
+                # H4+ 标题行（作者信息常用）
+                text = re.sub(r'#{4,6}\s+', '', line).strip()
+                if text and not text.startswith('http'):
+                    author_lines.append(text)
+            elif not line.startswith('#'):
+                # 非标题行，可能是作者（有引用标记或逗号分隔）
+                if any(c in line for c in ['*', '∗', '†', ',']) and len(line) > 5:
+                    author_lines.append(line)
+
+        if author_lines:
+            # 合并并分割作者
+            raw = ' '.join(author_lines)
+            # 策略：用引用标记 (∗*†‡) 作为分隔符，因为学术论文作者常带这些标记
+            parts = re.split(r'[∗*†‡]+', raw)
+            # 对每个部分进一步按逗号或 " and " 分割
+            names = []
+            for part in parts:
+                part = part.strip()
+                if not part:
+                    continue
+                if ',' in part:
+                    names.extend([n.strip() for n in part.split(',') if n.strip()])
+                elif ' and ' in part.lower():
+                    names.extend([n.strip() for n in re.split(r'\s+and\s+', part, flags=re.IGNORECASE) if n.strip()])
+                else:
+                    names.append(part)
+
+            return [n for n in names if len(n) > 2][:10]
+
+        return []
 
     def _extract_abstract_from_markdown(self, markdown: str) -> str:
         """
@@ -734,7 +807,7 @@ class PDFParser:
     def _extract_sections_from_markdown(self, markdown: str) -> Dict[str, str]:
         """
         从 Markdown 提取章节结构
-        按 ## Heading 分割
+        按 H2 和 H3 标题分割
         """
         sections = {}
         target_sections = [
@@ -743,8 +816,8 @@ class PDFParser:
             "conclusion", "related work", "methodology"
         ]
 
-        # 按 ## 标题分割
-        heading_pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
+        # 按 H2 和 H3 标题分割
+        heading_pattern = re.compile(r"^#{2,3}\s+(.+)$", re.MULTILINE)
         matches = list(heading_pattern.finditer(markdown))
 
         for i, match in enumerate(matches):
