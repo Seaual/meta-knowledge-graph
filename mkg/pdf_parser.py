@@ -582,28 +582,28 @@ class PDFParser:
 
     def _extract_text_pymupdf(self, pdf_path: str) -> Optional[str]:
         """只提取纯文本（PyMuPDF fallback 路径）"""
+        doc = fitz.open(pdf_path)
         try:
-            doc = fitz.open(pdf_path)
             text = ""
             for page in doc:
                 text += page.get_text()
-            doc.close()
 
             if len(text) > 700000:
                 text = text[:700000] + "\n\n... [文本过长，已截断]"
 
             return text
         except Exception as e:
-            print(f"文本提取失败：{e}")
+            logger.error(f"文本提取失败：{e}")
             return None
+        finally:
+            doc.close()
 
     def _parse_with_pymupdf(self, pdf_path: str) -> Optional[PaperContent]:
         """
         使用 PyMuPDF 解析 PDF（fallback 路径）
         """
+        doc = fitz.open(pdf_path)
         try:
-            doc = fitz.open(pdf_path)
-
             metadata = doc.metadata
             full_text = ""
             for page in doc:
@@ -613,12 +613,10 @@ class PDFParser:
 
             doi = self._extract_doi_pymupdf(doc, first_page_text)
             arxiv_id = self._extract_arxiv_id_pymupdf(doc, first_page_text)
-            title = self._extract_title(doc)
+            title = self._extract_title_pymupdf(doc)
             authors = self._extract_authors_pymupdf(doc)
             abstract = self._extract_abstract_pymupdf(full_text)
             sections = self._extract_sections_pymupdf(full_text)
-
-            doc.close()
 
             return PaperContent(
                 title=title,
@@ -630,10 +628,11 @@ class PDFParser:
                 doi=doi,
                 arxiv_id=arxiv_id
             )
-
         except Exception as e:
-            print(f"PDF 解析失败（PyMuPDF）：{e}")
+            logger.error(f"PDF 解析失败（PyMuPDF）：{e}")
             return None
+        finally:
+            doc.close()
 
     # ========== OpenDataLoader Markdown 辅助方法 ==========
 
@@ -809,7 +808,7 @@ class PDFParser:
 
         return ""
 
-    def _extract_title(self, doc: fitz.Document) -> str:
+    def _extract_title_pymupdf(self, doc: fitz.Document) -> str:
         """
         提取标题 - 参考paper2md最佳实践
         优先级：
