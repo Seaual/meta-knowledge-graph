@@ -11,15 +11,16 @@ PDF 解析模块 - 使用 LLM 解析学术论文
   - 方法论、数据集、评估指标等
 """
 
-import fitz  # PyMuPDF
-import re
 import json
+import logging
+import re
 import subprocess
 import tempfile
-import logging
-from pathlib import Path
-from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+import fitz  # PyMuPDF
 
 logger = logging.getLogger(__name__)
 
