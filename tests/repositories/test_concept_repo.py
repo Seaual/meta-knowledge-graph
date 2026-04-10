@@ -3,9 +3,10 @@
 ConceptRepository tests
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
@@ -25,9 +26,9 @@ def test_add_concept(test_db):
     """测试添加概念"""
     concept_id = test_db.concepts.add({"text": "Machine Learning"})
 
-    assert concept_id == "machine-learning"
+    assert concept_id == "machinelearning"
 
-    concept = test_db.concepts.get("machine-learning")
+    concept = test_db.concepts.get("machinelearning")
     assert concept is not None
     assert concept["text"] == "Machine Learning"
 
@@ -40,8 +41,8 @@ def test_concept_hierarchy(test_db):
     test_db.concepts.add({"text": "Deep Learning"})
 
     # 建立关系
-    test_db.concepts.add_relation("ai", "machine-learning")
-    test_db.concepts.add_relation("machine-learning", "deep-learning")
+    test_db.concepts.add_relation("ai", "machinelearning")
+    test_db.concepts.add_relation("machinelearning", "deeplearning")
 
     # 测试获取子概念
     children = test_db.concepts.get_children("ai")
@@ -49,7 +50,7 @@ def test_concept_hierarchy(test_db):
     assert children[0]["text"] == "Machine Learning"
 
     # 测试获取父概念
-    parents = test_db.concepts.get_parents("deep-learning")
+    parents = test_db.concepts.get_parents("deeplearning")
     assert len(parents) == 1
     assert parents[0]["text"] == "Machine Learning"
 
@@ -58,19 +59,19 @@ def test_root_concepts(test_db):
     """测试根概念"""
     test_db.concepts.add({"text": "Root Concept"})
     test_db.concepts.add({"text": "Child Concept"})
-    test_db.concepts.add_relation("root-concept", "child-concept")
+    test_db.concepts.add_relation("rootconcept", "childconcept")
 
     roots = test_db.concepts.get_root()
     root_ids = [r["id"] for r in roots]
 
-    assert "root-concept" in root_ids
-    assert "child-concept" not in root_ids
+    assert "rootconcept" in root_ids
+    assert "childconcept" not in root_ids
 
 
 def test_backward_compatibility(test_db):
     """测试向后兼容方法"""
     concept_id = test_db.add_concept({"text": "Backward Compat"})
-    assert concept_id == "backward-compat"
+    assert concept_id == "backwardcompat"
 
-    concept = test_db.get_concept("backward-compat")
+    concept = test_db.get_concept("backwardcompat")
     assert concept["text"] == "Backward Compat"
