@@ -4,20 +4,18 @@ OpenClaw CLI - 学术知识图谱引擎
 核心工作流：PDF → LLM 概念提取 → SQLite/Neo4j 图谱 → Obsidian 导出
 """
 
-import typer
-import os
 from pathlib import Path
+
+import typer
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
-from rich.tree import Tree
 
 from mkg.database import Database
-from mkg.pdf_parser import PDFParser, LLMConceptExtractor
-from mkg.llm import init_llm_from_db, generate
 from mkg.graph import KnowledgeGraph
+from mkg.llm import init_llm_from_db
 from mkg.neo4j_graph import Neo4jGraph
 from mkg.obsidian_exporter import ObsidianExporter
+from mkg.pdf_parser import LLMConceptExtractor, PDFParser
 
 app = typer.Typer(help="OpenClaw - 学术知识图谱引擎")
 console = Console()
@@ -65,18 +63,19 @@ def get_extractor() -> LLMConceptExtractor:
 
 # ========== 核心命令 ==========
 
+
 @app.command()
 def init():
     """初始化数据库"""
     db = get_db()
-    console.print(f"[green]✓ 数据库初始化完成[/green]")
+    console.print("[green]✓ 数据库初始化完成[/green]")
     console.print(f"  路径: {db.db_path.absolute()}")
 
 
 @app.command()
 def process(
     pdf_path: str = typer.Argument(..., help="PDF 文件路径"),
-    verbose: bool = typer.Option(False, "--verbose", "-v", help="显示详细信息")
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="显示详细信息"),
 ):
     """
     处理 PDF 论文：解析 + LLM 概念提取 + 构建图谱
@@ -126,11 +125,11 @@ def process(
     # 3. 存储到数据库
     console.print("  [dim]→ 存储到数据库...[/dim]")
     paper_data = {
-        'doi': pdf_file.stem,  # 用文件名作为 ID
-        'title': extracted.title or content.title,
-        'abstract': extracted.abstract or content.abstract,
-        'authors': extracted.authors or content.authors,
-        'pdf_path': str(pdf_file),
+        "doi": pdf_file.stem,  # 用文件名作为 ID
+        "title": extracted.title or content.title,
+        "abstract": extracted.abstract or content.abstract,
+        "authors": extracted.authors or content.authors,
+        "pdf_path": str(pdf_file),
     }
     doi = db.add_paper(paper_data)
 
@@ -140,7 +139,7 @@ def process(
     db.save_concept_extraction(doi, concept_tree, extracted.raw_response)
 
     # 显示结果
-    console.print(f"\n[green]✓ 处理完成[/green]")
+    console.print("\n[green]✓ 处理完成[/green]")
     console.print(f"  根概念: {extracted.concept_tree.concept}")
     console.print(f"  研究问题: {len(extracted.research_questions)} 个")
     console.print(f"  贡献: {len(extracted.contributions)} 个")
@@ -154,7 +153,7 @@ def process(
 @app.command()
 def batch(
     folder: str = typer.Argument(..., help="PDF 文件夹路径"),
-    recursive: bool = typer.Option(True, "--recursive/--no-recursive", help="递归扫描子目录")
+    recursive: bool = typer.Option(True, "--recursive/--no-recursive", help="递归扫描子目录"),
 ):
     """
     批量处理文件夹中的 PDF
@@ -172,7 +171,7 @@ def batch(
     pattern = "**/*.pdf" if recursive else "*.pdf"
     pdf_files = list(pdf_dir.glob(pattern))
     if not pdf_files:
-        console.print(f"[yellow]未找到 PDF 文件[/yellow]")
+        console.print("[yellow]未找到 PDF 文件[/yellow]")
         return
 
     console.print(f"\n[bold]发现 {len(pdf_files)} 个 PDF 文件[/bold]\n")
@@ -192,10 +191,11 @@ def batch(
 
 # ========== 图谱浏览 ==========
 
+
 @app.command()
 def tree(
     root: str = typer.Option(None, "--root", "-r", help="根概念名称"),
-    view: str = typer.Option("knowledge", "--view", "-v", help="视角: knowledge/paper")
+    view: str = typer.Option("knowledge", "--view", "-v", help="视角: knowledge/paper"),
 ):
     """查看知识图谱树"""
     graph = get_graph()
@@ -205,9 +205,7 @@ def tree(
 
 
 @app.command()
-def ls(
-    concept: str = typer.Argument(None, help="父概念名称")
-):
+def ls(concept: str = typer.Argument(None, help="父概念名称")):
     """列出概念（类似 ls 命令）"""
     graph = get_graph()
 
@@ -227,7 +225,7 @@ def ls(
     table.add_column("论文数")
 
     for c in concepts:
-        table.add_row(c['text'], c.get('category', '-'), str(c['paper_count']))
+        table.add_row(c["text"], c.get("category", "-"), str(c["paper_count"]))
 
     console.print(table)
 
@@ -245,21 +243,21 @@ def cd(concept: str = typer.Argument(..., help="概念名称")):
     console.print(f"\n[bold]📍 {result['concept']['text']}[/bold]\n")
 
     # 父概念
-    if result['parents']:
+    if result["parents"]:
         console.print("[bold]父概念:[/bold]")
-        for p in result['parents']:
+        for p in result["parents"]:
             console.print(f"  ← {p['text']}")
 
     # 子概念
-    if result['children']:
+    if result["children"]:
         console.print(f"\n[bold]子概念 ({len(result['children'])} 个):[/bold]")
-        for c in result['children'][:10]:
+        for c in result["children"][:10]:
             console.print(f"  → {c['text']} ({c['paper_count']}篇)")
 
     # 论文
-    if result['papers']:
+    if result["papers"]:
         console.print(f"\n[bold]论文 ({len(result['papers'])} 篇):[/bold]")
-        for p in result['papers'][:5]:
+        for p in result["papers"][:5]:
             console.print(f"  📄 {p['title'][:60]}...")
 
 
@@ -281,7 +279,7 @@ def search(query: str = typer.Argument(..., help="搜索关键词")):
     table.add_column("论文数")
 
     for c in matched:
-        table.add_row(c['text'], c.get('category', '-'), str(c['paper_count']))
+        table.add_row(c["text"], c.get("category", "-"), str(c["paper_count"]))
 
     console.print(table)
 
@@ -294,10 +292,10 @@ def stats():
 
     console.print("\n[bold]图谱统计[/bold]\n")
 
-    papers = stats.get('papers', {})
+    papers = stats.get("papers", {})
     console.print(f"  论文总数: {papers.get('total', 0)}")
     for status, count in papers.items():
-        if status != 'total':
+        if status != "total":
             console.print(f"    - {status}: {count}")
 
     console.print(f"  概念总数: {stats.get('concepts', {}).get('total', 0)}")
@@ -307,10 +305,11 @@ def stats():
 
 # ========== 导出 ==========
 
+
 @app.command()
 def export(
     vault: str = typer.Argument("obsidian_vault", help="Obsidian Vault 路径"),
-    neo4j: bool = typer.Option(False, "--neo4j", help="从 Neo4j 导出")
+    neo4j: bool = typer.Option(False, "--neo4j", help="从 Neo4j 导出"),
 ):
     """导出到 Obsidian Vault"""
     exporter = ObsidianExporter(vault)
@@ -333,53 +332,64 @@ def export(
 @app.command()
 def neo4j_test():
     """测试 Neo4j 连接"""
+    from mkg.neo4j_store import Neo4jStore
+
     console.print("\n[bold]测试 Neo4j 连接...[/bold]\n")
 
-    neo4j = Neo4jGraph()
-    if neo4j.connected:
+    store = Neo4jStore()
+    if store.connected:
         console.print("[green]✓ Neo4j 连接成功[/green]")
-        stats = neo4j.get_stats()
-        console.print(f"  论文: {stats['papers']['total']}")
-        console.print(f"  关键词: {stats['keywords']['total']}")
+        stats = store.get_stats()
+        console.print(f"  概念总数: {stats.get('total_concepts', 0)}")
+        console.print(f"  关系总数: {stats.get('total_relations', 0)}")
     else:
         console.print("[red]✗ Neo4j 连接失败[/red]")
         console.print("\n请确保:")
         console.print("  1. Neo4j 已启动")
         console.print("  2. .env 配置正确")
-
-    neo4j.close()
+    store.close()
 
 
 @app.command()
-def neo4j_migrate():
-    """从 SQLite 迁移数据到 Neo4j"""
-    console.print("\n[bold]从 SQLite 迁移到 Neo4j...[/bold]\n")
+def neo4j_status():
+    """查看 Neo4j 连接状态和图谱统计"""
+    from mkg.neo4j_store import Neo4jStore
 
-    neo4j = Neo4jGraph()
-    if not neo4j.connected:
+    console.print("\n[bold]Neo4j 状态[/bold]\n")
+
+    store = Neo4jStore()
+    if store.connected:
+        console.print("[green]✓ Neo4j 已连接[/green]")
+        stats = store.get_stats()
+        console.print(f"  概念总数: {stats.get('total_concepts', 0)}")
+        console.print(f"  关系总数: {stats.get('total_relations', 0)}")
+        console.print(f"  根概念数: {stats.get('root_concepts', 0)}")
+    else:
+        console.print("[red]✗ Neo4j 未连接[/red]")
+        console.print("\n请确保:")
+        console.print("  1. Neo4j 服务已启动")
+        console.print("  2. .env 中 USE_NEO4J=true 且配置正确")
+    store.close()
+
+
+@app.command()
+def neo4j_sync():
+    """从 SQLite 全量同步到 Neo4j"""
+    from mkg.neo4j_store import Neo4jStore
+
+    console.print("\n[bold]从 SQLite 同步到 Neo4j...[/bold]\n")
+
+    store = Neo4jStore()
+    if not store.connected:
         console.print("[red]Neo4j 未连接[/red]")
         return
 
     db = get_db()
-
-    # 迁移论文
-    papers = db.get_all_papers()
-    console.print(f"迁移 {len(papers)} 篇论文...")
-    for paper in papers:
-        neo4j.add_paper(paper)
-
-    # 迁移概念
-    concepts = db.get_all_concepts()
-    console.print(f"迁移 {len(concepts)} 个概念...")
-    for concept in concepts:
-        neo4j.add_keyword(concept)
-
-    # 迁移关系
-    console.print("迁移概念关系...")
-    # TODO: 实现关系迁移
-
-    console.print("[green]✓ 迁移完成[/green]")
-    neo4j.close()
+    result = store.sync_all_from_sqlite(db)
+    console.print("[green]✓ 同步完成[/green]")
+    console.print(f"  概念同步: {result['concepts_synced']}")
+    console.print(f"  关系统计: {result['relations_synced']}")
+    store.close()
 
 
 # ========== 入口 ==========
