@@ -1,22 +1,22 @@
-import { useState, useEffect, useRef } from 'react'
-import { X, Search, RotateCcw } from 'lucide-react'
-import { useTranslation } from '../i18n'
+import { useState, useEffect, useRef } from "react";
+import { X, Search, RotateCcw } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 interface GraphNode {
-  id: string
-  name: string
-  type: string
-  category?: string
+  id: string;
+  name: string;
+  type: string;
+  category?: string;
 }
 
 interface Props {
-  searchQuery: string
-  selectedCategories: string[]
-  graphNodes: GraphNode[]
-  onClose: () => void
-  onSearch: (query: string) => void
-  onCategoryChange: (categories: string[]) => void
-  onFocusNode: (nodeId: string) => void
+  searchQuery: string;
+  selectedCategories: string[];
+  graphNodes: GraphNode[];
+  onClose: () => void;
+  onSearch: (query: string) => void;
+  onCategoryChange: (categories: string[]) => void;
+  onFocusNode: (nodeId: string) => void;
 }
 
 export default function FilterPanel({
@@ -26,98 +26,105 @@ export default function FilterPanel({
   onClose,
   onSearch,
   onCategoryChange,
-  onFocusNode
+  onFocusNode,
 }: Props) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   // Category colors - Academic Warm Palette
   const CATEGORIES = [
-    { id: 'field', label: t.concepts.category.field, color: '#6b4423' },
-    { id: 'direction', label: t.concepts.category.direction, color: '#b8860b' },
-    { id: 'subdirection', label: t.concepts.category.subdirection, color: '#9a6b3c' },
-    { id: 'task', label: t.concepts.category.task, color: '#4a6b8a' },
-    { id: 'method', label: t.concepts.category.method, color: '#c2410c' },
-    { id: 'technique', label: t.concepts.category.technique, color: '#2d5a27' },
-    { id: 'dataset', label: t.concepts.category.dataset, color: '#5c4d7d' },
-    { id: 'finding', label: t.concepts.category.finding, color: '#d4a012' },
-  ]
+    { id: "field", label: t.concepts.category.field, color: "#6b4423" },
+    { id: "direction", label: t.concepts.category.direction, color: "#b8860b" },
+    {
+      id: "subdirection",
+      label: t.concepts.category.subdirection,
+      color: "#9a6b3c",
+    },
+    { id: "task", label: t.concepts.category.task, color: "#4a6b8a" },
+    { id: "method", label: t.concepts.category.method, color: "#c2410c" },
+    { id: "technique", label: t.concepts.category.technique, color: "#2d5a27" },
+    { id: "dataset", label: t.concepts.category.dataset, color: "#5c4d7d" },
+    { id: "finding", label: t.concepts.category.finding, color: "#d4a012" },
+  ];
 
-  const [localQuery, setLocalQuery] = useState(searchQuery)
-  const [searchResults, setSearchResults] = useState<GraphNode[]>([])
-  const [showResults, setShowResults] = useState(false)
-  const [localCategories, setLocalCategories] = useState<string[]>(selectedCategories)
-  const [nodeCounts, setNodeCounts] = useState<Record<string, number>>({})
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const resultsRef = useRef<HTMLDivElement>(null)
+  const [localQuery, setLocalQuery] = useState(searchQuery);
+  const [searchResults, setSearchResults] = useState<GraphNode[]>([]);
+  const [showResults, setShowResults] = useState(false);
+  const [localCategories, setLocalCategories] =
+    useState<string[]>(selectedCategories);
+  const [nodeCounts, setNodeCounts] = useState<Record<string, number>>({});
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   // Compute category counts
   useEffect(() => {
-    const counts: Record<string, number> = {}
-    graphNodes.forEach(node => {
+    const counts: Record<string, number> = {};
+    graphNodes.forEach((node) => {
       if (node.category) {
-        counts[node.category] = (counts[node.category] || 0) + 1
+        counts[node.category] = (counts[node.category] || 0) + 1;
       }
-    })
-    setNodeCounts(counts)
-  }, [graphNodes])
+    });
+    setNodeCounts(counts);
+  }, [graphNodes]);
 
   // Search logic
   useEffect(() => {
     if (!localQuery.trim()) {
-      setSearchResults([])
-      return
+      setSearchResults([]);
+      return;
     }
 
-    const query = localQuery.toLowerCase()
+    const query = localQuery.toLowerCase();
     const results = graphNodes
-      .filter(node => node.name?.toLowerCase().includes(query))
-      .slice(0, 10)
+      .filter((node) => node.name?.toLowerCase().includes(query))
+      .slice(0, 10);
 
-    setSearchResults(results)
-  }, [localQuery, graphNodes])
+    setSearchResults(results);
+  }, [localQuery, graphNodes]);
 
   // Sync local categories with prop
   useEffect(() => {
-    setLocalCategories(selectedCategories)
-  }, [selectedCategories])
+    setLocalCategories(selectedCategories);
+  }, [selectedCategories]);
 
   // Focus search input on mount
   useEffect(() => {
-    searchInputRef.current?.focus()
-  }, [])
+    searchInputRef.current?.focus();
+  }, []);
 
   const handleQueryChange = (query: string) => {
-    setLocalQuery(query)
-    onSearch(query)
-  }
+    setLocalQuery(query);
+    onSearch(query);
+  };
 
   const toggleCategory = (categoryId: string) => {
     const newCategories = localCategories.includes(categoryId)
-      ? localCategories.filter(c => c !== categoryId)
-      : [...localCategories, categoryId]
-    setLocalCategories(newCategories)
-    onCategoryChange(newCategories)
-  }
+      ? localCategories.filter((c) => c !== categoryId)
+      : [...localCategories, categoryId];
+    setLocalCategories(newCategories);
+    onCategoryChange(newCategories);
+  };
 
   const handleReset = () => {
-    setLocalQuery('')
-    setSearchResults([])
-    onSearch('')
-    const allCategories = CATEGORIES.map(c => c.id)
-    setLocalCategories(allCategories)
-    onCategoryChange(allCategories)
-  }
+    setLocalQuery("");
+    setSearchResults([]);
+    onSearch("");
+    const allCategories = CATEGORIES.map((c) => c.id);
+    setLocalCategories(allCategories);
+    onCategoryChange(allCategories);
+  };
 
   const handleResultClick = (node: GraphNode) => {
-    setShowResults(false)
-    onFocusNode(node.id)
-  }
+    setShowResults(false);
+    onFocusNode(node.id);
+  };
 
   return (
     <div className="absolute top-4 right-4 z-20 w-72 card-academic overflow-hidden animate-slide-down">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-academic bg-vellum">
-        <h3 className="font-display font-medium text-sepia">{t.concepts.filterPanel.title}</h3>
+        <h3 className="font-display font-medium text-sepia">
+          {t.concepts.filterPanel.title}
+        </h3>
         <button
           onClick={onClose}
           className="w-6 h-6 rounded-soft text-muted hover:text-sepia hover:bg-paper flex items-center justify-center transition-all"
@@ -134,7 +141,7 @@ export default function FilterPanel({
             ref={searchInputRef}
             type="text"
             value={localQuery}
-            onChange={e => handleQueryChange(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             onFocus={() => setShowResults(true)}
             placeholder={t.concepts.filterPanel.searchPlaceholder}
             className="input-academic w-full pl-10 pr-4"
@@ -147,29 +154,31 @@ export default function FilterPanel({
             ref={resultsRef}
             className="absolute left-4 right-4 mt-2 bg-vellum border border-academic rounded-large shadow-elevated max-h-64 overflow-y-auto z-30"
           >
-            {searchResults.map(node => {
-              const category = CATEGORIES.find(c => c.id === node.category)
+            {searchResults.map((node) => {
+              const category = CATEGORIES.find((c) => c.id === node.category);
               return (
                 <button
                   key={node.id}
                   onClick={() => handleResultClick(node)}
                   className="w-full px-4 py-3 text-left hover:bg-paper flex items-center justify-between border-b border-academic last:border-b-0 transition-colors"
                 >
-                  <span className="font-body text-sm text-sepia">{node.name}</span>
+                  <span className="font-body text-sm text-sepia">
+                    {node.name}
+                  </span>
                   {category && (
                     <span
                       className="badge-academic text-xs"
                       style={{
-                        backgroundColor: category.color + '15',
+                        backgroundColor: category.color + "15",
                         color: category.color,
-                        borderColor: category.color + '30',
+                        borderColor: category.color + "30",
                       }}
                     >
                       {category.label}
                     </span>
                   )}
                 </button>
-              )
+              );
             })}
           </div>
         )}
@@ -177,9 +186,11 @@ export default function FilterPanel({
 
       {/* Category Filters */}
       <div className="p-4">
-        <div className="font-mono text-xs text-muted uppercase tracking-wider mb-3">{t.concepts.filterPanel.categoryFilter}</div>
+        <div className="font-mono text-xs text-muted uppercase tracking-wider mb-3">
+          {t.concepts.filterPanel.categoryFilter}
+        </div>
         <div className="space-y-1">
-          {CATEGORIES.map(category => (
+          {CATEGORIES.map((category) => (
             <label
               key={category.id}
               className="flex items-center gap-3 cursor-pointer hover:bg-paper p-2 rounded-medium transition-colors"
@@ -194,7 +205,9 @@ export default function FilterPanel({
                 className="w-3 h-3 rounded-full"
                 style={{ backgroundColor: category.color }}
               />
-              <span className="font-body text-sm text-sepia flex-1">{category.label}</span>
+              <span className="font-body text-sm text-sepia flex-1">
+                {category.label}
+              </span>
               <span className="font-mono text-xs text-faint">
                 {nodeCounts[category.id] || 0}
               </span>
@@ -214,5 +227,5 @@ export default function FilterPanel({
         </button>
       </div>
     </div>
-  )
+  );
 }

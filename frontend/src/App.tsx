@@ -1,16 +1,19 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Home from './pages/Home'
-import Papers from './pages/Papers'
-import ConceptsGraph from './pages/ConceptsGraph'
-import Chat from './pages/Chat'
-import Settings from './pages/Settings'
-import Sidebar from './components/Sidebar'
-import ResearchAgentBubble from './components/ResearchAgentBubble'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import Papers from "./pages/Papers";
+import ConceptsGraph from "./pages/ConceptsGraph";
+import Chat from "./pages/Chat";
+import Settings from "./pages/Settings";
+import Sidebar from "./components/Sidebar";
+import ResearchAgentBubble from "./components/ResearchAgentBubble";
 
 function App() {
   return (
     <BrowserRouter>
-      <div className="h-screen flex overflow-hidden" style={{ background: 'var(--color-cream)' }}>
+      <div
+        className="h-screen flex overflow-hidden"
+        style={{ background: "var(--color-cream)" }}
+      >
         {/* Left Sidebar */}
         <Sidebar />
 
@@ -29,7 +32,7 @@ function App() {
         <ResearchAgentBubble />
       </div>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

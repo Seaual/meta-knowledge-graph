@@ -4,7 +4,7 @@
    ======================================== */
 
 /* Google Fonts Import - 独特字体组合 */
-@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Sora:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -13,27 +13,27 @@
 /* CSS Custom Properties - 墨迹书房配色 */
 :root {
   /* Typography - 独特字体选择 */
-  --font-display: 'Crimson Pro', 'Noto Serif SC', Georgia, serif;
-  --font-body: 'Sora', 'Noto Sans SC', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-display: "Crimson Pro", "Noto Serif SC", Georgia, serif;
+  --font-body: "Sora", "Noto Sans SC", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
 
   /* Colors - 墨迹书房主色调 */
-  --color-base: #f5f1eb;           /* 宣纸底色 */
-  --color-surface: #faf8f5;        /* 书页白 */
+  --color-base: #f5f1eb; /* 宣纸底色 */
+  --color-surface: #faf8f5; /* 书页白 */
   --color-surface-raised: #fdfcf9;
   --color-overlay: #ebe7e0;
 
-  --color-ink: #1a1612;            /* 墨色 */
+  --color-ink: #1a1612; /* 墨色 */
   --color-ink-secondary: #3d3832;
   --color-ink-tertiary: #6b635a;
   --color-ink-muted: #9a918a;
 
-  --color-accent: #8b4513;         /* 朱砂红 */
+  --color-accent: #8b4513; /* 朱砂红 */
   --color-accent-soft: #a65d2e;
   --color-accent-hover: #6d3610;
   --color-accent-glow: rgba(139, 69, 19, 0.15);
 
-  --color-sepia: #5c4a3a;          /* 褐石色 */
+  --color-sepia: #5c4a3a; /* 褐石色 */
   --color-copper: #9a6b3c;
   --color-amber: #b8860b;
   --color-cream: #fef9f0;
@@ -97,7 +97,7 @@ body {
 
 /* Subtle background texture */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
@@ -111,7 +111,10 @@ body::before {
    ======================================== */
 
 @layer base {
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     font-weight: 500;
     color: var(--color-ink);
@@ -192,7 +195,7 @@ body::before {
   }
 
   .card-stat::before {
-    content: '';
+    content: "";
     position: absolute;
     top: 0;
     left: 0;
@@ -513,14 +516,30 @@ body::before {
   animation: pageEnter 0.4s var(--ease-out-smooth) forwards;
 }
 
-.stagger-children > *:nth-child(1) { animation-delay: 0ms; }
-.stagger-children > *:nth-child(2) { animation-delay: 40ms; }
-.stagger-children > *:nth-child(3) { animation-delay: 80ms; }
-.stagger-children > *:nth-child(4) { animation-delay: 120ms; }
-.stagger-children > *:nth-child(5) { animation-delay: 160ms; }
-.stagger-children > *:nth-child(6) { animation-delay: 200ms; }
-.stagger-children > *:nth-child(7) { animation-delay: 240ms; }
-.stagger-children > *:nth-child(8) { animation-delay: 280ms; }
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 40ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 80ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 120ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 160ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 200ms;
+}
+.stagger-children > *:nth-child(7) {
+  animation-delay: 240ms;
+}
+.stagger-children > *:nth-child(8) {
+  animation-delay: 280ms;
+}
 
 /* Number reveal - satisfying counter */
 @keyframes numberPop {
@@ -605,8 +624,12 @@ body::before {
 }
 
 @keyframes modalOverlay {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .modal-overlay {
@@ -629,7 +652,7 @@ body::before {
 }
 
 .nav-item::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background: var(--color-accent);
@@ -659,8 +682,12 @@ body::before {
 
 /* Skeleton shimmer - smoother */
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .skeleton {
@@ -677,7 +704,9 @@ body::before {
 
 /* Loading dots bounce */
 @keyframes dotBounce {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0.6);
     opacity: 0.4;
   }
@@ -691,13 +720,20 @@ body::before {
   animation: dotBounce 1.2s ease-in-out infinite;
 }
 
-.loading-dots span:nth-child(1) { animation-delay: -0.24s; }
-.loading-dots span:nth-child(2) { animation-delay: -0.12s; }
-.loading-dots span:nth-child(3) { animation-delay: 0s; }
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.24s;
+}
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.12s;
+}
+.loading-dots span:nth-child(3) {
+  animation-delay: 0s;
+}
 
 /* Pulse effect for highlights */
 @keyframes subtlePulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -777,7 +813,9 @@ body::before {
 
 /* Typing indicator dots */
 @keyframes typingDot {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
   }
   30% {
@@ -795,15 +833,22 @@ body::before {
   animation: typingDot 0.8s ease-in-out infinite;
 }
 
-.typing-indicator span:nth-child(1) { animation-delay: 0s; }
-.typing-indicator span:nth-child(2) { animation-delay: 0.15s; }
-.typing-indicator span:nth-child(3) { animation-delay: 0.3s; }
+.typing-indicator span:nth-child(1) {
+  animation-delay: 0s;
+}
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 /* Smooth color transitions */
 .transition-colors-smooth {
-  transition: background-color 0.2s var(--ease-smooth),
-              color 0.2s var(--ease-smooth),
-              border-color 0.2s var(--ease-smooth);
+  transition:
+    background-color 0.2s var(--ease-smooth),
+    color 0.2s var(--ease-smooth),
+    border-color 0.2s var(--ease-smooth);
 }
 
 /* Button shine effect */
@@ -813,7 +858,7 @@ body::before {
 }
 
 .btn-shine::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: -100%;
@@ -834,7 +879,8 @@ body::before {
 
 /* Card border animation */
 @keyframes borderGlow {
-  0%, 100% {
+  0%,
+  100% {
     border-color: var(--color-border-subtle);
   }
   50% {
@@ -898,12 +944,20 @@ body::before {
   animation: bounce 1.4s infinite ease-in-out both;
 }
 
-.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
-.loading-dots span:nth-child(3) { animation-delay: 0s; }
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+.loading-dots span:nth-child(3) {
+  animation-delay: 0s;
+}
 
 @keyframes bounce {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0);
     opacity: 0.3;
   }
@@ -927,8 +981,12 @@ body::before {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* ========================================
@@ -982,39 +1040,91 @@ body::before {
    ======================================== */
 
 @layer utilities {
-  .font-display { font-family: var(--font-display); }
-  .font-body { font-family: var(--font-body); }
-  .font-mono { font-family: var(--font-mono); }
+  .font-display {
+    font-family: var(--font-display);
+  }
+  .font-body {
+    font-family: var(--font-body);
+  }
+  .font-mono {
+    font-family: var(--font-mono);
+  }
 
-  .text-primary { color: var(--color-ink); }
-  .text-secondary { color: var(--color-ink-secondary); }
-  .text-tertiary { color: var(--color-ink-tertiary); }
-  .text-muted { color: var(--color-ink-muted); }
-  .text-accent { color: var(--color-accent); }
+  .text-primary {
+    color: var(--color-ink);
+  }
+  .text-secondary {
+    color: var(--color-ink-secondary);
+  }
+  .text-tertiary {
+    color: var(--color-ink-tertiary);
+  }
+  .text-muted {
+    color: var(--color-ink-muted);
+  }
+  .text-accent {
+    color: var(--color-accent);
+  }
 
-  .bg-base { background: var(--color-base); }
-  .bg-surface { background: var(--color-surface); }
-  .bg-overlay { background: var(--color-overlay); }
+  .bg-base {
+    background: var(--color-base);
+  }
+  .bg-surface {
+    background: var(--color-surface);
+  }
+  .bg-overlay {
+    background: var(--color-overlay);
+  }
 
-  .border-default { border-color: var(--color-border); }
-  .border-subtle { border-color: var(--color-border-subtle); }
+  .border-default {
+    border-color: var(--color-border);
+  }
+  .border-subtle {
+    border-color: var(--color-border-subtle);
+  }
 
-  .shadow-sm { box-shadow: var(--shadow-sm); }
-  .shadow-md { box-shadow: var(--shadow-md); }
-  .shadow-lg { box-shadow: var(--shadow-lg); }
-  .shadow-xl { box-shadow: var(--shadow-xl); }
+  .shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+  .shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+  .shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+  .shadow-xl {
+    box-shadow: var(--shadow-xl);
+  }
 
-  .rounded-sm { border-radius: var(--radius-sm); }
-  .rounded-md { border-radius: var(--radius-md); }
-  .rounded-lg { border-radius: var(--radius-lg); }
-  .rounded-xl { border-radius: var(--radius-xl); }
+  .rounded-sm {
+    border-radius: var(--radius-sm);
+  }
+  .rounded-md {
+    border-radius: var(--radius-md);
+  }
+  .rounded-lg {
+    border-radius: var(--radius-lg);
+  }
+  .rounded-xl {
+    border-radius: var(--radius-xl);
+  }
 
-  .transition-fast { transition-duration: var(--duration-fast); }
-  .transition-normal { transition-duration: var(--duration-normal); }
-  .transition-slow { transition-duration: var(--duration-slow); }
+  .transition-fast {
+    transition-duration: var(--duration-fast);
+  }
+  .transition-normal {
+    transition-duration: var(--duration-normal);
+  }
+  .transition-slow {
+    transition-duration: var(--duration-slow);
+  }
 
-  .ease-expo { transition-timing-function: var(--ease-out-expo); }
-  .ease-quart { transition-timing-function: var(--ease-out-quart); }
+  .ease-expo {
+    transition-timing-function: var(--ease-out-expo);
+  }
+  .ease-quart {
+    transition-timing-function: var(--ease-out-quart);
+  }
 }
 
 /* ========================================
@@ -1028,11 +1138,19 @@ body::before {
     --space-2xl: 2rem;
   }
 
-  h1 { font-size: 1.75rem; }
-  h2 { font-size: 1.25rem; }
+  h1 {
+    font-size: 1.75rem;
+  }
+  h2 {
+    font-size: 1.25rem;
+  }
 
-  .section { padding: var(--space-lg); }
-  .card-stat { padding: var(--space-md); }
+  .section {
+    padding: var(--space-lg);
+  }
+  .card-stat {
+    padding: var(--space-md);
+  }
 }
 
 /* ========================================
@@ -1080,11 +1198,17 @@ input:focus-visible {
 
 /* 纸张纹理背景 */
 .chat-container::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(90deg, transparent 79px, rgba(139, 69, 19, 0.03) 79px, rgba(139, 69, 19, 0.03) 81px, transparent 81px),
+    linear-gradient(
+      90deg,
+      transparent 79px,
+      rgba(139, 69, 19, 0.03) 79px,
+      rgba(139, 69, 19, 0.03) 81px,
+      transparent 81px
+    ),
     linear-gradient(rgba(139, 69, 19, 0.02) 1px, transparent 1px);
   background-size: 100% 28px;
   pointer-events: none;
@@ -1093,25 +1217,38 @@ input:focus-visible {
 
 /* Chat header - 书卷气息 */
 .chat-header {
-  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-base) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--color-surface) 0%,
+    var(--color-base) 100%
+  );
   border-bottom: 1px solid var(--color-border-subtle);
   position: relative;
 }
 
 .chat-header::after {
-  content: '';
+  content: "";
   position: absolute;
   bottom: -1px;
   left: 50%;
   transform: translateX(-50%);
   width: 60%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, var(--color-accent-glow), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-accent-glow),
+    transparent
+  );
 }
 
 /* Chat input area - 印章风格 */
 .chat-input-area {
-  background: linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%);
+  background: linear-gradient(
+    180deg,
+    var(--color-base) 0%,
+    var(--color-surface) 100%
+  );
 }
 
 .chat-input-wrapper {
@@ -1129,7 +1266,9 @@ input:focus-visible {
 
 .chat-input-wrapper:focus-within {
   border-color: var(--color-accent);
-  box-shadow: var(--shadow-lg), 0 0 0 3px var(--color-accent-glow);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 3px var(--color-accent-glow);
 }
 
 /* 消息气泡 - 印章风格 */
@@ -1150,13 +1289,17 @@ input:focus-visible {
 
 /* 用户消息印章效果 */
 .chat-bubble-user::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 8px;
   right: 8px;
   width: 24px;
   height: 24px;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.15), transparent 60%);
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(255, 255, 255, 0.15),
+    transparent 60%
+  );
   border-radius: 4px;
   transform: rotate(-5deg);
   opacity: 0.6;
@@ -1173,16 +1316,18 @@ input:focus-visible {
 
 /* 助手消息书页效果 */
 .chat-bubble-assistant::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(90deg,
+  background: linear-gradient(
+    90deg,
     var(--color-accent) 0%,
     var(--color-amber) 50%,
-    var(--color-copper) 100%);
+    var(--color-copper) 100%
+  );
   border-radius: 20px 20px 0 0;
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-ink);
@@ -1209,7 +1354,11 @@ input:focus-visible {
 
 /* 附件卡片 - 书签风格 */
 .chat-attachment-card {
-  background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-overlay) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-surface) 0%,
+    var(--color-overlay) 100%
+  );
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
@@ -1219,13 +1368,18 @@ input:focus-visible {
 }
 
 .chat-attachment-card::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
   width: 4px;
   height: 100%;
-  background: linear-gradient(180deg, var(--color-accent), var(--color-amber), var(--color-copper));
+  background: linear-gradient(
+    180deg,
+    var(--color-accent),
+    var(--color-amber),
+    var(--color-copper)
+  );
   opacity: 0.8;
 }
 
@@ -1266,7 +1420,7 @@ input:focus-visible {
 }
 
 .chat-quick-action::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -1300,7 +1454,7 @@ input:focus-visible {
 }
 
 .chat-context-badge::before {
-  content: '';
+  content: "";
   position: absolute;
   top: 0;
   left: 0;
@@ -1327,10 +1481,10 @@ input:focus-visible {
 }
 
 .agent-badge::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent);
 }
 
 /* 打字指示器 - 墨水滴落 */
@@ -1348,12 +1502,20 @@ input:focus-visible {
   animation: inkDropBounce 1.2s ease-in-out infinite;
 }
 
-.typing-indicator-ink span:nth-child(1) { animation-delay: 0s; }
-.typing-indicator-ink span:nth-child(2) { animation-delay: 0.15s; }
-.typing-indicator-ink span:nth-child(3) { animation-delay: 0.3s; }
+.typing-indicator-ink span:nth-child(1) {
+  animation-delay: 0s;
+}
+.typing-indicator-ink span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing-indicator-ink span:nth-child(3) {
+  animation-delay: 0.3s;
+}
 
 @keyframes inkDropBounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.5;
   }
@@ -1380,7 +1542,11 @@ input:focus-visible {
 
 /* 发送按钮 - 朱砂印章 */
 .send-btn {
-  background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-soft) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--color-accent) 0%,
+    var(--color-accent-soft) 100%
+  );
   color: var(--color-cream);
   border-radius: var(--radius-md);
   transition: all var(--duration-fast) var(--ease-ink);

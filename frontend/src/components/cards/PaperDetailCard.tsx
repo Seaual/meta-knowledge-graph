@@ -1,33 +1,60 @@
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, ExternalLink, BookOpen, Quote, Users } from 'lucide-react'
+import { useState } from "react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  BookOpen,
+  Quote,
+  Users,
+} from "lucide-react";
 
 interface Props {
   data: {
-    title: string
-    authors?: string[]
-    year?: number
-    venue?: string
-    abstract?: string | null
-    tldr?: string | null
-    keywords?: string[]
-    contributions?: string[]
-    citation_count?: number
-    doi?: string
-    s2_doi?: string
-  }
+    title: string;
+    authors?: string[];
+    year?: number;
+    venue?: string;
+    abstract?: string | null;
+    tldr?: string | null;
+    keywords?: string[];
+    contributions?: string[];
+    citation_count?: number;
+    doi?: string;
+    s2_doi?: string;
+  };
 }
 
 // Sepia/amber tones for keyword tags
 const KEYWORD_COLORS = [
-  { bg: 'rgba(184, 134, 11, 0.12)', text: '#8b6914', border: 'rgba(184, 134, 11, 0.25)' },
-  { bg: 'rgba(139, 90, 43, 0.12)', text: '#6b4423', border: 'rgba(139, 90, 43, 0.25)' },
-  { bg: 'rgba(154, 107, 60, 0.12)', text: '#7a5530', border: 'rgba(154, 107, 60, 0.25)' },
-  { bg: 'rgba(194, 120, 3, 0.12)', text: '#9a7203', border: 'rgba(194, 120, 3, 0.25)' },
-  { bg: 'rgba(160, 82, 45, 0.12)', text: '#8b4513', border: 'rgba(160, 82, 45, 0.25)' },
-]
+  {
+    bg: "rgba(184, 134, 11, 0.12)",
+    text: "#8b6914",
+    border: "rgba(184, 134, 11, 0.25)",
+  },
+  {
+    bg: "rgba(139, 90, 43, 0.12)",
+    text: "#6b4423",
+    border: "rgba(139, 90, 43, 0.25)",
+  },
+  {
+    bg: "rgba(154, 107, 60, 0.12)",
+    text: "#7a5530",
+    border: "rgba(154, 107, 60, 0.25)",
+  },
+  {
+    bg: "rgba(194, 120, 3, 0.12)",
+    text: "#9a7203",
+    border: "rgba(194, 120, 3, 0.25)",
+  },
+  {
+    bg: "rgba(160, 82, 45, 0.12)",
+    text: "#8b4513",
+    border: "rgba(160, 82, 45, 0.25)",
+  },
+];
 
 export default function PaperDetailCard({ data }: Props) {
-  const [isExpanded, setIsExpanded] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false);
 
   const {
     title,
@@ -41,33 +68,37 @@ export default function PaperDetailCard({ data }: Props) {
     citation_count,
     doi,
     s2_doi,
-  } = data
+  } = data;
 
   // Get the actual DOI to display/use
-  const displayDoi = doi || s2_doi
+  const displayDoi = doi || s2_doi;
 
   // Format authors with overflow
-  const maxVisibleAuthors = 4
-  const visibleAuthors = authors?.slice(0, maxVisibleAuthors) || []
-  const overflowCount = authors ? authors.length - maxVisibleAuthors : 0
+  const maxVisibleAuthors = 4;
+  const visibleAuthors = authors?.slice(0, maxVisibleAuthors) || [];
+  const overflowCount = authors ? authors.length - maxVisibleAuthors : 0;
 
-  const hasExpandableContent = abstract || (contributions && contributions.length > 0)
+  const hasExpandableContent =
+    abstract || (contributions && contributions.length > 0);
 
   return (
     <div
       className="rounded-xl overflow-hidden transition-all duration-200"
       style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border-subtle)',
-        boxShadow: 'var(--shadow-sm)',
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border-subtle)",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
       {/* Header */}
-      <div className="px-5 py-4 border-b" style={{ borderColor: 'var(--color-border-subtle)' }}>
+      <div
+        className="px-5 py-4 border-b"
+        style={{ borderColor: "var(--color-border-subtle)" }}
+      >
         {/* Title */}
         <h3
           className="font-display text-lg font-medium leading-tight mb-2"
-          style={{ color: 'var(--color-ink)' }}
+          style={{ color: "var(--color-ink)" }}
         >
           {title}
         </h3>
@@ -78,8 +109,8 @@ export default function PaperDetailCard({ data }: Props) {
             <span
               className="font-mono text-xs px-2 py-0.5 rounded"
               style={{
-                background: 'var(--color-overlay)',
-                color: 'var(--color-ink-secondary)',
+                background: "var(--color-overlay)",
+                color: "var(--color-ink-secondary)",
               }}
             >
               {year}
@@ -89,7 +120,7 @@ export default function PaperDetailCard({ data }: Props) {
           {venue && (
             <span
               className="flex items-center gap-1 text-xs"
-              style={{ color: 'var(--color-ink-tertiary)' }}
+              style={{ color: "var(--color-ink-tertiary)" }}
             >
               <BookOpen className="w-3 h-3" />
               <span className="truncate max-w-[200px]" title={venue}>
@@ -101,7 +132,7 @@ export default function PaperDetailCard({ data }: Props) {
           {citation_count !== undefined && citation_count > 0 && (
             <span
               className="flex items-center gap-1 text-xs font-medium"
-              style={{ color: 'var(--color-accent)' }}
+              style={{ color: "var(--color-accent)" }}
             >
               <Quote className="w-3 h-3" />
               {citation_count.toLocaleString()} citations
@@ -115,18 +146,18 @@ export default function PaperDetailCard({ data }: Props) {
         <div
           className="mx-5 mt-4 p-3 rounded-lg"
           style={{
-            background: 'rgba(45, 90, 39, 0.08)',
-            border: '1px solid rgba(45, 90, 39, 0.2)',
+            background: "rgba(45, 90, 39, 0.08)",
+            border: "1px solid rgba(45, 90, 39, 0.2)",
           }}
         >
           <div className="flex items-start gap-2">
-            <span className="text-sm" style={{ color: '#2d5a27' }}>
+            <span className="text-sm" style={{ color: "#2d5a27" }}>
               TL;DR
             </span>
           </div>
           <p
             className="text-sm mt-1 leading-relaxed"
-            style={{ color: '#2d5a27' }}
+            style={{ color: "#2d5a27" }}
           >
             {tldr}
           </p>
@@ -137,26 +168,29 @@ export default function PaperDetailCard({ data }: Props) {
       {authors && authors.length > 0 && (
         <div className="px-5 py-3">
           <div className="flex items-start gap-2">
-            <Users className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: 'var(--color-ink-tertiary)' }} />
+            <Users
+              className="w-4 h-4 mt-0.5 flex-shrink-0"
+              style={{ color: "var(--color-ink-tertiary)" }}
+            />
             <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
               {visibleAuthors.map((author, index) => (
                 <span
                   key={index}
                   className="text-sm"
-                  style={{ color: 'var(--color-ink-secondary)' }}
+                  style={{ color: "var(--color-ink-secondary)" }}
                 >
                   {author}
-                  {index < visibleAuthors.length - 1 && ','}
+                  {index < visibleAuthors.length - 1 && ","}
                 </span>
               ))}
               {overflowCount > 0 && (
                 <span
                   className="text-xs px-1.5 py-0.5 rounded cursor-default"
                   style={{
-                    background: 'var(--color-overlay)',
-                    color: 'var(--color-ink-tertiary)',
+                    background: "var(--color-overlay)",
+                    color: "var(--color-ink-tertiary)",
                   }}
-                  title={authors.slice(maxVisibleAuthors).join(', ')}
+                  title={authors.slice(maxVisibleAuthors).join(", ")}
                 >
                   +{overflowCount} more
                 </span>
@@ -171,7 +205,7 @@ export default function PaperDetailCard({ data }: Props) {
         <div className="px-5 py-3">
           <div className="flex flex-wrap gap-2">
             {keywords.map((keyword, index) => {
-              const colorSet = KEYWORD_COLORS[index % KEYWORD_COLORS.length]
+              const colorSet = KEYWORD_COLORS[index % KEYWORD_COLORS.length];
               return (
                 <span
                   key={index}
@@ -184,7 +218,7 @@ export default function PaperDetailCard({ data }: Props) {
                 >
                   {keyword}
                 </span>
-              )
+              );
             })}
           </div>
         </div>
@@ -192,14 +226,17 @@ export default function PaperDetailCard({ data }: Props) {
 
       {/* Expandable Section */}
       {hasExpandableContent && (
-        <div className="border-t" style={{ borderColor: 'var(--color-border-subtle)' }}>
+        <div
+          className="border-t"
+          style={{ borderColor: "var(--color-border-subtle)" }}
+        >
           {/* Expand Toggle Button */}
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="w-full px-5 py-2.5 flex items-center justify-between text-sm font-medium transition-colors"
             style={{
-              color: 'var(--color-ink-tertiary)',
-              background: isExpanded ? 'var(--color-overlay)' : 'transparent',
+              color: "var(--color-ink-tertiary)",
+              background: isExpanded ? "var(--color-overlay)" : "transparent",
             }}
           >
             <span>Details</span>
@@ -218,13 +255,13 @@ export default function PaperDetailCard({ data }: Props) {
                 <div>
                   <h4
                     className="text-xs font-mono uppercase tracking-wider mb-2"
-                    style={{ color: 'var(--color-ink-muted)' }}
+                    style={{ color: "var(--color-ink-muted)" }}
                   >
                     Abstract
                   </h4>
                   <p
                     className="text-sm leading-relaxed"
-                    style={{ color: 'var(--color-ink-secondary)' }}
+                    style={{ color: "var(--color-ink-secondary)" }}
                   >
                     {abstract}
                   </p>
@@ -236,7 +273,7 @@ export default function PaperDetailCard({ data }: Props) {
                 <div>
                   <h4
                     className="text-xs font-mono uppercase tracking-wider mb-2"
-                    style={{ color: 'var(--color-ink-muted)' }}
+                    style={{ color: "var(--color-ink-muted)" }}
                   >
                     Key Contributions
                   </h4>
@@ -245,11 +282,11 @@ export default function PaperDetailCard({ data }: Props) {
                       <li
                         key={index}
                         className="flex items-start gap-2 text-sm"
-                        style={{ color: 'var(--color-ink-secondary)' }}
+                        style={{ color: "var(--color-ink-secondary)" }}
                       >
                         <span
                           className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0"
-                          style={{ background: 'var(--color-accent)' }}
+                          style={{ background: "var(--color-accent)" }}
                         />
                         {contribution}
                       </li>
@@ -266,15 +303,18 @@ export default function PaperDetailCard({ data }: Props) {
       {displayDoi && (
         <div
           className="px-5 py-3 border-t flex items-center justify-between"
-          style={{ borderColor: 'var(--color-border-subtle)', background: 'var(--color-overlay)' }}
+          style={{
+            borderColor: "var(--color-border-subtle)",
+            background: "var(--color-overlay)",
+          }}
         >
           <div className="flex items-center gap-2">
             <span
               className="font-mono text-xs px-2 py-1 rounded"
               style={{
-                background: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                color: 'var(--color-ink-secondary)',
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-ink-secondary)",
               }}
             >
               DOI: {displayDoi}
@@ -287,8 +327,8 @@ export default function PaperDetailCard({ data }: Props) {
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg transition-all duration-150 hover:translate-y-[-1px]"
             style={{
-              color: 'white',
-              background: 'var(--color-accent)',
+              color: "white",
+              background: "var(--color-accent)",
             }}
           >
             <ExternalLink className="w-3.5 h-3.5" />
@@ -297,5 +337,5 @@ export default function PaperDetailCard({ data }: Props) {
         </div>
       )}
     </div>
-  )
+  );
 }

@@ -1,54 +1,57 @@
-import { useState, useCallback, useEffect } from 'react'
-import { X, ExternalLink, Plus, Search, Loader2 } from 'lucide-react'
-import { recommendationApi } from '../lib/api'
-import { useTranslation } from '../i18n'
+import { useState, useCallback, useEffect } from "react";
+import { X, ExternalLink, Plus, Search, Loader2 } from "lucide-react";
+import { recommendationApi } from "../lib/api";
+import { useTranslation } from "../i18n";
 
 interface Concept {
-  id: string
-  text: string  // 中文名称
-  text_en?: string  // 英文名称
-  category: string | null | undefined
-  paper_count: number
+  id: string;
+  text: string; // 中文名称
+  text_en?: string; // 英文名称
+  category: string | null | undefined;
+  paper_count: number;
 }
 
 interface RecommendedPaper {
-  paperId: string
-  title: string
-  abstract?: string
-  year?: number
-  citationCount?: number
-  authors?: Array<{ name: string }>
-  venue?: string
-  openAccessPdf?: { url: string }
-  tldr?: { text: string }
-  externalIds?: { DOI?: string }
+  paperId: string;
+  title: string;
+  abstract?: string;
+  year?: number;
+  citationCount?: number;
+  authors?: Array<{ name: string }>;
+  venue?: string;
+  openAccessPdf?: { url: string };
+  tldr?: { text: string };
+  externalIds?: { DOI?: string };
 }
 
 interface RecommendationPanelProps {
-  isOpen: boolean
-  onClose: () => void
-  selectedConcepts: Concept[]
-  onAddConcept: (concept: Concept) => void
-  onRemoveConcept: (conceptId: string) => void
-  concepts: Concept[] // all concepts for selection
+  isOpen: boolean;
+  onClose: () => void;
+  selectedConcepts: Concept[];
+  onAddConcept: (concept: Concept) => void;
+  onRemoveConcept: (conceptId: string) => void;
+  concepts: Concept[]; // all concepts for selection
 }
 
 // Category colors
 const CATEGORY_COLORS: Record<string, string> = {
-  field: '#6b4423',
-  direction: '#b8860b',
-  subdirection: '#9a6b3c',
-  task: '#4a6b8a',
-  method: '#c2410c',
-  technique: '#2d5a27',
-}
+  field: "#6b4423",
+  direction: "#b8860b",
+  subdirection: "#9a6b3c",
+  task: "#4a6b8a",
+  method: "#c2410c",
+  technique: "#2d5a27",
+};
 
 // 根据语言获取概念显示名称
-function getConceptDisplayText(concept: Concept, language: 'zh' | 'en'): string {
-  if (language === 'en' && concept.text_en) {
-    return concept.text_en
+function getConceptDisplayText(
+  concept: Concept,
+  language: "zh" | "en"
+): string {
+  if (language === "en" && concept.text_en) {
+    return concept.text_en;
   }
-  return concept.text
+  return concept.text;
 }
 
 export default function RecommendationPanel({
@@ -59,83 +62,99 @@ export default function RecommendationPanel({
   onRemoveConcept,
   concepts,
 }: RecommendationPanelProps) {
-  const { t, language } = useTranslation()
-  const [recommendations, setRecommendations] = useState<RecommendedPaper[]>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [searchMode, setSearchMode] = useState<'combined' | 'single'>('combined')
-  const [yearFilter, setYearFilter] = useState('2023-2026')
-  const [minCitations, setMinCitations] = useState(0)
-  const [showConceptPicker, setShowConceptPicker] = useState(false)
+  const { t, language } = useTranslation();
+  const [recommendations, setRecommendations] = useState<RecommendedPaper[]>(
+    []
+  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searchMode, setSearchMode] = useState<"combined" | "single">(
+    "combined"
+  );
+  const [yearFilter, setYearFilter] = useState("2023-2026");
+  const [minCitations, setMinCitations] = useState(0);
+  const [showConceptPicker, setShowConceptPicker] = useState(false);
 
   // Search papers when concepts change
   const searchPapers = useCallback(async () => {
     if (selectedConcepts.length === 0) {
-      setRecommendations([])
-      setError(null)
-      return
+      setRecommendations([]);
+      setError(null);
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
     try {
-      if (searchMode === 'combined') {
+      if (searchMode === "combined") {
         // Combined search - use all concepts as one query
-        const res = await recommendationApi.searchPapersByConcept(selectedConcepts[0].id, yearFilter, minCitations, 20)
-        setRecommendations(res.data.papers)
+        const res = await recommendationApi.searchPapersByConcept(
+          selectedConcepts[0].id,
+          yearFilter,
+          minCitations,
+          20
+        );
+        setRecommendations(res.data.papers);
         // If no papers and we had a concept, might be rate limited
         if (res.data.papers.length === 0) {
-          setError('rateLimited')
+          setError("rateLimited");
         }
       } else {
         // Single search - search each concept separately and combine results
-        const allPapers: RecommendedPaper[] = []
-        const seenIds = new Set<string>()
+        const allPapers: RecommendedPaper[] = [];
+        const seenIds = new Set<string>();
 
         for (const concept of selectedConcepts) {
-          const res = await recommendationApi.searchPapersByConcept(concept.id, yearFilter, minCitations, 10)
+          const res = await recommendationApi.searchPapersByConcept(
+            concept.id,
+            yearFilter,
+            minCitations,
+            10
+          );
           for (const paper of res.data.papers) {
             if (!seenIds.has(paper.paperId)) {
-              seenIds.add(paper.paperId)
-              allPapers.push(paper)
+              seenIds.add(paper.paperId);
+              allPapers.push(paper);
             }
           }
         }
 
         // Sort by citation count
-        allPapers.sort((a, b) => (b.citationCount || 0) - (a.citationCount || 0))
-        setRecommendations(allPapers.slice(0, 20))
+        allPapers.sort(
+          (a, b) => (b.citationCount || 0) - (a.citationCount || 0)
+        );
+        setRecommendations(allPapers.slice(0, 20));
         if (allPapers.length === 0) {
-          setError('rateLimited')
+          setError("rateLimited");
         }
       }
     } catch (err: any) {
-      console.error('Failed to search papers:', err)
+      console.error("Failed to search papers:", err);
       // Check for rate limit error
       if (err?.response?.status === 429) {
-        setError('rateLimited')
+        setError("rateLimited");
       } else {
-        setError('error')
+        setError("error");
       }
-      setRecommendations([])
+      setRecommendations([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [selectedConcepts, searchMode, yearFilter, minCitations])
+  }, [selectedConcepts, searchMode, yearFilter, minCitations]);
 
   // Auto search when concepts change
   useEffect(() => {
     if (isOpen && selectedConcepts.length > 0) {
-      searchPapers()
+      searchPapers();
     }
-  }, [isOpen, selectedConcepts, searchPapers])
+  }, [isOpen, selectedConcepts, searchPapers]);
 
   // Available concepts for adding (exclude already selected)
   const availableConcepts = concepts.filter(
-    c => !selectedConcepts.some(s => s.id === c.id)
-  )
+    (c) => !selectedConcepts.some((s) => s.id === c.id)
+  );
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   return (
     <div className="absolute top-20 left-4 w-[420px] card-academic z-20 max-h-[80vh] overflow-hidden animate-slide-up">
@@ -147,7 +166,8 @@ export default function RecommendationPanel({
               📚 {t.concepts.recommendation.title}
             </h3>
             <p className="font-body text-xs text-muted mt-1">
-              {t.concepts.recommendation.basedOn} {selectedConcepts.length} {t.concepts.recommendation.concepts}
+              {t.concepts.recommendation.basedOn} {selectedConcepts.length}{" "}
+              {t.concepts.recommendation.concepts}
             </p>
           </div>
           <button
@@ -176,15 +196,17 @@ export default function RecommendationPanel({
 
         {/* Concept Tags */}
         <div className="flex flex-wrap gap-2">
-          {selectedConcepts.map(concept => (
+          {selectedConcepts.map((concept) => (
             <button
               key={concept.id}
               onClick={() => onRemoveConcept(concept.id)}
               className="badge-academic cursor-pointer hover:opacity-70 transition-opacity flex items-center gap-1"
               style={{
-                backgroundColor: CATEGORY_COLORS[concept.category || 'method'] + '15',
-                color: CATEGORY_COLORS[concept.category || 'method'],
-                borderColor: CATEGORY_COLORS[concept.category || 'method'] + '30',
+                backgroundColor:
+                  CATEGORY_COLORS[concept.category || "method"] + "15",
+                color: CATEGORY_COLORS[concept.category || "method"],
+                borderColor:
+                  CATEGORY_COLORS[concept.category || "method"] + "30",
               }}
             >
               {getConceptDisplayText(concept, language)}
@@ -201,21 +223,28 @@ export default function RecommendationPanel({
                 所有概念已选择
               </div>
             ) : (
-              availableConcepts.slice(0, 20).map(concept => (
+              availableConcepts.slice(0, 20).map((concept) => (
                 <button
                   key={concept.id}
                   onClick={() => {
-                    onAddConcept(concept)
-                    setShowConceptPicker(false)
+                    onAddConcept(concept);
+                    setShowConceptPicker(false);
                   }}
                   className="w-full text-left px-2 py-1.5 font-body text-sm text-sepia hover:bg-paper rounded-soft transition-colors flex items-center gap-2"
                 >
                   <div
                     className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: CATEGORY_COLORS[concept.category || 'method'] }}
+                    style={{
+                      backgroundColor:
+                        CATEGORY_COLORS[concept.category || "method"],
+                    }}
                   />
-                  <span className="truncate">{getConceptDisplayText(concept, language)}</span>
-                  <span className="font-mono text-xs text-faint ml-auto">{concept.paper_count || 0}</span>
+                  <span className="truncate">
+                    {getConceptDisplayText(concept, language)}
+                  </span>
+                  <span className="font-mono text-xs text-faint ml-auto">
+                    {concept.paper_count || 0}
+                  </span>
                 </button>
               ))
             )}
@@ -228,14 +257,14 @@ export default function RecommendationPanel({
         {/* Search Mode Toggle */}
         <div className="flex gap-1">
           <button
-            onClick={() => setSearchMode('combined')}
-            className={`btn-secondary-xs ${searchMode === 'combined' ? 'border-sepia text-sepia' : ''}`}
+            onClick={() => setSearchMode("combined")}
+            className={`btn-secondary-xs ${searchMode === "combined" ? "border-sepia text-sepia" : ""}`}
           >
             {t.concepts.recommendation.combinedSearch}
           </button>
           <button
-            onClick={() => setSearchMode('single')}
-            className={`btn-secondary-xs ${searchMode === 'single' ? 'border-sepia text-sepia' : ''}`}
+            onClick={() => setSearchMode("single")}
+            className={`btn-secondary-xs ${searchMode === "single" ? "border-sepia text-sepia" : ""}`}
           >
             {t.concepts.recommendation.singleSearch}
           </button>
@@ -276,7 +305,10 @@ export default function RecommendationPanel({
       </div>
 
       {/* Results */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: '400px' }}>
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-3"
+        style={{ maxHeight: "400px" }}
+      >
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin text-sepia" />
@@ -287,7 +319,9 @@ export default function RecommendationPanel({
         ) : error ? (
           <div className="text-center py-8">
             <div className="font-body text-sm text-status-error">
-              {error === 'rateLimited' ? t.concepts.recommendation.rateLimited : t.concepts.recommendation.error}
+              {error === "rateLimited"
+                ? t.concepts.recommendation.rateLimited
+                : t.concepts.recommendation.error}
             </div>
             <button
               onClick={searchPapers}
@@ -318,15 +352,23 @@ export default function RecommendationPanel({
               {/* Meta */}
               <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                 {paper.year && (
-                  <span className="font-mono text-xs text-muted">{paper.year}</span>
+                  <span className="font-mono text-xs text-muted">
+                    {paper.year}
+                  </span>
                 )}
                 {paper.venue && (
                   <span
                     className="badge-academic-xs truncate max-w-[150px]"
-                    style={{ backgroundColor: '#f5f0e8', color: '#6b4423', borderColor: '#e8dfd0' }}
+                    style={{
+                      backgroundColor: "#f5f0e8",
+                      color: "#6b4423",
+                      borderColor: "#e8dfd0",
+                    }}
                     title={paper.venue}
                   >
-                    {paper.venue.length > 20 ? paper.venue.slice(0, 20) + '...' : paper.venue}
+                    {paper.venue.length > 20
+                      ? paper.venue.slice(0, 20) + "..."
+                      : paper.venue}
                   </span>
                 )}
                 {paper.citationCount !== undefined && (
@@ -355,7 +397,10 @@ export default function RecommendationPanel({
               {/* Authors */}
               {paper.authors && paper.authors.length > 0 && (
                 <div className="font-body text-xs text-faint mt-1.5">
-                  {paper.authors.slice(0, 3).map(a => a.name).join(', ')}
+                  {paper.authors
+                    .slice(0, 3)
+                    .map((a) => a.name)
+                    .join(", ")}
                   {paper.authors.length > 3 && ` +${paper.authors.length - 3}`}
                 </div>
               )}
@@ -385,5 +430,5 @@ export default function RecommendationPanel({
         )}
       </div>
     </div>
-  )
+  );
 }

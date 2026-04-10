@@ -1,47 +1,47 @@
-import { X, FileUp, Brain, Network, Search, Settings } from 'lucide-react'
-import { useTranslation } from '../i18n'
+import { X, FileUp, Brain, Network, Search, Settings } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 interface Props {
-  onClose: () => void
-  onOpenLLMConfig: () => void
+  onClose: () => void;
+  onOpenLLMConfig: () => void;
 }
 
 export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
 
   const FEATURES = [
     {
       icon: FileUp,
       title: t.modal.onboarding.features.pdfUpload,
-      description: t.modal.onboarding.features.pdfUploadDesc
+      description: t.modal.onboarding.features.pdfUploadDesc,
     },
     {
       icon: Brain,
       title: t.modal.onboarding.features.conceptExtract,
-      description: t.modal.onboarding.features.conceptExtractDesc
+      description: t.modal.onboarding.features.conceptExtractDesc,
     },
     {
       icon: Network,
       title: t.modal.onboarding.features.graphInteract,
-      description: t.modal.onboarding.features.graphInteractDesc
+      description: t.modal.onboarding.features.graphInteractDesc,
     },
     {
       icon: Search,
       title: t.modal.onboarding.features.researchDiscover,
-      description: t.modal.onboarding.features.researchDiscoverDesc
-    }
-  ]
+      description: t.modal.onboarding.features.researchDiscoverDesc,
+    },
+  ];
 
   const handleClose = () => {
-    localStorage.setItem('mkg_onboarding_dismissed', 'true')
-    onClose()
-  }
+    localStorage.setItem("mkg_onboarding_dismissed", "true");
+    onClose();
+  };
 
   const handleGoToSettings = () => {
-    localStorage.setItem('mkg_onboarding_dismissed', 'true')
-    onClose()
-    onOpenLLMConfig()
-  }
+    localStorage.setItem("mkg_onboarding_dismissed", "true");
+    onClose();
+    onOpenLLMConfig();
+  };
 
   return (
     <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
@@ -67,9 +67,7 @@ export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
             <h2 className="font-display text-2xl text-sepia mb-2">
               {t.modal.onboarding.welcome}
             </h2>
-            <p className="font-body text-muted">
-              {t.modal.onboarding.demo}
-            </p>
+            <p className="font-body text-muted">{t.modal.onboarding.demo}</p>
           </div>
         </div>
 
@@ -85,8 +83,12 @@ export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
                   <feature.icon className="w-4 h-4 text-sepia" />
                 </div>
                 <div>
-                  <p className="font-display text-sm text-sepia">{feature.title}</p>
-                  <p className="font-body text-xs text-muted mt-0.5">{feature.description}</p>
+                  <p className="font-display text-sm text-sepia">
+                    {feature.title}
+                  </p>
+                  <p className="font-body text-xs text-muted mt-0.5">
+                    {feature.description}
+                  </p>
                 </div>
               </div>
             ))}
@@ -101,10 +103,7 @@ export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
 
           {/* Buttons */}
           <div className="flex gap-3">
-            <button
-              onClick={handleClose}
-              className="btn-secondary flex-1"
-            >
+            <button onClick={handleClose} className="btn-secondary flex-1">
               {t.modal.close}
             </button>
             <button
@@ -118,5 +117,5 @@ export default function OnboardingModal({ onClose, onOpenLLMConfig }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,22 +1,22 @@
-import { useState } from 'react'
-import { X, FolderPlus } from 'lucide-react'
-import { useTranslation } from '../i18n'
+import { useState } from "react";
+import { X, FolderPlus } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 interface Props {
-  onClose: () => void
-  onCreate: (name: string, description: string) => void
+  onClose: () => void;
+  onCreate: (name: string, description: string) => void;
 }
 
 export default function CreateFolderModal({ onClose, onCreate }: Props) {
-  const { t } = useTranslation()
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
+  const { t } = useTranslation();
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!name.trim()) return
-    onCreate(name.trim(), description.trim())
-  }
+    e.preventDefault();
+    if (!name.trim()) return;
+    onCreate(name.trim(), description.trim());
+  };
 
   return (
     <div className="fixed inset-0 modal-overlay flex items-center justify-center z-50 p-4">
@@ -27,7 +27,9 @@ export default function CreateFolderModal({ onClose, onCreate }: Props) {
             <div className="w-10 h-10 rounded-medium bg-gradient-amber flex items-center justify-center">
               <FolderPlus className="w-5 h-5 text-vellum" />
             </div>
-            <h2 className="font-display text-lg text-sepia font-medium">{t.modal.createFolder.title}</h2>
+            <h2 className="font-display text-lg text-sepia font-medium">
+              {t.modal.createFolder.title}
+            </h2>
           </div>
           <button
             onClick={onClose}
@@ -41,12 +43,13 @@ export default function CreateFolderModal({ onClose, onCreate }: Props) {
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div>
             <label className="font-mono text-xs text-muted uppercase tracking-wider mb-2 block">
-              {t.modal.createFolder.name} <span className="text-status-error">*</span>
+              {t.modal.createFolder.name}{" "}
+              <span className="text-status-error">*</span>
             </label>
             <input
               type="text"
               value={name}
-              onChange={e => setName(e.target.value)}
+              onChange={(e) => setName(e.target.value)}
               placeholder={t.modal.createFolder.namePlaceholder}
               className="input-academic w-full"
               autoFocus
@@ -60,7 +63,7 @@ export default function CreateFolderModal({ onClose, onCreate }: Props) {
             <input
               type="text"
               value={description}
-              onChange={e => setDescription(e.target.value)}
+              onChange={(e) => setDescription(e.target.value)}
               placeholder={t.modal.createFolder.descPlaceholder}
               className="input-academic w-full"
             />
@@ -86,5 +89,5 @@ export default function CreateFolderModal({ onClose, onCreate }: Props) {
         </div>
       </div>
     </div>
-  )
+  );
 }

@@ -1,65 +1,74 @@
 // frontend/src/components/cards/ResearchPointsCard.tsx
-import { useState } from 'react'
-import { ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
-import { removeThinkingTags } from '../../lib/textUtils'
+import { useState } from "react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
+import { removeThinkingTags } from "../../lib/textUtils";
 
 interface ResearchPoint {
-  title: string
-  hypothesis?: string
-  description: string
-  discovery_method?: string
-  rationale?: string
-  related_concepts?: string[]
-  difficulty?: string
-  novelty?: string
-  potential_impact?: string
+  title: string;
+  hypothesis?: string;
+  description: string;
+  discovery_method?: string;
+  rationale?: string;
+  related_concepts?: string[];
+  difficulty?: string;
+  novelty?: string;
+  potential_impact?: string;
 }
 
 interface AnalysisContext {
   concept?: {
-    id: string
-    name?: string
-    text?: string
-    category?: string
-    paper_count?: number
-  }
-  ancestors?: Array<{ id: string; name?: string; text?: string }>
-  descendants?: Array<{ id: string; name?: string; text?: string; depth?: number }>
-  siblings?: Array<{ id: string; name?: string; text?: string }>
-  edge_nodes?: Array<{ id: string; name?: string; text?: string }>
-  related_papers?: Array<{ title: string; abstract?: string; keywords?: string[] }>
+    id: string;
+    name?: string;
+    text?: string;
+    category?: string;
+    paper_count?: number;
+  };
+  ancestors?: Array<{ id: string; name?: string; text?: string }>;
+  descendants?: Array<{
+    id: string;
+    name?: string;
+    text?: string;
+    depth?: number;
+  }>;
+  siblings?: Array<{ id: string; name?: string; text?: string }>;
+  edge_nodes?: Array<{ id: string; name?: string; text?: string }>;
+  related_papers?: Array<{
+    title: string;
+    abstract?: string;
+    keywords?: string[];
+  }>;
 }
 
 interface Props {
   data: {
-    concept_name: string
-    research_points: ResearchPoint[]
-    analysis_context?: AnalysisContext
-  }
-  onAction: (text: string) => void
+    concept_name: string;
+    research_points: ResearchPoint[];
+    analysis_context?: AnalysisContext;
+  };
+  onAction: (text: string) => void;
 }
 
 // Color mapping for difficulty, novelty, and impact
 const RATING_COLORS: Record<string, string> = {
-  low: '#4a6b8a',      // slate blue
-  medium: '#b8860b',   // amber
-  high: '#c2410c',     // terracotta
-}
+  low: "#4a6b8a", // slate blue
+  medium: "#b8860b", // amber
+  high: "#c2410c", // terracotta
+};
 
 // Discovery method labels
 const METHOD_LABELS: Record<string, string> = {
-  gap_analysis: '缺口分析',
-  contradiction: '矛盾发现',
-  evolution: '演化追踪',
-  synthesis: '综合推理',
-  frontier: '前沿探测',
-  bridge: '跨域桥接',
-}
+  gap_analysis: "缺口分析",
+  contradiction: "矛盾发现",
+  evolution: "演化追踪",
+  synthesis: "综合推理",
+  frontier: "前沿探测",
+  bridge: "跨域桥接",
+};
 
 // Get display label for discovery method
 function getMethodLabel(method: string): string {
-  if (!method) return '未知方法'
-  return METHOD_LABELS[method] || method
+  if (!method) return "未知方法";
+  return METHOD_LABELS[method] || method;
 }
 
 // Research point item component
@@ -70,23 +79,23 @@ function ResearchPointItem({
   onToggle,
   onAction,
 }: {
-  point: ResearchPoint
-  index: number
-  isExpanded: boolean
-  onToggle: () => void
-  onAction: (text: string) => void
+  point: ResearchPoint;
+  index: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onAction: (text: string) => void;
 }) {
   const handleDeepResearch = () => {
-    onAction(`深入研究「${point.title}」这个研究方向`)
-  }
+    onAction(`深入研究「${point.title}」这个研究方向`);
+  };
 
   return (
     <div
       className="border border-academic-border rounded-medium overflow-hidden transition-all duration-200"
       style={{
         background: isExpanded
-          ? 'linear-gradient(135deg, rgba(184, 134, 11, 0.03) 0%, rgba(212, 160, 18, 0.02) 100%)'
-          : 'rgba(245, 240, 232, 0.01)',
+          ? "linear-gradient(135deg, rgba(184, 134, 11, 0.03) 0%, rgba(212, 160, 18, 0.02) 100%)"
+          : "rgba(245, 240, 232, 0.01)",
       }}
     >
       {/* Header - clickable */}
@@ -98,8 +107,9 @@ function ResearchPointItem({
         <span
           className="flex-shrink-0 w-6 h-6 rounded-soft flex items-center justify-center font-mono text-xs font-medium"
           style={{
-            background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.12) 0%, rgba(212, 160, 18, 0.08) 100%)',
-            color: '#6b4423',
+            background:
+              "linear-gradient(135deg, rgba(184, 134, 11, 0.12) 0%, rgba(212, 160, 18, 0.08) 100%)",
+            color: "#6b4423",
           }}
         >
           {index + 1}
@@ -132,21 +142,33 @@ function ResearchPointItem({
           {point.difficulty && (
             <div
               className="w-2.5 h-2.5 rounded-full"
-              style={{ background: RATING_COLORS[point.difficulty.toLowerCase()] || RATING_COLORS.medium }}
+              style={{
+                background:
+                  RATING_COLORS[point.difficulty.toLowerCase()] ||
+                  RATING_COLORS.medium,
+              }}
               title={`难度: ${point.difficulty}`}
             />
           )}
           {point.novelty && (
             <div
               className="w-2.5 h-2.5 rounded-full"
-              style={{ background: RATING_COLORS[point.novelty.toLowerCase()] || RATING_COLORS.medium }}
+              style={{
+                background:
+                  RATING_COLORS[point.novelty.toLowerCase()] ||
+                  RATING_COLORS.medium,
+              }}
               title={`新颖度: ${point.novelty}`}
             />
           )}
           {point.potential_impact && (
             <div
               className="w-2.5 h-2.5 rounded-full"
-              style={{ background: RATING_COLORS[point.potential_impact.toLowerCase()] || RATING_COLORS.medium }}
+              style={{
+                background:
+                  RATING_COLORS[point.potential_impact.toLowerCase()] ||
+                  RATING_COLORS.medium,
+              }}
               title={`潜在影响: ${point.potential_impact}`}
             />
           )}
@@ -166,7 +188,9 @@ function ResearchPointItem({
           {/* Hypothesis */}
           {point.hypothesis && (
             <div className="mb-3 p-2.5 rounded-soft bg-academic-vellum/50 border border-academic-border/50">
-              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">假设</span>
+              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">
+                假设
+              </span>
               <p className="mt-1 font-quote text-sm text-academic-sepia italic">
                 {removeThinkingTags(point.hypothesis)}
               </p>
@@ -176,12 +200,14 @@ function ResearchPointItem({
           {/* Discovery method */}
           {point.discovery_method && (
             <div className="mb-3 flex items-center gap-2">
-              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">发现方法</span>
+              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">
+                发现方法
+              </span>
               <span
                 className="px-2 py-0.5 rounded-soft text-xs font-medium"
                 style={{
-                  background: 'rgba(184, 134, 11, 0.08)',
-                  color: '#6b4423',
+                  background: "rgba(184, 134, 11, 0.08)",
+                  color: "#6b4423",
                 }}
               >
                 {getMethodLabel(point.discovery_method)}
@@ -192,7 +218,9 @@ function ResearchPointItem({
           {/* Rationale */}
           {point.rationale && (
             <div className="mb-3">
-              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">推理依据</span>
+              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">
+                推理依据
+              </span>
               <p className="mt-1 font-body text-sm text-academic-ink/80">
                 {removeThinkingTags(point.rationale)}
               </p>
@@ -202,16 +230,18 @@ function ResearchPointItem({
           {/* Related concepts */}
           {point.related_concepts && point.related_concepts.length > 0 && (
             <div className="mb-3">
-              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">相关概念</span>
+              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">
+                相关概念
+              </span>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {point.related_concepts.map((concept, i) => (
                   <span
                     key={i}
                     className="px-2 py-0.5 rounded-soft text-xs font-medium"
                     style={{
-                      background: 'rgba(154, 107, 60, 0.08)',
-                      color: '#9a6b3c',
-                      border: '1px solid rgba(154, 107, 60, 0.15)',
+                      background: "rgba(154, 107, 60, 0.08)",
+                      color: "#9a6b3c",
+                      border: "1px solid rgba(154, 107, 60, 0.15)",
                     }}
                   >
                     {removeThinkingTags(concept)}
@@ -226,8 +256,8 @@ function ResearchPointItem({
             onClick={handleDeepResearch}
             className="mt-3 flex items-center gap-2 px-3 py-2 rounded-medium text-sm font-medium transition-all hover:shadow-glow-amber"
             style={{
-              background: 'linear-gradient(135deg, #b8860b 0%, #d4a012 100%)',
-              color: '#fffef9',
+              background: "linear-gradient(135deg, #b8860b 0%, #d4a012 100%)",
+              color: "#fffef9",
             }}
           >
             <Sparkles className="w-4 h-4" />
@@ -236,14 +266,14 @@ function ResearchPointItem({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 export default function ResearchPointsCard({ data, onAction }: Props) {
-  const [expandedPoints, setExpandedPoints] = useState<Set<number>>(new Set())
+  const [expandedPoints, setExpandedPoints] = useState<Set<number>>(new Set());
 
   // 调试日志
-  console.log('ResearchPointsCard data:', data)
+  console.log("ResearchPointsCard data:", data);
 
   // 防御性检查
   if (!data) {
@@ -251,14 +281,14 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
       <div
         className="my-2 p-4 rounded-xl"
         style={{
-          background: 'rgba(184, 134, 11, 0.04)',
-          border: '1px solid rgba(184, 134, 11, 0.2)',
-          color: 'var(--color-ink-secondary)',
+          background: "rgba(184, 134, 11, 0.04)",
+          border: "1px solid rgba(184, 134, 11, 0.2)",
+          color: "var(--color-ink-secondary)",
         }}
       >
         <p className="font-body text-sm">研究点数据为空</p>
       </div>
-    )
+    );
   }
 
   if (!data.research_points) {
@@ -266,15 +296,19 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
       <div
         className="my-2 p-4 rounded-xl"
         style={{
-          background: 'rgba(184, 134, 11, 0.04)',
-          border: '1px solid rgba(184, 134, 11, 0.2)',
-          color: 'var(--color-ink-secondary)',
+          background: "rgba(184, 134, 11, 0.04)",
+          border: "1px solid rgba(184, 134, 11, 0.2)",
+          color: "var(--color-ink-secondary)",
         }}
       >
-        <p className="font-body text-sm">研究点数据格式错误：缺少 research_points 字段</p>
-        <p className="font-mono text-xs mt-2 opacity-70">收到的数据: {JSON.stringify(Object.keys(data))}</p>
+        <p className="font-body text-sm">
+          研究点数据格式错误：缺少 research_points 字段
+        </p>
+        <p className="font-mono text-xs mt-2 opacity-70">
+          收到的数据: {JSON.stringify(Object.keys(data))}
+        </p>
       </div>
-    )
+    );
   }
 
   if (!Array.isArray(data.research_points)) {
@@ -282,60 +316,66 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
       <div
         className="my-2 p-4 rounded-xl"
         style={{
-          background: 'rgba(180, 60, 60, 0.05)',
-          border: '1px solid rgba(180, 60, 60, 0.2)',
-          color: '#8b4040',
+          background: "rgba(180, 60, 60, 0.05)",
+          border: "1px solid rgba(180, 60, 60, 0.2)",
+          color: "#8b4040",
         }}
       >
         <p className="font-body text-sm">research_points 不是数组</p>
-        <p className="font-mono text-xs mt-2 opacity-70">类型: {typeof data.research_points}</p>
+        <p className="font-mono text-xs mt-2 opacity-70">
+          类型: {typeof data.research_points}
+        </p>
       </div>
-    )
+    );
   }
 
   const togglePoint = (index: number) => {
     setExpandedPoints((prev) => {
-      const newSet = new Set(prev)
+      const newSet = new Set(prev);
       if (newSet.has(index)) {
-        newSet.delete(index)
+        newSet.delete(index);
       } else {
-        newSet.add(index)
+        newSet.add(index);
       }
-      return newSet
-    })
-  }
+      return newSet;
+    });
+  };
 
   const expandAll = () => {
-    if (!data?.research_points) return
-    setExpandedPoints(new Set(data.research_points.map((_, i) => i)))
-  }
+    if (!data?.research_points) return;
+    setExpandedPoints(new Set(data.research_points.map((_, i) => i)));
+  };
 
   const collapseAll = () => {
-    setExpandedPoints(new Set())
-  }
+    setExpandedPoints(new Set());
+  };
 
-  const allExpanded = data.research_points && expandedPoints.size === data.research_points.length
-  const hasContext = data.analysis_context && (
-    data.analysis_context.ancestors ||
-    data.analysis_context.descendants ||
-    data.analysis_context.edge_nodes
-  )
-  const conceptName = data.concept_name || '未命名概念'
+  const allExpanded =
+    data.research_points && expandedPoints.size === data.research_points.length;
+  const hasContext =
+    data.analysis_context &&
+    (data.analysis_context.ancestors ||
+      data.analysis_context.descendants ||
+      data.analysis_context.edge_nodes);
+  const conceptName = data.concept_name || "未命名概念";
 
   return (
     <div
       className="card-academic overflow-hidden animate-slide-up"
       style={{
-        background: 'linear-gradient(135deg, rgba(250, 248, 245, 0.95) 0%, rgba(245, 240, 232, 0.92) 100%)',
-        border: '1px solid rgba(232, 223, 208, 0.8)',
-        boxShadow: '0 2px 8px rgba(44, 24, 16, 0.06), 0 1px 3px rgba(44, 24, 16, 0.08)',
+        background:
+          "linear-gradient(135deg, rgba(250, 248, 245, 0.95) 0%, rgba(245, 240, 232, 0.92) 100%)",
+        border: "1px solid rgba(232, 223, 208, 0.8)",
+        boxShadow:
+          "0 2px 8px rgba(44, 24, 16, 0.06), 0 1px 3px rgba(44, 24, 16, 0.08)",
       }}
     >
       {/* Header */}
       <div
         className="px-5 py-4 border-b border-academic-border"
         style={{
-          background: 'linear-gradient(135deg, rgba(184, 134, 11, 0.04) 0%, rgba(212, 160, 18, 0.02) 100%)',
+          background:
+            "linear-gradient(135deg, rgba(184, 134, 11, 0.04) 0%, rgba(212, 160, 18, 0.02) 100%)",
         }}
       >
         <div className="flex items-start justify-between">
@@ -355,7 +395,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
                 onClick={allExpanded ? collapseAll : expandAll}
                 className="text-xs text-academic-muted hover:text-academic-amber transition-colors font-mono"
               >
-                {allExpanded ? '全部收起' : '全部展开'}
+                {allExpanded ? "全部收起" : "全部展开"}
               </button>
             </div>
           )}
@@ -364,48 +404,51 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
         {/* Analysis context stats */}
         {hasContext && (
           <div className="mt-3 flex items-center gap-4">
-            {data.analysis_context!.ancestors && data.analysis_context!.ancestors.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-academic-muted">上游概念</span>
-                <span
-                  className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
-                  style={{
-                    background: 'rgba(107, 68, 35, 0.08)',
-                    color: '#6b4423',
-                  }}
-                >
-                  {data.analysis_context!.ancestors!.length}
-                </span>
-              </div>
-            )}
-            {data.analysis_context!.descendants && data.analysis_context!.descendants.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-academic-muted">下游概念</span>
-                <span
-                  className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
-                  style={{
-                    background: 'rgba(184, 134, 11, 0.08)',
-                    color: '#b8860b',
-                  }}
-                >
-                  {data.analysis_context!.descendants!.length}
-                </span>
-              </div>
-            )}
-            {data.analysis_context!.edge_nodes && data.analysis_context!.edge_nodes.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-academic-muted">边缘节点</span>
-                <span
-                  className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
-                  style={{
-                    background: 'rgba(154, 107, 60, 0.08)',
-                    color: '#9a6b3c',
-                  }}
-                >
-                  {data.analysis_context!.edge_nodes!.length}
-                </span>
-              </div>
-            )}
+            {data.analysis_context!.ancestors &&
+              data.analysis_context!.ancestors.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-academic-muted">上游概念</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
+                    style={{
+                      background: "rgba(107, 68, 35, 0.08)",
+                      color: "#6b4423",
+                    }}
+                  >
+                    {data.analysis_context!.ancestors!.length}
+                  </span>
+                </div>
+              )}
+            {data.analysis_context!.descendants &&
+              data.analysis_context!.descendants.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-academic-muted">下游概念</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
+                    style={{
+                      background: "rgba(184, 134, 11, 0.08)",
+                      color: "#b8860b",
+                    }}
+                  >
+                    {data.analysis_context!.descendants!.length}
+                  </span>
+                </div>
+              )}
+            {data.analysis_context!.edge_nodes &&
+              data.analysis_context!.edge_nodes.length > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-academic-muted">边缘节点</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded-soft text-xs font-mono font-medium"
+                    style={{
+                      background: "rgba(154, 107, 60, 0.08)",
+                      color: "#9a6b3c",
+                    }}
+                  >
+                    {data.analysis_context!.edge_nodes!.length}
+                  </span>
+                </div>
+              )}
           </div>
         )}
       </div>
@@ -430,5 +473,5 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
         )}
       </div>
     </div>
-  )
+  );
 }
