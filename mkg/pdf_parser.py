@@ -597,6 +597,44 @@ class PDFParser:
             print(f"文本提取失败：{e}")
             return None
 
+    def _parse_with_pymupdf(self, pdf_path: str) -> Optional[PaperContent]:
+        """
+        使用 PyMuPDF 解析 PDF（fallback 路径）
+        """
+        try:
+            doc = fitz.open(pdf_path)
+
+            metadata = doc.metadata
+            full_text = ""
+            for page in doc:
+                full_text += page.get_text()
+
+            first_page_text = doc[0].get_text() if len(doc) > 0 else ""
+
+            doi = self._extract_doi_pymupdf(doc, first_page_text)
+            arxiv_id = self._extract_arxiv_id_pymupdf(doc, first_page_text)
+            title = self._extract_title(doc)
+            authors = self._extract_authors_pymupdf(doc)
+            abstract = self._extract_abstract_pymupdf(full_text)
+            sections = self._extract_sections_pymupdf(full_text)
+
+            doc.close()
+
+            return PaperContent(
+                title=title,
+                authors=authors,
+                abstract=abstract,
+                full_text=full_text,
+                sections=sections,
+                metadata=metadata,
+                doi=doi,
+                arxiv_id=arxiv_id
+            )
+
+        except Exception as e:
+            print(f"PDF 解析失败（PyMuPDF）：{e}")
+            return None
+
     # ========== OpenDataLoader Markdown 辅助方法 ==========
 
     def _extract_title_from_markdown(self, markdown: str, metadata: dict) -> str:
@@ -1000,7 +1038,7 @@ class PDFParser:
 
         return ""
 
-    def _extract_doi(self, doc: fitz.Document, first_page_text: str = None) -> str:
+    def _extract_doi_pymupdf(self, doc: fitz.Document, first_page_text: str = None) -> str:
         """
         提取 DOI
 
@@ -1041,7 +1079,7 @@ class PDFParser:
 
         return ""
 
-    def _extract_arxiv_id(self, doc: fitz.Document, first_page_text: str = None) -> str:
+    def _extract_arxiv_id_pymupdf(self, doc: fitz.Document, first_page_text: str = None) -> str:
         """
         提取 arXiv ID
 
@@ -1104,7 +1142,7 @@ class PDFParser:
             return True
         return False
 
-    def _extract_authors(self, doc: fitz.Document) -> List[str]:
+    def _extract_authors_pymupdf(self, doc: fitz.Document) -> List[str]:
         """提取作者 - 改进版"""
         first_page = doc[0]
         text = first_page.get_text()
@@ -1165,7 +1203,7 @@ class PDFParser:
 
         return authors[:10]
 
-    def _extract_abstract(self, full_text: str) -> str:
+    def _extract_abstract_pymupdf(self, full_text: str) -> str:
         """提取摘要 - 改进版"""
         text_lower = full_text.lower()
 
@@ -1222,7 +1260,7 @@ class PDFParser:
         # 如果找不到摘要，返回前 1000 字符
         return full_text[:1000]
 
-    def _extract_sections(self, full_text: str) -> Dict[str, str]:
+    def _extract_sections_pymupdf(self, full_text: str) -> Dict[str, str]:
         """提取章节"""
         sections = {}
 
