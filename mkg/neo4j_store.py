@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Neo4jStore:
     """Neo4j 概念图谱存储"""
 
-    def __init__(self, uri: str = None, user: str = None, password: str = None):
+    def __init__(self, uri: str | None = None, user: str | None = None, password: str | None = None):
         self.driver = None
         self.connected = False
 
@@ -124,7 +124,7 @@ class Neo4jStore:
             logger.error(f"Failed to sync relation: {e}")
             return False
 
-    def get_tree(self, root_id: str = None, max_depth: int = 10) -> dict:
+    def get_tree(self, root_id: str | None = None, max_depth: int = 10) -> dict:
         """
         从 Neo4j 获取概念树
 
@@ -321,10 +321,13 @@ class Neo4jStore:
             count += 1
 
         rel_count = 0
-        cursor = db.conn.execute("SELECT parent_id, child_id, relation_type FROM concept_relations")
-        for row in cursor.fetchall():
-            self.sync_relation(row["parent_id"], row["child_id"], row["relation_type"])
-            rel_count += 1
+        try:
+            cursor = db.conn.execute("SELECT parent_id, child_id, relation_type FROM concept_relations")
+            for row in cursor.fetchall():
+                self.sync_relation(row["parent_id"], row["child_id"], row["relation_type"])
+                rel_count += 1
+        except Exception as e:
+            logger.error(f"Failed to sync relations from SQLite: {e}")
 
         return {"concepts_synced": count, "relations_synced": rel_count}
 
