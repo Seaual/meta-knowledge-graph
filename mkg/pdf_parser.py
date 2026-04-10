@@ -445,14 +445,30 @@ class LLMExtractedContent:
 
 
 class PDFParser:
-    """PDF 解析器 - 使用 PyMuPDF 提取文本"""
+    """PDF 解析器 - 首选 OpenDataLoader-PDF，PyMuPDF fallback"""
 
     def __init__(self):
-        pass
+        self._java_available = self._check_java()
+        engine = "OpenDataLoader-PDF" if self._java_available else "PyMuPDF"
+        logger.info(f"PDF engine: {engine} ({'Java available' if self._java_available else 'Java not available'})")
+        print(f"[PDF] 解析引擎: {engine}")
+
+    @staticmethod
+    def _check_java() -> bool:
+        """检测 Java 是否可用"""
+        try:
+            result = subprocess.run(
+                ["java", "-version"],
+                capture_output=True,
+                timeout=5
+            )
+            return result.returncode == 0
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return False
 
     def parse(self, pdf_path: str) -> Optional[PaperContent]:
         """
-        解析 PDF 文件（提取原始文本）
+        解析 PDF 文件（自动选择引擎）
 
         Args:
             pdf_path: PDF 文件路径
@@ -460,55 +476,112 @@ class PDFParser:
         Returns:
             论文内容，解析失败返回 None
         """
-        try:
-            doc = fitz.open(pdf_path)
-
-            # 提取元数据
-            metadata = doc.metadata
-
-            # 提取全文
-            full_text = ""
-            for page in doc:
-                full_text += page.get_text()
-
-            # 首页文本（用于提取 DOI/arXiv ID）
-            first_page_text = doc[0].get_text() if len(doc) > 0 else ""
-
-            # 提取 DOI 和 arXiv ID（优先级高于标题）
-            doi = self._extract_doi(doc, first_page_text)
-            arxiv_id = self._extract_arxiv_id(doc, first_page_text)
-
-            # 提取标题（通常是第一行）
-            title = self._extract_title(doc)
-
-            # 提取作者
-            authors = self._extract_authors(doc)
-
-            # 提取摘要
-            abstract = self._extract_abstract(full_text)
-
-            # 分章节
-            sections = self._extract_sections(full_text)
-
-            doc.close()
-
-            return PaperContent(
-                title=title,
-                authors=authors,
-                abstract=abstract,
-                full_text=full_text,
-                sections=sections,
-                metadata=metadata,
-                doi=doi,
-                arxiv_id=arxiv_id
-            )
-
-        except Exception as e:
-            print(f"PDF 解析失败：{e}")
-            return None
+        if self._java_available:
+            result = self._parse_with_opendataloader(pdf_path)
+            if result:
+                return result
+            logger.warning("OpenDataLoader parsing failed, falling back to PyMuPDF")
+            print("[PDF] OpenDataLoader 解析失败，回退到 PyMuPDF")
+        return self._parse_with_pymupdf(pdf_path)
 
     def extract_text(self, pdf_path: str) -> Optional[str]:
-        """只提取纯文本（供 LLM 使用）"""
+        """
+        只提取纯文本（供 LLM 使用，自动选择引擎）
+        """
+        if self._java_available:
+            text = self._extract_text_opendataloader(pdf_path)
+            if text:
+                return text
+            logger.warning("OpenDataLoader text extraction failed, falling back to PyMuPDF")
+        return self._extract_text_pymupdf(pdf_path)
+
+    def _parse_with_opendataloader(self, pdf_path: str) -> Optional[PaperContent]:
+        """
+        使用 OpenDataLoader-PDF 解析 PDF
+
+        输出 Markdown（结构化文本，供 LLM 使用）和 JSON（元数据）。
+        """
+        import opendataloader_pdf
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                opendataloader_pdf.convert(
+                    input_path=[pdf_path],
+                    output_dir=tmpdir,
+                    format="markdown,json"
+                )
+
+                base_name = Path(pdf_path).stem
+                md_path = Path(tmpdir) / f"{base_name}.md"
+                json_path = Path(tmpdir) / f"{base_name}.json"
+
+                full_text = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
+                if not full_text:
+                    return None
+
+                metadata = {}
+                if json_path.exists():
+                    with open(json_path, encoding="utf-8") as f:
+                        metadata = json.load(f)
+
+                title = self._extract_title_from_markdown(full_text, metadata)
+                authors = self._extract_authors_from_metadata(metadata)
+                abstract = self._extract_abstract_from_markdown(full_text)
+                sections = self._extract_sections_from_markdown(full_text)
+                doi = self._extract_doi_from_metadata(metadata, full_text)
+                arxiv_id = self._extract_arxiv_id_from_metadata(metadata, full_text)
+
+                return PaperContent(
+                    title=title,
+                    authors=authors,
+                    abstract=abstract,
+                    full_text=full_text,
+                    sections=sections,
+                    metadata=metadata,
+                    doi=doi,
+                    arxiv_id=arxiv_id
+                )
+
+        except ImportError:
+            logger.warning("opendataloader-pdf not installed, falling back to PyMuPDF")
+            return None
+        except Exception as e:
+            logger.error(f"OpenDataLoader parsing failed: {e}")
+            return None
+
+    def _extract_text_opendataloader(self, pdf_path: str) -> Optional[str]:
+        """
+        使用 OpenDataLoader-PDF 提取 Markdown 文本（供 LLM 使用）
+        """
+        import opendataloader_pdf
+
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                opendataloader_pdf.convert(
+                    input_path=[pdf_path],
+                    output_dir=tmpdir,
+                    format="markdown"
+                )
+
+                md_path = Path(tmpdir) / f"{Path(pdf_path).stem}.md"
+                if not md_path.exists():
+                    return None
+
+                text = md_path.read_text(encoding="utf-8")
+
+                if len(text) > 700000:
+                    text = text[:700000] + "\n\n... [文本过长，已截断]"
+
+                return text
+
+        except ImportError:
+            return None
+        except Exception as e:
+            logger.error(f"OpenDataLoader text extraction failed: {e}")
+            return None
+
+    def _extract_text_pymupdf(self, pdf_path: str) -> Optional[str]:
+        """只提取纯文本（PyMuPDF fallback 路径）"""
         try:
             doc = fitz.open(pdf_path)
             text = ""
@@ -516,9 +589,7 @@ class PDFParser:
                 text += page.get_text()
             doc.close()
 
-            # 清理过长的文本（限制 token 数，大约 4 字符=1token）
-            # 支持 200k token 的模型可以处理约 800k 字符
-            if len(text) > 700000:  # 留有余量
+            if len(text) > 700000:
                 text = text[:700000] + "\n\n... [文本过长，已截断]"
 
             return text
