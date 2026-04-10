@@ -762,16 +762,12 @@ class PDFParser:
                 return arxiv_id.strip()
 
         # 优先级2: Markdown 正文
-        patterns = [
-            r'arXiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',
-            r'arxiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',
-        ]
-        for pattern in patterns:
-            match = re.search(pattern, markdown, re.IGNORECASE)
-            if match:
-                arxiv_id = match.group(1).strip()
-                if self._is_valid_arxiv_id(arxiv_id):
-                    return arxiv_id
+        pattern = r'arxiv:\s*(\d{4}\.\d{4,5}(v\d+)?)'
+        match = re.search(pattern, markdown, re.IGNORECASE)
+        if match:
+            arxiv_id = match.group(1).strip()
+            if self._is_valid_arxiv_id(arxiv_id):
+                return arxiv_id
 
         return ""
 
