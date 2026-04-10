@@ -1,9 +1,10 @@
 """
 PDF 解析模块 - 使用 LLM 解析学术论文
 
-新设计：
-- 使用 PyMuPDF 提取全文文本
-- 发送全文给 LLM，提取结构化信息：
+设计：
+- 首选 OpenDataLoader-PDF 提取结构化 Markdown（正确阅读顺序、表格结构、标题层级）
+- PyMuPDF 作为 fallback（Java 不可用时）
+- 发送结构化文本给 LLM，提取结构化信息：
   - 元数据（标题、作者、摘要）
   - 研究问题/贡献
   - 概念层级树（动态分层）
@@ -12,9 +13,15 @@ PDF 解析模块 - 使用 LLM 解析学术论文
 
 import fitz  # PyMuPDF
 import re
+import json
+import subprocess
+import tempfile
+import logging
 from pathlib import Path
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 STAGE1_SUMMARY_PROMPT = """<s>
