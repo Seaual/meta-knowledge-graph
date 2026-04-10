@@ -597,6 +597,184 @@ class PDFParser:
             print(f"文本提取失败：{e}")
             return None
 
+    # ========== OpenDataLoader Markdown 辅助方法 ==========
+
+    def _extract_title_from_markdown(self, markdown: str, metadata: dict) -> str:
+        """
+        从 Markdown 或 JSON 元数据提取标题
+        """
+        # 优先级1: JSON 元数据中的标题
+        meta_title = metadata.get("title", "")
+        if meta_title and len(meta_title) > 10 and not self._is_suspicious_title(meta_title):
+            return meta_title.strip()
+
+        # 优先级2: Markdown 第一个 H1 标题
+        match = re.match(r"^#\s+(.+)$", markdown, re.MULTILINE)
+        if match:
+            title = match.group(1).strip()
+            if len(title) > 10 and not self._is_suspicious_title(title):
+                return title
+
+        # 优先级3: 第二个 H1（有些 PDF 第一行是期刊信息）
+        matches = re.findall(r"^#\s+(.+)$", markdown, re.MULTILINE)
+        if len(matches) > 1:
+            for candidate in matches[1:3]:
+                candidate = candidate.strip()
+                if len(candidate) > 10 and not self._is_suspicious_title(candidate):
+                    return candidate
+
+        return meta_title or "Unknown"
+
+    def _extract_authors_from_metadata(self, metadata: dict) -> List[str]:
+        """
+        从 JSON 元数据提取作者列表
+        """
+        authors = metadata.get("authors", [])
+        if isinstance(authors, str):
+            authors = [a.strip() for a in authors.split(",") if a.strip()]
+        elif isinstance(authors, list):
+            # 处理可能是 dict 的情况（有些 PDF 解析器输出 {"name": "..."}）
+            cleaned = []
+            for a in authors:
+                if isinstance(a, dict):
+                    name = a.get("name", a.get("fullName", ""))
+                else:
+                    name = str(a)
+                name = name.strip()
+                if len(name) > 2 and not any(x in name.lower() for x in ["university", "institute", "lab", "department", "dept", "college", "school"]):
+                    cleaned.append(name)
+            authors = cleaned
+
+        return authors[:10]
+
+    def _extract_abstract_from_markdown(self, markdown: str) -> str:
+        """
+        从 Markdown 提取摘要
+        查找 ## Abstract 或 # Abstract 部分的内容
+        """
+        text_lower = markdown.lower()
+
+        # 常见的摘要标记
+        abstract_markers = [
+            "## abstract", "# abstract", "## abstract:", "### abstract",
+            "## summary", "# summary", "## 摘要", "# 摘要"
+        ]
+
+        for marker in abstract_markers:
+            idx = text_lower.find(marker)
+            if idx == -1:
+                continue
+
+            start = idx + len(marker)
+            # 跳过冒号和空格
+            while start < len(markdown) and markdown[start] in ': \n\t':
+                start += 1
+
+            # 查找摘要结束：下一个 ## 标题或引言
+            end = len(markdown)
+            end_patterns = [
+                "\n## ", "\n# ", "\n1 introduction", "\n1. introduction",
+                "\nintroduction", "\n引言", "\n## keywords", "\n关键词"
+            ]
+            for pat in end_patterns:
+                marker_idx = text_lower.find(pat, start)
+                if marker_idx != -1 and marker_idx < end:
+                    end = marker_idx
+
+            abstract = markdown[start:end].strip()
+            # 清理：移除 Markdown 格式标记
+            abstract = re.sub(r'\*\*|\*|__', '', abstract)
+            # 合并多行
+            lines = [line.strip() for line in abstract.split('\n') if line.strip()]
+            cleaned = [l for l in lines if len(l) > 20 and not l.isdigit()]
+            if cleaned:
+                result = ' '.join(cleaned)
+                return result[:3000]
+
+        # 找不到摘要时返回前 1000 字符
+        return markdown[:1000]
+
+    def _extract_sections_from_markdown(self, markdown: str) -> Dict[str, str]:
+        """
+        从 Markdown 提取章节结构
+        按 ## Heading 分割
+        """
+        sections = {}
+        target_sections = [
+            "introduction", "method", "methods", "approach",
+            "experiment", "experiments", "results", "discussion",
+            "conclusion", "related work", "methodology"
+        ]
+
+        # 按 ## 标题分割
+        heading_pattern = re.compile(r"^##\s+(.+)$", re.MULTILINE)
+        matches = list(heading_pattern.finditer(markdown))
+
+        for i, match in enumerate(matches):
+            heading = match.group(1).strip()
+            start = match.end()
+            end = matches[i + 1].start() if i + 1 < len(matches) else len(markdown)
+            content = markdown[start:end].strip()
+
+            # 匹配目标章节
+            heading_lower = heading.lower()
+            for target in target_sections:
+                if target in heading_lower:
+                    # 移除 Markdown 格式标记
+                    clean_content = re.sub(r'#{1,4}\s+', '', content)
+                    sections[target] = clean_content[:3000]
+                    break
+
+        return sections
+
+    def _extract_doi_from_metadata(self, metadata: dict, markdown: str) -> str:
+        """
+        从 JSON 元数据或 Markdown 正文提取 DOI
+        """
+        # 优先级1: 元数据
+        doi = metadata.get("doi", "")
+        if doi and self._is_valid_doi(doi):
+            return doi.strip().lower()
+
+        # 优先级2: Markdown 正文
+        patterns = [
+            r'\b(10\.\d{4,}/[^\s,;)\]]+)',
+            r'https?://doi\.org/(10\.\d{4,}/[^\s,;)\]]+)',
+            r'DOI:\s*(10\.\d{4,}/[^\s,;)\]]+)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, markdown, re.IGNORECASE)
+            if match:
+                doi = re.sub(r'[.,;)\]]+$', '', match.group(1).strip())
+                if self._is_valid_doi(doi):
+                    return doi.lower()
+
+        return ""
+
+    def _extract_arxiv_id_from_metadata(self, metadata: dict, markdown: str) -> str:
+        """
+        从 JSON 元数据或 Markdown 正文提取 arXiv ID
+        """
+        # 优先级1: 元数据
+        for key in ['arxiv_id', 'arxiv', 'eprint']:
+            arxiv_id = metadata.get(key, "")
+            if arxiv_id and self._is_valid_arxiv_id(arxiv_id):
+                return arxiv_id.strip()
+
+        # 优先级2: Markdown 正文
+        patterns = [
+            r'arXiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',
+            r'arxiv:\s*(\d{4}\.\d{4,5}(v\d+)?)',
+        ]
+        for pattern in patterns:
+            match = re.search(pattern, markdown, re.IGNORECASE)
+            if match:
+                arxiv_id = match.group(1).strip()
+                if self._is_valid_arxiv_id(arxiv_id):
+                    return arxiv_id
+
+        return ""
+
     def _extract_title(self, doc: fitz.Document) -> str:
         """
         提取标题 - 参考paper2md最佳实践
