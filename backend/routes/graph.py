@@ -2,18 +2,18 @@
 Graph API routes
 """
 
-from fastapi import APIRouter, Response, HTTPException
-from typing import List, Optional
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+from fastapi import APIRouter, HTTPException, Response
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
+from backend.schemas import ExportResponse, GraphData, GraphEdge, GraphNode, GraphStats
 from mkg.database import Database
 from mkg.graph import KnowledgeGraph
 from mkg.obsidian_exporter import ObsidianExporter
-from backend.schemas import GraphStats, GraphData, GraphNode, GraphEdge, ExportResponse
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
@@ -53,7 +53,29 @@ def get_stats():
 def get_graph_data(max_depth: int = 3, folder: str = None):
     """Get graph data for visualization, optionally filtered by folder"""
     db = get_db()
-    graph = get_graph()
+
+    # 如果未指定文件夹且 Neo4j 已连接，直接从 Neo4j 获取
+    if not folder:
+        neo4j = db.neo4j_store
+        if neo4j and neo4j.connected:
+            graph_data = neo4j.get_graph_data()
+            nodes = [
+                GraphNode(
+                    id=n['id'],
+                    label=n['label'],
+                    label_en=n.get('label_en'),
+                    category=n.get('category', 'method'),
+                    paper_count=n.get('paper_count', 0)
+                )
+                for n in graph_data['nodes']
+            ]
+            edges = [
+                GraphEdge(source=e['source'], target=e['target'], type="parent-child")
+                for e in graph_data['edges']
+            ]
+            return GraphData(nodes=nodes, edges=edges)
+
+    # fallback to SQLite
 
     nodes = []
     edges = []
@@ -104,6 +126,13 @@ def get_tree_data():
     """Get tree structure for D3.js hierarchical visualization"""
     db = get_db()
 
+    # 优先使用 Neo4j
+    neo4j = db.neo4j_store
+    if neo4j and neo4j.connected:
+        tree = neo4j.get_tree()
+        if tree:
+            return {"trees": [tree]}
+
     def build_tree(concept_id: str, depth: int = 0) -> dict:
         if depth > 10:
             return None
@@ -141,7 +170,7 @@ def get_tree_data():
 
 
 @router.get("/export/obsidian", response_model=ExportResponse)
-def export_obsidian(folder_id: Optional[str] = None):
+def export_obsidian(folder_id: str | None = None):
     """导出知识图谱为 Obsidian 兼容的 Markdown 格式
 
     Args:
@@ -179,7 +208,7 @@ def export_obsidian(folder_id: Optional[str] = None):
 
 
 @router.get("/export/obsidian/canvas")
-def export_obsidian_canvas(folder_id: Optional[str] = None):
+def export_obsidian_canvas(folder_id: str | None = None):
     """导出知识图谱为 Obsidian Canvas 格式（带颜色和布局）"""
     try:
         db = get_db()
@@ -213,7 +242,7 @@ def export_obsidian_canvas(folder_id: Optional[str] = None):
 
 
 @router.get("/export/obsidian/canvas/download")
-def download_obsidian_canvas(folder_id: Optional[str] = None):
+def download_obsidian_canvas(folder_id: str | None = None):
     """下载 Obsidian Canvas 文件（.canvas 格式）"""
     try:
         db = get_db()
@@ -234,7 +263,7 @@ def download_obsidian_canvas(folder_id: Optional[str] = None):
 
 
 @router.get("/export/obsidian/download")
-def download_obsidian(folder_id: Optional[str] = None):
+def download_obsidian(folder_id: str | None = None):
     """下载 Obsidian Markdown 文件"""
     try:
         db = get_db()
@@ -255,7 +284,7 @@ def download_obsidian(folder_id: Optional[str] = None):
 
 
 @router.get("/export/obsidian/html")
-def export_obsidian_html(folder_id: Optional[str] = None):
+def export_obsidian_html(folder_id: str | None = None):
     """导出知识图谱为交互式 HTML 页面（D3.js 力导向图）"""
     try:
         db = get_db()
@@ -289,7 +318,7 @@ def export_obsidian_html(folder_id: Optional[str] = None):
 
 
 @router.get("/export/obsidian/html/download")
-def download_obsidian_html(folder_id: Optional[str] = None):
+def download_obsidian_html(folder_id: str | None = None):
     """下载交互式 HTML 文件（带物理渲染）"""
     try:
         db = get_db()

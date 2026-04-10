@@ -3,12 +3,12 @@
 研究服务 - 研究点发现和论文推荐
 """
 
-from typing import Dict, List, Optional
 import json
 import re
+
 from mkg.database import Database
+from mkg.llm import get_llm_or_raise, init_llm_from_db
 from mkg.semantic_scholar import S2Client
-from mkg.llm import init_llm_from_db, get_llm_or_raise
 
 
 class ResearchService:
@@ -18,15 +18,33 @@ class ResearchService:
         self.db = db
         self.s2_client = s2_client
 
-    def discover_research_points(self, concept_id: str) -> Dict:
+    def _get_children(self, concept_id: str) -> list[dict]:
+        """获取子概念，优先 Neo4j"""
+        neo4j = self.db.neo4j_store
+        if neo4j and neo4j.connected:
+            results = neo4j.get_children(concept_id)
+            if results is not None:
+                return results
+        return self.db.concepts.get_children(concept_id)
+
+    def _get_parents(self, concept_id: str) -> list[dict]:
+        """获取父概念，优先 Neo4j"""
+        neo4j = self.db.neo4j_store
+        if neo4j and neo4j.connected:
+            results = neo4j.get_parents(concept_id)
+            if results is not None:
+                return results
+        return self.db.concepts.get_parents(concept_id)
+
+    def discover_research_points(self, concept_id: str) -> dict:
         """发现概念的研究点"""
         concept = self.db.concepts.get(concept_id)
         if not concept:
             return {"error": "Concept not found", "concept_id": concept_id}
 
         # 获取相关上下文
-        children = self.db.concepts.get_children(concept_id)
-        parents = self.db.concepts.get_parents(concept_id)
+        children = self._get_children(concept_id)
+        parents = self._get_parents(concept_id)
         papers = self.db.concepts.get_papers(concept_id)
 
         try:
@@ -49,7 +67,7 @@ class ResearchService:
             return {"error": str(e), "concept_id": concept_id}
 
     def search_papers_by_concept(self, concept_id: str, year: str = None,
-                                  min_citations: int = None, limit: int = 10) -> Dict:
+                                  min_citations: int = None, limit: int = 10) -> dict:
         """搜索概念相关论文"""
         concept = self.db.concepts.get(concept_id)
         if not concept:
@@ -80,7 +98,7 @@ class ResearchService:
         except Exception as e:
             return {"error": str(e), "concept_id": concept_id}
 
-    def _build_research_prompt(self, concept: Dict, children: List, parents: List, papers: List) -> str:
+    def _build_research_prompt(self, concept: dict, children: list, parents: list, papers: list) -> str:
         """构建研究点发现提示"""
         child_texts = [c['text'] for c in children[:5]]
         parent_texts = [p['text'] for p in parents[:3]]
@@ -100,7 +118,7 @@ class ResearchService:
 
 以 JSON 格式返回。"""
 
-    def _parse_research_points(self, content: str) -> List[Dict]:
+    def _parse_research_points(self, content: str) -> list[dict]:
         """解析研究点"""
         points = []
 
