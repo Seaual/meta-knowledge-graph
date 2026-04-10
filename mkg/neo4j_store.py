@@ -108,8 +108,8 @@ class Neo4jStore:
             with self.driver.session() as session:
                 session.run(
                     """
-                    MATCH (parent:Concept {id: $parent_id})
-                    MATCH (child:Concept {id: $child_id})
+                    MERGE (parent:Concept {id: $parent_id})
+                    MERGE (child:Concept {id: $child_id})
                     MERGE (parent)-[r:HAS_SUB]->(child)
                     SET r.relation_type = $relation_type
                 """,
@@ -272,7 +272,7 @@ class Neo4jStore:
             logger.error(f"Failed to get all concepts from Neo4j: {e}")
             return []
 
-    def get_graph_data(self, max_depth: int = 3) -> dict:
+    def get_graph_data(self) -> dict:
         """
         获取图谱数据（nodes + edges），用于前端 D3 可视化
 
