@@ -342,6 +342,7 @@ Access http://localhost:8089/docs after starting the backend.
 - [x] Multiple LLM backends
 - [x] AI Research Agents (Chat, Paper Q&A, Citation Analysis, Research)
 - [x] Deep Research with async progress tracking
+- [x] CI/CD (GitHub Actions - lint, type-check, test)
 - [ ] Real-time collaboration
 - [ ] Neo4j support
 
