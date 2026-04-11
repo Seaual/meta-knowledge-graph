@@ -50,3 +50,42 @@ class E2EResult:
     neo4j_skipped_reason: str | None
     timings: StageTimings
     db_path: Path
+
+
+# ---- Safety helpers -------------------------------------------------------
+
+
+_PROJECT_ROOT = Path(__file__).resolve().parents[2]
+_FORBIDDEN_PREFIXES = (
+    _PROJECT_ROOT / "backend",
+    _PROJECT_ROOT / "mkg",
+    _PROJECT_ROOT / "papers",
+    _PROJECT_ROOT / "obsidian_vault",
+)
+
+
+def _validate_work_dir(work_dir: Path) -> None:
+    """Raise ValueError if work_dir is unsafe to use as an E2E scratch dir.
+
+    Safe: a nonexistent path, OR an existing empty directory, that is NOT the
+    repo root and NOT inside backend/mkg/papers/obsidian_vault.
+    """
+    resolved = work_dir.resolve()
+
+    if resolved == _PROJECT_ROOT:
+        raise ValueError(f"work_dir must not be the project root: {resolved}")
+
+    for forbidden in _FORBIDDEN_PREFIXES:
+        try:
+            resolved.relative_to(forbidden)
+        except ValueError:
+            continue
+        raise ValueError(
+            f"work_dir is inside a protected path ({forbidden.name}): {resolved}"
+        )
+
+    if resolved.exists():
+        if not resolved.is_dir():
+            raise ValueError(f"work_dir exists and is not a directory: {resolved}")
+        if any(resolved.iterdir()):
+            raise ValueError(f"work_dir exists and is not empty: {resolved}")
