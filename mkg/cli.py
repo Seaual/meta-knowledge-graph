@@ -392,6 +392,90 @@ def neo4j_sync():
     store.close()
 
 
+# ========== Memory 命令 ==========
+
+
+@app.command()
+def memory_search(query: str = typer.Argument(..., help="搜索关键词（逗号分隔）")):
+    """按标签搜索研究记忆"""
+    from mkg.memory import AgentMemory
+
+    db = get_db()
+    memory = AgentMemory(db)
+    tags = [t.strip() for t in query.split(",") if t.strip()]
+
+    if not tags:
+        console.print("[yellow]请提供至少一个有效标签[/yellow]")
+        return
+
+    results = memory.research.search_by_tags(tags)
+    if not results:
+        console.print("[yellow]未找到匹配的记忆[/yellow]")
+        return
+
+    console.print(f"\n[bold]研究记忆: {', '.join(tags)}[/bold]\n")
+    for r in results:
+        console.print(f"  [yellow]📝[/yellow] {r['title']} [{r['memory_type']}]")
+        console.print(f"     标签: {', '.join(r['tags'])}")
+        console.print(f"     论文: {r.get('paper_doi', 'N/A')}")
+        console.print("")
+
+
+@app.command()
+def memory_list():
+    """列出所有研究记忆"""
+    from mkg.memory import AgentMemory, ResearchMemory
+
+    db = get_db()
+    memory = AgentMemory(db)
+    all_memories = []
+    for mem_type in ResearchMemory.VALID_TYPES:
+        all_memories.extend(memory.research.search_by_type(mem_type))
+
+    if not all_memories:
+        console.print("[yellow]没有研究记忆[/yellow]")
+        return
+
+    table = Table(show_header=True)
+    table.add_column("标题")
+    table.add_column("类型")
+    table.add_column("标签")
+    table.add_column("论文")
+
+    for m in all_memories:
+        table.add_row(
+            m["title"],
+            m["memory_type"],
+            ", ".join(m["tags"]),
+            m.get("paper_doi", "-")[:30],
+        )
+
+    console.print(table)
+
+
+@app.command()
+def memory_prefs():
+    """查看所有用户偏好"""
+    from mkg.memory import AgentMemory
+
+    db = get_db()
+    memory = AgentMemory(db)
+    prefs = memory.preferences.get_all()
+
+    if not prefs:
+        console.print("[yellow]没有设置偏好[/yellow]")
+        return
+
+    table = Table(show_header=True)
+    table.add_column("键")
+    table.add_column("值")
+
+    for key, value in prefs.items():
+        table.add_row(key, str(value))
+
+    console.print(table)
+
+
 # ========== 入口 ==========
 
 if __name__ == "__main__":
