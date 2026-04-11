@@ -642,6 +642,7 @@ class Database:
                 key_concepts TEXT,
                 research_interests TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conv_id) REFERENCES conversations(id)
             )
         """)
