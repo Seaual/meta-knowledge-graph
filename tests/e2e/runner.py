@@ -236,10 +236,24 @@ class E2ERunner:
 
             # ---- Stage 3: Store paper -----------------------------------
             with _timed() as t_store:
+                # LLM may return title/abstract as dict (bilingual {"en":"...","zh":"..."}).
+                # Convert to str for DB storage.
+                title = extracted.title
+                if isinstance(title, dict):
+                    title = title.get("en") or title.get("zh") or str(title)
+                if not title:
+                    title = pdf_content.title
+
+                abstract = extracted.abstract
+                if isinstance(abstract, dict):
+                    abstract = abstract.get("en") or abstract.get("zh") or str(abstract)
+                if not abstract:
+                    abstract = pdf_content.abstract
+
                 paper_data = {
                     "doi": cfg.pdf_path.stem,
-                    "title": extracted.title or pdf_content.title,
-                    "abstract": extracted.abstract or pdf_content.abstract,
+                    "title": title,
+                    "abstract": abstract,
                     "authors": extracted.authors or pdf_content.authors,
                     "pdf_path": str(cfg.pdf_path),
                 }
@@ -263,7 +277,16 @@ class E2ERunner:
                 with _timed() as t_obs:
                     vault_dir = cfg.work_dir / "vault"
                     exporter = ObsidianExporter(str(vault_dir))
-                    exporter.export_from_sqlite(db, graph)
+                    # Suppress stdout — ObsidianExporter uses print() with
+                    # Unicode chars that may fail on Windows GBK consoles.
+                    import sys
+                    from io import StringIO
+                    old_stdout = sys.stdout
+                    sys.stdout = StringIO()
+                    try:
+                        exporter.export_from_sqlite(db, graph)
+                    finally:
+                        sys.stdout = old_stdout
                     obsidian_vault_path = vault_dir
                     obsidian_file_count = sum(1 for _ in vault_dir.rglob("*.md"))
                 export_obsidian_seconds = t_obs.elapsed

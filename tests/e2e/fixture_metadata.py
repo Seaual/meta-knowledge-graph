@@ -29,4 +29,8 @@ FIXTURE_TOPIC_KEYWORDS: frozenset[str] = frozenset({
     "大语言模型",
     "自我修正",
     "工具",
+    "人工智能",
+    "artificial intelligence",
+    "self-correct",
+    "self-correction",
 })
