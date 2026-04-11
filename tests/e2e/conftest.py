@@ -4,6 +4,13 @@ All `test_*` functions in `tests/e2e/test_pipeline.py` share this single
 result to keep LLM costs to one call per `pytest -m e2e` invocation.
 """
 
+import sys
+
+# Ensure UTF-8 output on Windows (GBK console corrupts CJK text in test output)
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 from pathlib import Path
 
 import pytest

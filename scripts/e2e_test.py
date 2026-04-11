@@ -14,6 +14,11 @@ import tempfile
 import traceback
 from pathlib import Path
 
+# Ensure UTF-8 output on Windows (GBK console corrupts CJK text in test output)
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+
 import typer
 from rich.console import Console
 from rich.table import Table
