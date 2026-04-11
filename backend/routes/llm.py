@@ -3,47 +3,18 @@ LLM Configuration API routes
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import List
-import sys
-import os
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from mkg.database import Database
-from mkg.llm import init_llm, reset_llm, generate
-from backend.schemas import (
-    LLMConfigResponse, LLMConfigRequest, LLMTestRequest, LLMTestResponse, LLMProviderConfig
-)
+from backend.dependencies import get_db
+from backend.schemas import LLMConfigRequest, LLMConfigResponse, LLMProviderConfig, LLMTestRequest, LLMTestResponse
+from mkg.llm import generate, init_llm, reset_llm
 
 router = APIRouter(prefix="/api/llm", tags=["llm"])
-
-_db = None
-
-
-def get_db():
-    global _db
-    if _db is None:
-        _db = Database("mkg.db")
-        _db.connect()
-    return _db
 
 
 # Available providers - 极简配置
 PROVIDERS = [
-    {
-        "value": "claude_cli",
-        "label": "Claude Code CLI（本地开发）",
-        "requires_api_key": False,
-        "models": []
-    },
-    {
-        "value": "custom",
-        "label": "自定义配置",
-        "requires_api_key": True,
-        "requires_base_url": True,
-        "models": []
-    },
+    {"value": "claude_cli", "label": "Claude Code CLI（本地开发）", "requires_api_key": False, "models": []},
+    {"value": "custom", "label": "自定义配置", "requires_api_key": True, "requires_base_url": True, "models": []},
 ]
 
 FUNCTION_GROUPS = [
@@ -69,8 +40,7 @@ def get_config():
         return LLMConfigResponse(mode="single", providers=[])
 
     return LLMConfigResponse(
-        mode=config['mode'],
-        providers=[LLMProviderConfig(**p) for p in config.get('providers', [])]
+        mode=config["mode"], providers=[LLMProviderConfig(**p) for p in config.get("providers", [])]
     )
 
 
@@ -86,8 +56,7 @@ def save_config(request: LLMConfigRequest):
     reset_llm()
 
     return LLMConfigResponse(
-        mode=config['mode'],
-        providers=[LLMProviderConfig(**p) for p in config.get('providers', [])]
+        mode=config["mode"], providers=[LLMProviderConfig(**p) for p in config.get("providers", [])]
     )
 
 
@@ -96,21 +65,12 @@ def test_connection(request: LLMTestRequest):
     """Test LLM connection"""
     try:
         # 使用统一 LLM 客户端测试
-        init_llm(
-            provider=request.provider,
-            api_key=request.api_key,
-            model=request.model,
-            base_url=request.base_url
-        )
+        init_llm(provider=request.provider, api_key=request.api_key, model=request.model, base_url=request.base_url)
 
         result = generate("Say 'OK' if you can read this.")
 
         provider_label = next((p["label"] for p in PROVIDERS if p["value"] == request.provider), request.provider)
-        return LLMTestResponse(
-            success=True,
-            message=f"{provider_label} 连接成功",
-            model=request.model or "default"
-        )
+        return LLMTestResponse(success=True, message=f"{provider_label} 连接成功", model=request.model or "default")
 
     except HTTPException:
         raise

@@ -2,29 +2,13 @@
 Memory API routes -- user preference management and research memory retrieval
 """
 
-import sys
-from pathlib import Path
-
 from fastapi import APIRouter, HTTPException
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+from backend.dependencies import get_db
 from backend.schemas import MemoryCreate, MemoryResponse, PreferencesUpdate
-from mkg.database import Database
 from mkg.memory import AgentMemory
 
 router = APIRouter(prefix="/api/memory", tags=["memory"])
-
-_db = None
-
-
-def get_db() -> Database:
-    global _db
-    if _db is None:
-        db_path = Path(__file__).parent.parent.parent / "mkg.db"
-        _db = Database(str(db_path))
-        _db.connect()
-    return _db
 
 
 def get_memory() -> AgentMemory:

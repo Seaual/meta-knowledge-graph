@@ -2,32 +2,12 @@
 Conversation API routes
 """
 
-from fastapi import APIRouter, HTTPException, Header
-from typing import Optional, List
-from pathlib import Path
-import sys
+from fastapi import APIRouter, Header, HTTPException
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from backend.schemas import (
-    ConversationBase, ConversationCreate, ConversationUpdate,
-    ConversationDetail, MessageBase, MessageCreate
-)
-from mkg.database import Database
+from backend.dependencies import get_db
+from backend.schemas import ConversationBase, ConversationDetail, ConversationUpdate, MessageBase, MessageCreate
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
-
-# Singleton database instance
-_db = None
-
-
-def get_db():
-    global _db
-    if _db is None:
-        db_path = Path(__file__).parent.parent.parent / "mkg.db"
-        _db = Database(str(db_path))
-        _db.connect()
-    return _db
 
 
 @router.post("", response_model=ConversationBase)
@@ -41,7 +21,7 @@ def create_conversation(device_id: str = Header(None, alias="X-Device-ID")):
     return ConversationBase(id=conv_id, title=None)
 
 
-@router.get("", response_model=List[ConversationBase])
+@router.get("", response_model=list[ConversationBase])
 def list_conversations(device_id: str = Header(None, alias="X-Device-ID")):
     """获取对话列表"""
     db = get_db()
@@ -62,16 +42,16 @@ def get_conversation(conv_id: str, device_id: str = Header(None, alias="X-Device
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Validate device ownership
-    if device_id and conv['device_id'] != device_id:
+    if device_id and conv["device_id"] != device_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     messages = db.get_messages(conv_id)
     return ConversationDetail(
-        id=conv['id'],
-        title=conv['title'],
-        created_at=conv['created_at'],
-        updated_at=conv['updated_at'],
-        messages=[MessageBase(**m) for m in messages]
+        id=conv["id"],
+        title=conv["title"],
+        created_at=conv["created_at"],
+        updated_at=conv["updated_at"],
+        messages=[MessageBase(**m) for m in messages],
     )
 
 
@@ -85,7 +65,7 @@ def update_title(conv_id: str, request: ConversationUpdate, device_id: str = Hea
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Validate device ownership
-    if device_id and conv['device_id'] != device_id:
+    if device_id and conv["device_id"] != device_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     db.update_conversation_title(conv_id, request.title)
@@ -102,7 +82,7 @@ def delete_conversation(conv_id: str, device_id: str = Header(None, alias="X-Dev
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Validate device ownership
-    if device_id and conv['device_id'] != device_id:
+    if device_id and conv["device_id"] != device_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
     db.delete_conversation(conv_id)
@@ -119,14 +99,8 @@ def add_message(conv_id: str, request: MessageCreate, device_id: str = Header(No
         raise HTTPException(status_code=404, detail="Conversation not found")
 
     # Validate device ownership
-    if device_id and conv['device_id'] != device_id:
+    if device_id and conv["device_id"] != device_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    db.add_message(
-        conv_id,
-        request.role,
-        request.content,
-        request.agent,
-        request.attachments
-    )
+    db.add_message(conv_id, request.role, request.content, request.agent, request.attachments)
     return {"success": True}

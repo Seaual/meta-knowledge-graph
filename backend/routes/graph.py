@@ -2,31 +2,18 @@
 Graph API routes
 """
 
-import sys
 from datetime import datetime
-from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Response
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
+from backend.dependencies import get_db
 from backend.schemas import ExportResponse, GraphData, GraphEdge, GraphNode, GraphStats
-from mkg.database import Database
 from mkg.graph import KnowledgeGraph
 from mkg.obsidian_exporter import ObsidianExporter
 
 router = APIRouter(prefix="/api/graph", tags=["graph"])
 
-_db = None
 _graph = None
-
-
-def get_db():
-    global _db
-    if _db is None:
-        _db = Database("mkg.db")
-        _db.connect()
-    return _db
 
 
 def get_graph():
@@ -42,10 +29,10 @@ def get_stats():
     graph = get_graph()
     stats = graph.get_stats()
     return GraphStats(
-        papers=stats.get('papers', {}),
-        concepts=stats.get('concepts', {}),
-        relations=stats.get('relations', 0),
-        root_concepts=stats.get('root_concepts', 0)
+        papers=stats.get("papers", {}),
+        concepts=stats.get("concepts", {}),
+        relations=stats.get("relations", 0),
+        root_concepts=stats.get("root_concepts", 0),
     )
 
 
@@ -61,17 +48,16 @@ def get_graph_data(max_depth: int = 3, folder: str = None):
             graph_data = neo4j.get_graph_data()
             nodes = [
                 GraphNode(
-                    id=n['id'],
-                    label=n['label'],
-                    label_en=n.get('label_en'),
-                    category=n.get('category', 'method'),
-                    paper_count=n.get('paper_count', 0)
+                    id=n["id"],
+                    label=n["label"],
+                    label_en=n.get("label_en"),
+                    category=n.get("category", "method"),
+                    paper_count=n.get("paper_count", 0),
                 )
-                for n in graph_data['nodes']
+                for n in graph_data["nodes"]
             ]
             edges = [
-                GraphEdge(source=e['source'], target=e['target'], type="parent-child")
-                for e in graph_data['edges']
+                GraphEdge(source=e["source"], target=e["target"], type="parent-child") for e in graph_data["edges"]
             ]
             return GraphData(nodes=nodes, edges=edges)
 
@@ -85,38 +71,32 @@ def get_graph_data(max_depth: int = 3, folder: str = None):
         concepts = db.get_concepts_by_folder(folder)
     else:
         concepts = db.get_all_concepts()
-    concept_map = {c['id']: c for c in concepts}
+    concept_map = {c["id"]: c for c in concepts}
 
     # Build nodes
     for concept in concepts:
-        nodes.append(GraphNode(
-            id=concept['id'],
-            label=concept['text'],
-            label_en=concept.get('text_en'),
-            category=concept.get('category', 'method'),
-            paper_count=concept.get('paper_count', 0)
-        ))
+        nodes.append(
+            GraphNode(
+                id=concept["id"],
+                label=concept["text"],
+                label_en=concept.get("text_en"),
+                category=concept.get("category", "method"),
+                paper_count=concept.get("paper_count", 0),
+            )
+        )
 
     # Build edges from relations
     if folder:
         relations = db.get_concept_relations_by_folder(folder)
         for row in relations:
             # Only add edges where both concepts are in our filtered set
-            if row['parent_id'] in concept_map and row['child_id'] in concept_map:
-                edges.append(GraphEdge(
-                    source=row['parent_id'],
-                    target=row['child_id'],
-                    type="parent-child"
-                ))
+            if row["parent_id"] in concept_map and row["child_id"] in concept_map:
+                edges.append(GraphEdge(source=row["parent_id"], target=row["child_id"], type="parent-child"))
     else:
         cursor = db.conn.cursor()
         cursor.execute("SELECT parent_id, child_id FROM concept_relations")
         for row in cursor.fetchall():
-            edges.append(GraphEdge(
-                source=row['parent_id'],
-                target=row['child_id'],
-                type="parent-child"
-            ))
+            edges.append(GraphEdge(source=row["parent_id"], target=row["child_id"], type="parent-child"))
 
     return GraphData(nodes=nodes, edges=edges)
 
@@ -142,18 +122,18 @@ def get_tree_data():
             return None
 
         node = {
-            "id": concept['id'],
-            "name": concept['text'],
-            "category": concept.get('category'),
-            "paper_count": concept.get('paper_count', 0),
-            "children": []
+            "id": concept["id"],
+            "name": concept["text"],
+            "category": concept.get("category"),
+            "paper_count": concept.get("paper_count", 0),
+            "children": [],
         }
 
         children = db.get_concept_children(concept_id)
         for child in children:
-            child_node = build_tree(child['id'], depth + 1)
+            child_node = build_tree(child["id"], depth + 1)
             if child_node:
-                node['children'].append(child_node)
+                node["children"].append(child_node)
 
         return node
 
@@ -162,7 +142,7 @@ def get_tree_data():
     trees = []
 
     for root in roots[:5]:  # Limit to 5 roots
-        tree = build_tree(root['id'])
+        tree = build_tree(root["id"])
         if tree:
             trees.append(tree)
 
@@ -186,23 +166,16 @@ def export_obsidian(folder_id: str | None = None):
         if folder_id:
             papers = db.get_papers_by_folder(folder_id)
             concepts = db.get_concepts_by_folder(folder_id)
-            stats = {
-                "papers": len(papers),
-                "concepts": len(concepts),
-                "generated_at": datetime.now().isoformat()
-            }
+            stats = {"papers": len(papers), "concepts": len(concepts), "generated_at": datetime.now().isoformat()}
         else:
             stats = db.get_stats()
             stats = {
-                "papers": stats.get('papers', {}).get('total', 0),
-                "concepts": stats.get('concepts', {}).get('total', 0),
-                "generated_at": datetime.now().isoformat()
+                "papers": stats.get("papers", {}).get("total", 0),
+                "concepts": stats.get("concepts", {}).get("total", 0),
+                "generated_at": datetime.now().isoformat(),
             }
 
-        return ExportResponse(
-            content=content,
-            stats=stats
-        )
+        return ExportResponse(content=content, stats=stats)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
@@ -220,23 +193,16 @@ def export_obsidian_canvas(folder_id: str | None = None):
         if folder_id:
             papers = db.get_papers_by_folder(folder_id)
             concepts = db.get_concepts_by_folder(folder_id)
-            stats = {
-                "papers": len(papers),
-                "concepts": len(concepts),
-                "generated_at": datetime.now().isoformat()
-            }
+            stats = {"papers": len(papers), "concepts": len(concepts), "generated_at": datetime.now().isoformat()}
         else:
             stats = db.get_stats()
             stats = {
-                "papers": stats.get('papers', {}).get('total', 0),
-                "concepts": stats.get('concepts', {}).get('total', 0),
-                "generated_at": datetime.now().isoformat()
+                "papers": stats.get("papers", {}).get("total", 0),
+                "concepts": stats.get("concepts", {}).get("total", 0),
+                "generated_at": datetime.now().isoformat(),
             }
 
-        return {
-            "content": content,
-            "stats": stats
-        }
+        return {"content": content, "stats": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
@@ -256,7 +222,7 @@ def download_obsidian_canvas(folder_id: str | None = None):
             media_type="application/json",
             headers={
                 "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.canvas"
-            }
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
@@ -277,7 +243,7 @@ def download_obsidian(folder_id: str | None = None):
             media_type="text/markdown",
             headers={
                 "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.md"
-            }
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
@@ -296,23 +262,16 @@ def export_obsidian_html(folder_id: str | None = None):
         if folder_id:
             papers = db.get_papers_by_folder(folder_id)
             concepts = db.get_concepts_by_folder(folder_id)
-            stats = {
-                "papers": len(papers),
-                "concepts": len(concepts),
-                "generated_at": datetime.now().isoformat()
-            }
+            stats = {"papers": len(papers), "concepts": len(concepts), "generated_at": datetime.now().isoformat()}
         else:
             stats = db.get_stats()
             stats = {
-                "papers": stats.get('papers', {}).get('total', 0),
-                "concepts": stats.get('concepts', {}).get('total', 0),
-                "generated_at": datetime.now().isoformat()
+                "papers": stats.get("papers", {}).get("total", 0),
+                "concepts": stats.get("concepts", {}).get("total", 0),
+                "generated_at": datetime.now().isoformat(),
             }
 
-        return {
-            "content": content,
-            "stats": stats
-        }
+        return {"content": content, "stats": stats}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
@@ -332,7 +291,7 @@ def download_obsidian_html(folder_id: str | None = None):
             media_type="text/html",
             headers={
                 "Content-Disposition": f"attachment; filename=knowledge-graph-{datetime.now().strftime('%Y%m%d')}.html"
-            }
+            },
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")

@@ -2,30 +2,19 @@
 Semantic Scholar API 路由
 """
 
-from fastapi import APIRouter, HTTPException
-from typing import List, Optional
-from pydantic import BaseModel
-import sys
-from pathlib import Path
 import json
 
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
-from mkg.database import Database
-from mkg.semantic_scholar import S2Client
+from backend.dependencies import get_db
 from mkg.citation_graph import build_citation_graph, get_citation_context, get_citation_graph_data
+from mkg.semantic_scholar import S2Client
 
 router = APIRouter(prefix="/api", tags=["s2"])
 
 # Semantic Scholar API Key（硬编码）
 S2_API_KEY = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
-
-
-def get_db():
-    db = Database("mkg.db")
-    db.connect()
-    return db
 
 
 def get_s2_client():
@@ -36,14 +25,17 @@ def get_s2_client():
 # S2 配置
 # ============================================================
 
+
 class S2ConfigRequest(BaseModel):
     """S2 配置请求"""
+
     api_key: str
     enabled: bool = True
 
 
 class S2TestRequest(BaseModel):
     """S2 测试请求"""
+
     api_key: str
 
 
@@ -53,18 +45,14 @@ def get_s2_config():
     db = get_db()
     config = db.get_s2_config()
 
-    if not config or not config.get('api_key'):
+    if not config or not config.get("api_key"):
         return {"has_api_key": False, "enabled": False}
 
     # 返回脱敏的 API key
-    api_key = config.get('api_key', '')
-    masked_key = api_key[:8] + '****' + api_key[-4:] if len(api_key) > 12 else '****'
+    api_key = config.get("api_key", "")
+    masked_key = api_key[:8] + "****" + api_key[-4:] if len(api_key) > 12 else "****"
 
-    return {
-        "has_api_key": True,
-        "enabled": config.get('enabled', True),
-        "masked_key": masked_key
-    }
+    return {"has_api_key": True, "enabled": config.get("enabled", True), "masked_key": masked_key}
 
 
 @router.post("/s2/config")
@@ -76,7 +64,7 @@ def save_s2_config(request: S2ConfigRequest):
     return {
         "has_api_key": True,
         "enabled": request.enabled,
-        "masked_key": request.api_key[:8] + '****' + request.api_key[-4:]
+        "masked_key": request.api_key[:8] + "****" + request.api_key[-4:],
     }
 
 
@@ -116,16 +104,19 @@ def enhance_paper_from_s2(doi: str):
         return {"success": False, "message": "Paper not found in Semantic Scholar"}
 
     # 更新论文信息
-    db.papers.update(doi, {
-        "s2_paper_id": s2_paper.get("paperId"),
-        "s2_doi": s2_paper.get("externalIds", {}).get("DOI"),
-        "citation_count": s2_paper.get("citationCount", 0),
-        "venue": s2_paper.get("venue"),
-        "year": s2_paper.get("year"),
-        "tldr": s2_paper.get("tldr", {}).get("text") if s2_paper.get("tldr") else None,
-        "s2_fields_of_study": json.dumps(s2_paper.get("fieldsOfStudy", [])),
-        "open_access_pdf_url": s2_paper.get("openAccessPdf", {}).get("url"),
-    })
+    db.papers.update(
+        doi,
+        {
+            "s2_paper_id": s2_paper.get("paperId"),
+            "s2_doi": s2_paper.get("externalIds", {}).get("DOI"),
+            "citation_count": s2_paper.get("citationCount", 0),
+            "venue": s2_paper.get("venue"),
+            "year": s2_paper.get("year"),
+            "tldr": s2_paper.get("tldr", {}).get("text") if s2_paper.get("tldr") else None,
+            "s2_fields_of_study": json.dumps(s2_paper.get("fieldsOfStudy", [])),
+            "open_access_pdf_url": s2_paper.get("openAccessPdf", {}).get("url"),
+        },
+    )
 
     return {"success": True, "message": "Paper enhanced", "s2_paper_id": s2_paper.get("paperId")}
 
@@ -134,12 +125,13 @@ def enhance_paper_from_s2(doi: str):
 # 引用图谱
 # ============================================================
 
+
 class CitationBuildResponse(BaseModel):
     total_papers: int
     processed: int
     total_citations: int
     internal_edges: int
-    errors: List[str]
+    errors: list[str]
 
 
 @router.get("/citations/graph")
@@ -181,11 +173,11 @@ def build_citations():
     result = build_citation_graph(db, s2_client)
 
     return CitationBuildResponse(
-        total_papers=result['total_papers'],
-        processed=result['processed'],
-        total_citations=result['total_citations'],
-        internal_edges=result['internal_edges'],
-        errors=result['errors']
+        total_papers=result["total_papers"],
+        processed=result["processed"],
+        total_citations=result["total_citations"],
+        internal_edges=result["internal_edges"],
+        errors=result["errors"],
     )
 
 
@@ -204,19 +196,21 @@ def get_paper_s2_info(paper_id: str):
 
     # 提取 S2 相关字段
     return {
-        'paper_id': paper_id,
-        'title': paper.get('title'),
-        's2_paper_id': paper.get('s2_paper_id'),
-        's2_doi': paper.get('s2_doi'),
-        'venue': paper.get('venue'),
-        'year': paper.get('year'),
-        'citation_count': paper.get('citation_count', 0),
-        'reference_count': paper.get('reference_count', 0),
-        'influential_citation_count': paper.get('influential_citation_count', 0),
-        'tldr': paper.get('tldr'),
-        's2_fields_of_study': json.loads(paper.get('s2_fields_of_study', '[]')) if paper.get('s2_fields_of_study') else [],
-        'open_access_pdf_url': paper.get('open_access_pdf_url'),
-        's2_matched_at': paper.get('s2_matched_at')
+        "paper_id": paper_id,
+        "title": paper.get("title"),
+        "s2_paper_id": paper.get("s2_paper_id"),
+        "s2_doi": paper.get("s2_doi"),
+        "venue": paper.get("venue"),
+        "year": paper.get("year"),
+        "citation_count": paper.get("citation_count", 0),
+        "reference_count": paper.get("reference_count", 0),
+        "influential_citation_count": paper.get("influential_citation_count", 0),
+        "tldr": paper.get("tldr"),
+        "s2_fields_of_study": json.loads(paper.get("s2_fields_of_study", "[]"))
+        if paper.get("s2_fields_of_study")
+        else [],
+        "open_access_pdf_url": paper.get("open_access_pdf_url"),
+        "s2_matched_at": paper.get("s2_matched_at"),
     }
 
 
@@ -224,9 +218,10 @@ def get_paper_s2_info(paper_id: str):
 # 论文推荐
 # ============================================================
 
+
 class RecommendationResponse(BaseModel):
-    recommendations: List[dict]
-    based_on: List[str]
+    recommendations: list[dict]
+    based_on: list[str]
 
 
 @router.get("/recommendations")
@@ -249,8 +244,8 @@ def get_recommendations():
         return {"recommendations": [], "based_on": []}
 
     # 按引用数排序，取前 5 篇
-    top_papers = sorted(papers, key=lambda p: p.get('citation_count', 0), reverse=True)[:5]
-    top_s2_ids = [p['s2_paper_id'] for p in top_papers if p.get('s2_paper_id')]
+    top_papers = sorted(papers, key=lambda p: p.get("citation_count", 0), reverse=True)[:5]
+    top_s2_ids = [p["s2_paper_id"] for p in top_papers if p.get("s2_paper_id")]
 
     if not top_s2_ids:
         return {"recommendations": [], "based_on": []}
@@ -259,22 +254,14 @@ def get_recommendations():
     recommendations = s2_client.get_recommendations(top_s2_ids, limit=20)
 
     # 过滤已在图谱中的论文
-    existing_s2_ids = {p['s2_paper_id'] for p in papers if p.get('s2_paper_id')}
-    filtered = [r for r in recommendations if r.get('paperId') not in existing_s2_ids]
+    existing_s2_ids = {p["s2_paper_id"] for p in papers if p.get("s2_paper_id")}
+    filtered = [r for r in recommendations if r.get("paperId") not in existing_s2_ids]
 
-    return {
-        "recommendations": filtered[:10],
-        "based_on": [p['title'] for p in top_papers]
-    }
+    return {"recommendations": filtered[:10], "based_on": [p["title"] for p in top_papers]}
 
 
 @router.get("/concepts/{concept_id}/search-papers")
-def search_papers_by_concept(
-    concept_id: str,
-    year: str = "2023-2026",
-    min_citations: int = 0,
-    limit: int = 20
-):
+def search_papers_by_concept(concept_id: str, year: str = "2023-2026", min_citations: int = 0, limit: int = 20):
     """
     基于概念搜索 S2 论文
 
@@ -288,24 +275,14 @@ def search_papers_by_concept(
     if not concept:
         raise HTTPException(status_code=404, detail="Concept not found")
 
-    concept_text = concept['text']
+    concept_text = concept["text"]
 
     # 搜索论文
-    results = s2_client.search_papers(
-        query=concept_text,
-        year=year,
-        limit=limit,
-        min_citation_count=min_citations
-    )
+    results = s2_client.search_papers(query=concept_text, year=year, limit=limit, min_citation_count=min_citations)
 
     # 过滤已在图谱中的论文
     papers = db.get_papers_with_s2_id()
-    existing_s2_ids = {p['s2_paper_id'] for p in papers if p.get('s2_paper_id')}
-    filtered = [r for r in results if r.get('paperId') not in existing_s2_ids]
+    existing_s2_ids = {p["s2_paper_id"] for p in papers if p.get("s2_paper_id")}
+    filtered = [r for r in results if r.get("paperId") not in existing_s2_ids]
 
-    return {
-        "concept_id": concept_id,
-        "concept_text": concept_text,
-        "papers": filtered,
-        "total": len(filtered)
-    }
+    return {"concept_id": concept_id, "concept_text": concept_text, "papers": filtered, "total": len(filtered)}

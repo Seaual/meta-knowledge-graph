@@ -3,29 +3,14 @@ Folder API routes
 """
 
 from fastapi import APIRouter, HTTPException
-from typing import List
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from mkg.database import Database
-from backend.schemas import FolderResponse, FolderCreate, FolderUpdate
+from backend.dependencies import get_db
+from backend.schemas import FolderCreate, FolderResponse, FolderUpdate
 
 router = APIRouter(prefix="/api/folders", tags=["folders"])
 
-_db = None
 
-
-def get_db():
-    global _db
-    if _db is None:
-        _db = Database("mkg.db")
-        _db.connect()
-    return _db
-
-
-@router.get("/", response_model=List[FolderResponse])
+@router.get("/", response_model=list[FolderResponse])
 def list_folders():
     """获取所有文件夹"""
     db = get_db()
@@ -33,8 +18,8 @@ def list_folders():
 
     # 计算每个文件夹的论文数
     for folder in folders:
-        papers = db.get_papers_by_folder(folder['id'])
-        folder['paper_count'] = len(papers)
+        papers = db.get_papers_by_folder(folder["id"])
+        folder["paper_count"] = len(papers)
 
     return folders
 
@@ -47,7 +32,7 @@ def create_folder(request: FolderCreate):
     folder = db.get_folder(folder_id)
     if not folder:
         raise HTTPException(status_code=500, detail="Failed to create folder")
-    folder['paper_count'] = 0
+    folder["paper_count"] = 0
     return folder
 
 
@@ -62,7 +47,7 @@ def update_folder(folder_id: str, request: FolderUpdate):
     db.update_folder(folder_id, request.model_dump(exclude_none=True))
     folder = db.get_folder(folder_id)
     papers = db.get_papers_by_folder(folder_id)
-    folder['paper_count'] = len(papers)
+    folder["paper_count"] = len(papers)
     return folder
 
 
@@ -80,7 +65,7 @@ def delete_folder(folder_id: str, delete_contents: bool = True):
     """
     db = get_db()
 
-    if folder_id == 'default':
+    if folder_id == "default":
         raise HTTPException(status_code=400, detail="Cannot delete default folder")
 
     folder = db.get_folder(folder_id)
