@@ -43,6 +43,7 @@ class Database:
         # 设置外键约束
         self.conn.execute("PRAGMA foreign_keys=ON")
         self._init_tables()
+        self._migrate_memory_tables()
         self.ensure_default_folder()  # 确保默认文件夹存在
 
     def get_cursor(self):
@@ -623,7 +624,56 @@ class Database:
         except sqlite3.OperationalError:
             pass
 
+        # 用户偏好表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS user_preferences (
+                key TEXT PRIMARY KEY,
+                value TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # 对话上下文表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS conversation_context (
+                id TEXT PRIMARY KEY,
+                conv_id TEXT NOT NULL,
+                summary TEXT,
+                key_concepts TEXT,
+                research_interests TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (conv_id) REFERENCES conversations(id)
+            )
+        """)
+
+        # 研究记忆表
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS research_memories (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                content TEXT,
+                memory_type TEXT NOT NULL,
+                tags TEXT,
+                concept_ids TEXT,
+                paper_doi TEXT,
+                source_section TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_type ON research_memories(memory_type)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_paper_doi ON research_memories(paper_doi)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_memory_concept_ids ON research_memories(concept_ids)")
+
         self.conn.commit()
+
+    def _migrate_memory_tables(self):
+        """为 Memory 模块迁移新字段到现有表（幂等）"""
+        cursor = self.conn.cursor()
+        try:
+            cursor.execute("ALTER TABLE conversations ADD COLUMN context_summary TEXT")
+        except Exception:
+            pass  # 字段已存在
 
     def add_paper(self, paper_data: dict) -> str:
         """添加或更新论文"""
