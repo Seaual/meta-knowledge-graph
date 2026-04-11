@@ -1,0 +1,2 @@
+# Allow canonical E2E fixture PDFs to be tracked
+!*.pdf
