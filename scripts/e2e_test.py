@@ -80,7 +80,7 @@ def main(
     no_neo4j: bool = typer.Option(False, "--no-neo4j", help="Skip Neo4j sync stage"),
     neo4j_force: bool = typer.Option(False, "--neo4j-force", help="Allow Neo4j sync even without a safe-wipe method (pollutes DB)"),
 ) -> None:
-    console.print("[yellow]⚠ Running with live LLM. Est. cost ~$0.10, ~30-60s[/yellow]")
+    console.print("[yellow]WARNING: Running with live LLM. Est. cost ~$0.10, ~30-60s[/yellow]")
 
     created_work_dir = False
     if work_dir is None:
@@ -119,7 +119,7 @@ def main(
         + (result.timings.export_obsidian or 0.0)
         + (result.timings.sync_neo4j or 0.0)
     )
-    console.print(f"[green]✓ E2E pipeline completed in {total:.2f}s[/green]")
+    console.print(f"[green]OK E2E pipeline completed in {total:.2f}s[/green]")
 
     if keep_artifacts:
         console.print(f"[dim]Artifacts kept at: {work_dir}[/dim]")
