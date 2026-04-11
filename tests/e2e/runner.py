@@ -10,7 +10,10 @@ full design.
 
 from __future__ import annotations
 
+import time
+from contextlib import contextmanager
 from dataclasses import dataclass
+from io import StringIO
 from pathlib import Path
 from typing import Any
 
@@ -89,3 +92,50 @@ def _validate_work_dir(work_dir: Path) -> None:
             raise ValueError(f"work_dir exists and is not a directory: {resolved}")
         if any(resolved.iterdir()):
             raise ValueError(f"work_dir exists and is not empty: {resolved}")
+
+
+# ---- Timing helper -----------------------------------------------------
+
+
+class _Timer:
+    """Tiny mutable holder for elapsed time from `_timed()`."""
+
+    def __init__(self) -> None:
+        self.elapsed: float = 0.0
+
+
+@contextmanager
+def _timed():
+    """Context manager that measures wall-clock seconds.
+
+    Usage:
+        with _timed() as t:
+            do_work()
+        print(t.elapsed)
+
+    Records elapsed time even if the body raises.
+    """
+    timer = _Timer()
+    start = time.perf_counter()
+    try:
+        yield timer
+    finally:
+        timer.elapsed = time.perf_counter() - start
+
+
+# ---- Tree rendering ----------------------------------------------------
+
+
+def _render_tree_text(tree) -> str:
+    """Render a rich.tree.Tree to a plain string.
+
+    `KnowledgeGraph.get_tree()` returns a rich Tree object, not a string.
+    We render it through a StringIO-backed Console so we can store the result
+    in `E2EResult.graph_tree_text` for later assertions and script display.
+    """
+    from rich.console import Console
+
+    buf = StringIO()
+    # width=120 so long concept labels don't wrap mid-word
+    Console(file=buf, width=120, force_terminal=False).print(tree)
+    return buf.getvalue()
