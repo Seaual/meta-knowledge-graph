@@ -2,28 +2,37 @@
 FastAPI backend for Meta Knowledge Graph
 """
 
+import os
+import sys
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from pathlib import Path
-import sys
-import os
+from fastapi.staticfiles import StaticFiles
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from backend.routes import (
-    papers, papers_upload, papers_process,
-    concepts, concepts_tree, concepts_research, dedup,
-    graph, llm, folders, semantic_scholar, s2, agent, conversations
+    agent,
+    concepts,
+    concepts_research,
+    concepts_tree,
+    conversations,
+    dedup,
+    folders,
+    graph,
+    llm,
+    memory,
+    papers,
+    papers_process,
+    papers_upload,
+    s2,
+    semantic_scholar,
 )
 
-app = FastAPI(
-    title="Meta Knowledge Graph API",
-    description="学术知识图谱引擎 API",
-    version="0.1.0"
-)
+app = FastAPI(title="Meta Knowledge Graph API", description="学术知识图谱引擎 API", version="0.1.0")
 
 # CORS for frontend
 app.add_middleware(
@@ -54,15 +63,12 @@ app.include_router(semantic_scholar.router)
 app.include_router(s2.router)
 app.include_router(agent.router)
 app.include_router(conversations.router)
+app.include_router(memory.router)
 
 
 @app.get("/api")
 def api_root():
-    return {
-        "name": "Meta Knowledge Graph API",
-        "version": "0.1.0",
-        "docs": "/docs"
-    }
+    return {"name": "Meta Knowledge Graph API", "version": "0.1.0", "docs": "/docs"}
 
 
 @app.get("/health")
@@ -94,6 +100,7 @@ async def serve_frontend(path: str):
     if path.startswith("api/") or path == "api":
         # Let FastAPI handle 404 for unknown API routes
         from fastapi import HTTPException
+
         raise HTTPException(status_code=404, detail="API endpoint not found")
 
     frontend_dist = os.environ.get("FRONTEND_DIST")

@@ -37,11 +37,10 @@ class UserPreferences:
         return None
 
     def delete(self, key: str) -> bool:
-        self._db.execute_write(
-            "DELETE FROM user_preferences WHERE key = ?",
-            (key,),
-        )
-        return True
+        cursor = self._db.conn.cursor()
+        cursor.execute("DELETE FROM user_preferences WHERE key = ?", (key,))
+        self._db.conn.commit()
+        return cursor.rowcount > 0
 
     def get_all(self) -> dict:
         cursor = self._db.execute_read("SELECT key, value FROM user_preferences")
@@ -177,12 +176,19 @@ class ResearchMemory:
         )
         return [self._row_to_dict(row) for row in cursor.fetchall()]
 
+    def get_by_id(self, mem_id: str):
+        """通过 ID 获取研究记忆"""
+        cursor = self._db.execute_read("SELECT * FROM research_memories WHERE id = ?", (mem_id,))
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return self._row_to_dict(row)
+
     def delete(self, mem_id: str) -> bool:
-        self._db.execute_write(
-            "DELETE FROM research_memories WHERE id = ?",
-            (mem_id,),
-        )
-        return True
+        cursor = self._db.conn.cursor()
+        cursor.execute("DELETE FROM research_memories WHERE id = ?", (mem_id,))
+        self._db.conn.commit()
+        return cursor.rowcount > 0
 
     def _row_to_dict(self, row) -> dict:
         return {
