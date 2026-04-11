@@ -4,7 +4,7 @@ import time
 
 from rich.tree import Tree
 
-from tests.e2e.runner import _render_tree_text, _timed
+from tests.e2e.runner import _has_safe_wipe, _render_tree_text, _timed
 
 
 def test_timed_measures_elapsed():
@@ -39,3 +39,12 @@ def test_render_tree_text_with_children():
     assert "parent" in text
     assert "child-a" in text
     assert "child-b" in text
+
+
+def test_neo4j_has_clear_all():
+    """Neo4jStore.clear_all must exist for safe E2E test isolation."""
+    from mkg.neo4j_store import Neo4jStore
+
+    assert hasattr(Neo4jStore, "clear_all")
+    assert callable(getattr(Neo4jStore, "clear_all"))
+    assert _has_safe_wipe(Neo4jStore())

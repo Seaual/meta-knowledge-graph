@@ -305,11 +305,11 @@ class E2ERunner:
                     neo4j_store = Neo4jStore()
                     if not neo4j_store.connected:
                         neo4j_skipped_reason = "not_connected"
-                    elif not cfg.neo4j_force and not _has_safe_wipe(neo4j_store):
+                    elif not _has_safe_wipe(neo4j_store) and not cfg.neo4j_force:
                         neo4j_skipped_reason = "unsafe_no_wipe"
                     else:
                         with _timed() as t_neo4j:
-                            if cfg.neo4j_force and _has_safe_wipe(neo4j_store):
+                            if _has_safe_wipe(neo4j_store):
                                 _safe_wipe(neo4j_store)
                             neo4j_store.sync_all_from_sqlite(db)
                             neo4j_stats = neo4j_store.get_stats()

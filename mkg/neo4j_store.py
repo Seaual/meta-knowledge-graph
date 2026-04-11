@@ -331,6 +331,22 @@ class Neo4jStore:
 
         return {"concepts_synced": count, "relations_synced": rel_count}
 
+    def clear_all(self) -> None:
+        """Wipe all Concept nodes and HAS_SUB relationships from Neo4j.
+
+        Safe for isolated test environments. Does NOT touch other node
+        labels or relationship types — only Concept / HAS_SUB.
+        """
+        if not self.connected:
+            return
+        try:
+            with self.driver.session() as session:
+                # Delete relationships first, then nodes.
+                session.run("MATCH ()-[r:HAS_SUB]-() DELETE r")
+                session.run("MATCH (c:Concept) DELETE c")
+        except Exception as e:
+            logger.error(f"Failed to clear Neo4j: {e}")
+
     def get_stats(self) -> dict:
         """获取 Neo4j 图谱统计"""
         if not self.connected:
