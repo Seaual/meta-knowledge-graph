@@ -87,8 +87,8 @@ class StageTimings:
 @dataclass(frozen=True)
 class E2EResult:
     config: E2EConfig
-    pdf_content: PDFContent                  # from mkg.pdf_models
-    extracted: ExtractedConcepts             # from mkg.concept_extractor
+    pdf_content: PaperContent                # from mkg.pdf_models
+    extracted: LLMExtractedContent           # from mkg.pdf_models
     paper_doi: str
     graph_stats: dict
     graph_tree_text: str
