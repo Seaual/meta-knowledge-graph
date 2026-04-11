@@ -3,8 +3,8 @@
 论文基础 CRUD 路由
 """
 
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Optional
 from pydantic import BaseModel
 
 from ..dependencies import get_paper_service
@@ -15,10 +15,10 @@ router = APIRouter(prefix="/api/papers", tags=["papers"])
 
 class PaperMetadataUpdate(BaseModel):
     """论文元数据更新"""
-    title: Optional[str] = None
-    abstract: Optional[str] = None
-    authors: Optional[list] = None
-    keywords: Optional[list] = None
+    title: str | None = None
+    abstract: str | None = None
+    authors: list | None = None
+    keywords: list | None = None
 
 
 class MovePaperRequest(BaseModel):
@@ -28,8 +28,8 @@ class MovePaperRequest(BaseModel):
 
 @router.get("/")
 def list_papers(
-    status: Optional[str] = None,
-    folder: Optional[str] = None,
+    status: str | None = None,
+    folder: str | None = None,
     service: PaperService = Depends(get_paper_service)
 ):
     """获取论文列表"""

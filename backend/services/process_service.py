@@ -3,8 +3,6 @@
 处理服务 - PDF 解析和概念提取
 """
 
-from typing import Dict, Optional, List
-from pathlib import Path
 from mkg.database import Database
 from mkg.pdf_parser import PDFParser
 
@@ -16,7 +14,7 @@ class ProcessService:
         self.db = db
         self.pdf_parser = pdf_parser
 
-    def process_paper(self, doi: str) -> Dict:
+    def process_paper(self, doi: str) -> dict:
         """处理单篇论文 - 提取概念"""
         paper = self.db.papers.get(doi)
         if not paper:
@@ -29,11 +27,6 @@ class ProcessService:
             # 更新状态
             self.db.papers.update_status(doi, "processing")
 
-            # 提取文本
-            text = self.pdf_parser.extract_text(paper['pdf_path'])
-            if not text:
-                raise Exception("Failed to extract text from PDF")
-
             # 初始化 LLM
             from mkg.llm import init_llm_from_db
             init_llm_from_db(self.db)
@@ -41,7 +34,13 @@ class ProcessService:
             # 提取概念
             from mkg.pdf_parser import LLMConceptExtractor
             extractor = LLMConceptExtractor()
-            hierarchy = extractor.extract(text)
+
+            # 从 PDF 解析器获取完整论文内容（包含 title, authors, abstract, sections 等）
+            paper_content = self.pdf_parser.parse(paper['pdf_path'])
+            if not paper_content:
+                raise Exception("Failed to parse PDF")
+
+            hierarchy = extractor.extract(paper_content)
 
             # 保存概念
             self._save_concepts(doi, hierarchy)
@@ -60,7 +59,7 @@ class ProcessService:
             self.db.papers.update_status(doi, "failed", str(e))
             return {"success": False, "error": str(e), "doi": doi}
 
-    def _save_concepts(self, doi: str, hierarchy: Dict):
+    def _save_concepts(self, doi: str, hierarchy: dict):
         """保存提取的概念到数据库"""
         def save_node(node, parent_id=None):
             # 添加概念
@@ -83,7 +82,7 @@ class ProcessService:
         if hierarchy:
             save_node(hierarchy)
 
-    def _count_concepts(self, hierarchy: Dict) -> int:
+    def _count_concepts(self, hierarchy: dict) -> int:
         """统计概念数量"""
         if not hierarchy:
             return 0
@@ -92,7 +91,7 @@ class ProcessService:
             count += self._count_concepts(child)
         return count
 
-    def process_batch(self, dois: List[str]) -> Dict:
+    def process_batch(self, dois: list[str]) -> dict:
         """批量处理论文"""
         results = []
         successful = 0

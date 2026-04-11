@@ -5,13 +5,14 @@ LangGraph Agent 图定义 - 简化版
 所有功能通过 lead node 的 tool 调用实现
 """
 
-from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, StateGraph
 
+from mkg.llm import init_llm_from_db
+
+from .nodes import lead_node
 from .state import AgentState
 from .tools import init_tools
-from .nodes import lead_node
-from mkg.llm import init_llm_from_db
 
 
 def build_agent_graph(db=None, s2_client=None, pdf_parser=None):

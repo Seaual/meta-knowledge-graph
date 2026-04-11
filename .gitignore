@@ -88,3 +88,4 @@ demo_papers*.json
 
 # Redis dump
 dump.rdb
+.gitnexus

@@ -3,8 +3,8 @@
 研究路由 - 研究点发现和论文推荐相关端点
 """
 
+
 from fastapi import APIRouter, Depends, HTTPException
-from typing import Optional
 
 from ..dependencies import get_research_service
 from ..services.research_service import ResearchService
@@ -15,8 +15,8 @@ router = APIRouter(prefix="/api/concepts", tags=["concepts-research"])
 @router.get("/{concept_id}/search-papers")
 def search_papers_by_concept(
     concept_id: str,
-    year: Optional[str] = None,
-    min_citations: Optional[int] = None,
+    year: str | None = None,
+    min_citations: int | None = None,
     limit: int = 10,
     service: ResearchService = Depends(get_research_service)
 ):

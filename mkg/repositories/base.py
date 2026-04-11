@@ -5,7 +5,7 @@
 
 import json
 import sqlite3
-from typing import Optional, Dict, List, Any
+from typing import Any
 
 
 class BaseRepository:

@@ -2,29 +2,26 @@
 Agent API routes
 """
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from typing import Dict, Any, Optional, List, AsyncGenerator
-from pydantic import BaseModel
-import sys
 import json
-import asyncio
+import sys
 import threading
 import uuid
 from pathlib import Path
 
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from backend.schemas import AgentChatRequest, AgentChatResponse, AgentMessage
-from backend.dependencies import get_db, get_s2_client, get_pdf_parser
-from mkg.llm import init_llm_from_db, reset_llm
-
 # LangGraph imports
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
+from backend.dependencies import get_db, get_pdf_parser, get_s2_client
+from backend.schemas import AgentChatRequest, AgentChatResponse
 from mkg.agent.graph import get_agent_graph, reset_graph
 from mkg.agent.state import AgentState
-from mkg.agent.tools import ALL_TOOLS
+from mkg.llm import init_llm_from_db, reset_llm
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
@@ -51,14 +48,14 @@ class DeepResearchStartRequest(BaseModel):
     targetType: str
     targetName: str
     query: str
-    dimensions: Optional[List[str]] = None
+    dimensions: list[str] | None = None
 
 
 class DeepResearchStatusResponse(BaseModel):
     status: str
     progress: int
-    dimensions: List[str]
-    completedDimensions: List[str]
+    dimensions: list[str]
+    completedDimensions: list[str]
 
 
 @router.post("/chat", response_model=AgentChatResponse)
@@ -137,8 +134,8 @@ def chat(request: AgentChatRequest):
 @router.post("/deep-research/start")
 def start_deep_research(request: DeepResearchStartRequest):
     """启动深入研究任务（异步，后台运行）"""
-    from mkg.agent.tools import deep_research
     from mkg.agent.research_graph import get_deep_research_progress
+    from mkg.agent.tools import deep_research
 
     # 生成唯一 session_id
     session_id = str(uuid.uuid4())[:12]

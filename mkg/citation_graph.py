@@ -4,10 +4,7 @@
 为图谱中所有已匹配 S2 的论文，拉取引用关系并存储。
 """
 
-import json
 import logging
-from typing import List, Dict, Optional
-from tqdm import tqdm
 
 logger = logging.getLogger("mkg.citation_graph")
 
@@ -146,7 +143,7 @@ def build_citation_graph(db, s2_client, progress_callback=None):
     }
 
 
-def get_internal_citation_edges(db) -> List[Dict]:
+def get_internal_citation_edges(db) -> list[dict]:
     """
     获取所有 is_internal=True 的引用边
 
@@ -163,7 +160,7 @@ def get_internal_citation_edges(db) -> List[Dict]:
     return db.get_internal_citation_edges()
 
 
-def get_citation_context(db, paper_id: str) -> Dict:
+def get_citation_context(db, paper_id: str) -> dict:
     """
     获取某篇论文的引用上下文
 
@@ -215,7 +212,7 @@ def get_citation_context(db, paper_id: str) -> Dict:
     }
 
 
-def get_citation_graph_data(db) -> Dict:
+def get_citation_graph_data(db) -> dict:
     """
     获取引用图谱数据（节点 + 边 + 统计）
 

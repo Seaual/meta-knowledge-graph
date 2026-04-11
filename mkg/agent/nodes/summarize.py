@@ -3,12 +3,13 @@
 Summarize Node - 汇总节点
 """
 
-from langchain_core.messages import HumanMessage, AIMessage
-from typing import Dict, Any
+from typing import Any
 
-from ..state import AgentState
+from langchain_core.messages import AIMessage, HumanMessage
+
 from mkg.llm import get_llm_or_raise
 
+from ..state import AgentState
 
 SUMMARIZE_PROMPT = """以下是专业 Agent 生成的分析报告，请用简洁友好的方式总结要点：
 
@@ -20,7 +21,7 @@ SUMMARIZE_PROMPT = """以下是专业 Agent 生成的分析报告，请用简洁
 - 语气友好，像一个助手在汇报"""
 
 
-def summarize_node(state: AgentState) -> Dict[str, Any]:
+def summarize_node(state: AgentState) -> dict[str, Any]:
     """
     Summarize Node - 汇总专业 Agent 的输出
 

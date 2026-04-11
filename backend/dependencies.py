@@ -4,7 +4,6 @@
 """
 
 from pathlib import Path
-from typing import Optional
 
 # 延迟导入避免循环依赖
 _db_instance = None

@@ -6,9 +6,8 @@ Obsidian 知识图谱导出器
 """
 
 import json
-from pathlib import Path
 from datetime import datetime
-from typing import List, Dict
+from pathlib import Path
 
 
 class ObsidianExporter:
@@ -56,7 +55,7 @@ class ObsidianExporter:
         # 创建索引
         self._create_index(all_concepts, all_papers, output_name)
 
-        print(f"\n✓ 导出完成!")
+        print("\n✓ 导出完成!")
         print(f"  论文: {self.stats['papers']} 篇")
         print(f"  概念: {self.stats['concepts']} 个")
         print(f"  路径: {self.vault_path.absolute()}")
@@ -99,7 +98,7 @@ class ObsidianExporter:
         # Concept hierarchy section
         lines.append("## 概念层级\n")
 
-        def format_tree(concept_id: str, indent: int = 0) -> List[str]:
+        def format_tree(concept_id: str, indent: int = 0) -> list[str]:
             concept = next((c for c in concepts if c['id'] == concept_id), None)
             if not concept:
                 return []
@@ -672,7 +671,7 @@ class ObsidianExporter:
         # TODO: 实现 Neo4j 导出
         print("Neo4j 导出待实现")
 
-    def _export_concept(self, concept: Dict, db):
+    def _export_concept(self, concept: dict, db):
         """导出概念"""
         concept_id = concept.get('id', '')
         text = concept.get('text', 'unknown')
@@ -732,7 +731,7 @@ class ObsidianExporter:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write("\n".join(lines))
 
-    def _export_paper(self, paper: Dict, db):
+    def _export_paper(self, paper: dict, db):
         """导出论文"""
         doi = paper.get('doi', '')
         title = paper.get('title', 'Untitled')
@@ -784,7 +783,7 @@ class ObsidianExporter:
         with open(filepath, 'w', encoding='utf-8') as f:
             f.write("\n".join(lines))
 
-    def _create_index(self, concepts: List, papers: List, output_name: str):
+    def _create_index(self, concepts: list, papers: list, output_name: str):
         """创建索引文件"""
         filepath = self.maps_dir / "index.md"
 

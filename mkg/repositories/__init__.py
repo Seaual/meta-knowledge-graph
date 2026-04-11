@@ -6,13 +6,13 @@ Repository 模块 - 数据访问层
 """
 
 from .base import BaseRepository
-from .paper_repo import PaperRepository
+from .citation_repo import CitationRepository
 from .concept_repo import ConceptRepository
-from .folder_repo import FolderRepository
 from .config_repo import ConfigRepository
 from .conversation_repo import ConversationRepository
+from .folder_repo import FolderRepository
+from .paper_repo import PaperRepository
 from .research_repo import ResearchRepository
-from .citation_repo import CitationRepository
 
 __all__ = [
     "BaseRepository",

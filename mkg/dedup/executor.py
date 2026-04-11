@@ -3,10 +3,7 @@
 """
 
 import logging
-from typing import Set
 from dataclasses import dataclass
-from datetime import datetime
-
 
 logger = logging.getLogger("mkg.dedup")
 
@@ -90,19 +87,19 @@ class MergeExecutor:
                     # ========== 2. 获取当前关系 ==========
                     # 源概念的父节点（source 的 parent）
                     cursor.execute("SELECT parent_id FROM concept_relations WHERE child_id = ?", (source_id,))
-                    source_parents: Set[str] = set(row[0] for row in cursor.fetchall())
+                    source_parents: set[str] = set(row[0] for row in cursor.fetchall())
 
                     # 目标概念的父节点（target 的 parent）
                     cursor.execute("SELECT parent_id FROM concept_relations WHERE child_id = ?", (target_id,))
-                    target_parents: Set[str] = set(row[0] for row in cursor.fetchall())
+                    target_parents: set[str] = set(row[0] for row in cursor.fetchall())
 
                     # 源概念的子节点（source 是它们的 parent）
                     cursor.execute("SELECT child_id FROM concept_relations WHERE parent_id = ?", (source_id,))
-                    source_children: Set[str] = set(row[0] for row in cursor.fetchall())
+                    source_children: set[str] = set(row[0] for row in cursor.fetchall())
 
                     # 目标概念的子节点（target 是它们的 parent）
                     cursor.execute("SELECT child_id FROM concept_relations WHERE parent_id = ?", (target_id,))
-                    target_children: Set[str] = set(row[0] for row in cursor.fetchall())
+                    target_children: set[str] = set(row[0] for row in cursor.fetchall())
 
                     # ========== 3. 计算合并后的关系 ==========
                     # 合并父节点（两者并集，排除自引用）
@@ -114,7 +111,7 @@ class MergeExecutor:
                     # ========== 4. 检测循环依赖 ==========
                     if self._detect_cycle(target_id, merged_parents, merged_children):
                         self.db.conn.rollback()
-                        logger.error(f"循环依赖检测失败，回滚合并")
+                        logger.error("循环依赖检测失败，回滚合并")
                         return MergeResult(
                             source_id=source_id,
                             target_id=target_id,
@@ -182,7 +179,7 @@ class MergeExecutor:
                 message=str(e)
             )
 
-    def _detect_cycle(self, concept_id: str, merged_parents: Set[str], merged_children: Set[str]) -> bool:
+    def _detect_cycle(self, concept_id: str, merged_parents: set[str], merged_children: set[str]) -> bool:
         """检测合并后的层级关系是否会产生循环
 
         循环情况：

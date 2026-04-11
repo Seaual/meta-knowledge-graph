@@ -3,10 +3,9 @@
 """
 
 import json
-import re
 import logging
+import re
 import sqlite3
-from typing import List, Dict, Optional
 
 logger = logging.getLogger("mkg.dedup")
 
@@ -15,7 +14,7 @@ logger = logging.getLogger("mkg.dedup")
 CATEGORY_HIERARCHY = ['field', 'direction', 'subdirection', 'task', 'method', 'technique', 'dataset', 'finding']
 
 
-def find_floating_concepts(db) -> List[Dict]:
+def find_floating_concepts(db) -> list[dict]:
     """找出需要修复的漂浮概念（有子节点但无父节点，非顶层 field）
 
     Args:
@@ -75,7 +74,7 @@ def find_floating_concepts(db) -> List[Dict]:
     return floating
 
 
-def get_candidate_parents(db, category: str) -> List[Dict]:
+def get_candidate_parents(db, category: str) -> list[dict]:
     """获取可能作为父节点的候选列表
 
     Args:
@@ -103,7 +102,7 @@ def get_candidate_parents(db, category: str) -> List[Dict]:
     return [{'id': r['id'], 'text': r['text'], 'category': r['category']} for r in cur.fetchall()]
 
 
-def infer_parent(db, llm_client, floating_concept: Dict, candidates: List[Dict]) -> Optional[str]:
+def infer_parent(db, llm_client, floating_concept: dict, candidates: list[dict]) -> str | None:
     """让 LLM 推断父节点
 
     Args:
@@ -222,7 +221,7 @@ or if no suitable parent:
     return None
 
 
-def fix_floating_concepts(db, llm_client) -> Dict:
+def fix_floating_concepts(db, llm_client) -> dict:
     """修复所有漂浮概念
 
     Args:

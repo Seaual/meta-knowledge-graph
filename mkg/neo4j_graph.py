@@ -5,11 +5,9 @@ Neo4j 知识图谱操作模块
 支持混合存储模式 (SQLite + Neo4j)
 """
 
-import os
 import json
-from typing import List, Dict, Optional, Any
-from dataclasses import dataclass, asdict
-from datetime import datetime
+import os
+from dataclasses import dataclass
 
 
 @dataclass
@@ -29,7 +27,7 @@ class PaperNode:
     arxiv_id: str = ""
     title: str = ""
     abstract: str = ""
-    authors: List[str] = None
+    authors: list[str] = None
     published_date: str = ""
     pdf_path: str = ""
     status: str = "pending"
@@ -143,7 +141,7 @@ class Neo4jGraph:
             })
         return True
 
-    def get_paper(self, doi: str) -> Optional[Dict]:
+    def get_paper(self, doi: str) -> dict | None:
         """获取论文"""
         with self.driver.session() as session:
             result = session.run("""
@@ -162,7 +160,7 @@ class Neo4jGraph:
                 return data
             return None
 
-    def get_paper_by_arxiv_id(self, arxiv_id: str) -> Optional[Dict]:
+    def get_paper_by_arxiv_id(self, arxiv_id: str) -> dict | None:
         """通过 arXiv ID 获取论文"""
         with self.driver.session() as session:
             result = session.run("""
@@ -190,7 +188,7 @@ class Neo4jGraph:
                     p.updated_at = datetime()
             """, {'doi': doi, 'status': status, 'error_message': error_message})
 
-    def get_papers_by_status(self, status: str) -> List[Dict]:
+    def get_papers_by_status(self, status: str) -> list[dict]:
         """按状态获取论文列表"""
         with self.driver.session() as session:
             result = session.run("""
@@ -208,7 +206,7 @@ class Neo4jGraph:
                 papers.append(data)
             return papers
 
-    def get_all_papers(self, limit: int = 100) -> List[Dict]:
+    def get_all_papers(self, limit: int = 100) -> list[dict]:
         """获取所有论文"""
         with self.driver.session() as session:
             result = session.run("""
@@ -246,7 +244,7 @@ class Neo4jGraph:
             })
         return True
 
-    def get_keyword(self, keyword_id: str) -> Optional[Dict]:
+    def get_keyword(self, keyword_id: str) -> dict | None:
         """获取关键词"""
         with self.driver.session() as session:
             result = session.run("""
@@ -258,7 +256,7 @@ class Neo4jGraph:
                 return dict(record['k'])
             return None
 
-    def get_keywords_by_level(self, level: int) -> List[Dict]:
+    def get_keywords_by_level(self, level: int) -> list[dict]:
         """按层级获取关键词"""
         with self.driver.session() as session:
             result = session.run("""
@@ -269,7 +267,7 @@ class Neo4jGraph:
             """, {'level': level})
             return [dict(record['k']) for record in result]
 
-    def get_all_keywords(self) -> List[Dict]:
+    def get_all_keywords(self) -> list[dict]:
         """获取所有关键词"""
         with self.driver.session() as session:
             result = session.run("""
@@ -300,7 +298,7 @@ class Neo4jGraph:
                 MERGE (parent)-[r:HAS_SUBKEYWORD]->(child)
             """, {'parent_id': parent_id, 'child_id': child_id})
 
-    def get_keyword_children(self, keyword_id: str) -> List[Dict]:
+    def get_keyword_children(self, keyword_id: str) -> list[dict]:
         """获取关键词的子节点"""
         with self.driver.session() as session:
             result = session.run("""
@@ -309,7 +307,7 @@ class Neo4jGraph:
             """, {'id': keyword_id})
             return [dict(record['child']) for record in result]
 
-    def get_keyword_parents(self, keyword_id: str) -> List[Dict]:
+    def get_keyword_parents(self, keyword_id: str) -> list[dict]:
         """获取关键词的父节点"""
         with self.driver.session() as session:
             result = session.run("""
@@ -318,7 +316,7 @@ class Neo4jGraph:
             """, {'id': keyword_id})
             return [dict(record['parent']) for record in result]
 
-    def get_papers_by_keyword(self, keyword_id: str, limit: int = 50) -> List[Dict]:
+    def get_papers_by_keyword(self, keyword_id: str, limit: int = 50) -> list[dict]:
         """获取关键词关联的论文"""
         with self.driver.session() as session:
             result = session.run("""
@@ -338,7 +336,7 @@ class Neo4jGraph:
 
     # ==================== 图谱查询 ====================
 
-    def get_tree(self, root_id: str = None, max_depth: int = 5) -> Dict:
+    def get_tree(self, root_id: str = None, max_depth: int = 5) -> dict:
         """获取树状结构"""
         with self.driver.session() as session:
             # 如果没有指定根节点，从 L0 开始
@@ -356,7 +354,7 @@ class Neo4jGraph:
 
             return self._build_tree(session, root_id, 0, max_depth)
 
-    def _build_tree(self, session, keyword_id: str, depth: int, max_depth: int) -> Dict:
+    def _build_tree(self, session, keyword_id: str, depth: int, max_depth: int) -> dict:
         """递归构建树"""
         if depth > max_depth:
             return {'id': keyword_id, 'more': True}
@@ -395,7 +393,7 @@ class Neo4jGraph:
 
         return node
 
-    def get_stats(self) -> Dict:
+    def get_stats(self) -> dict:
         """获取统计信息"""
         with self.driver.session() as session:
             # 关键词统计
@@ -424,7 +422,7 @@ class Neo4jGraph:
                 'relations': total_relations
             }
 
-    def find_gaps(self) -> List[Dict]:
+    def find_gaps(self) -> list[dict]:
         """找出研究空白（子节点少的方向）"""
         with self.driver.session() as session:
             result = session.run("""
@@ -439,7 +437,7 @@ class Neo4jGraph:
             """)
             return [dict(r) for r in result]
 
-    def find_connections(self) -> List[Dict]:
+    def find_connections(self) -> list[dict]:
         """找出潜在关联（共现关键词对）"""
         with self.driver.session() as session:
             result = session.run("""
@@ -454,7 +452,7 @@ class Neo4jGraph:
             """)
             return [dict(r) for r in result]
 
-    def search_keywords(self, query: str, limit: int = 20) -> List[Dict]:
+    def search_keywords(self, query: str, limit: int = 20) -> list[dict]:
         """搜索关键词"""
         with self.driver.session() as session:
             result = session.run("""
@@ -464,7 +462,7 @@ class Neo4jGraph:
             """, {'query': query, 'limit': limit})
             return [dict(record['k']) for record in result]
 
-    def search_papers(self, query: str, limit: int = 20) -> List[Dict]:
+    def search_papers(self, query: str, limit: int = 20) -> list[dict]:
         """搜索论文"""
         with self.driver.session() as session:
             result = session.run("""

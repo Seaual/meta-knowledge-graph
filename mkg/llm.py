@@ -7,22 +7,23 @@
 - Anthropic 兼容 API（ChatAnthropic + 环境变量）
 """
 
-from typing import Optional, Dict, Any
-from langchain_core.language_models import BaseChatModel
-from langchain_openai import ChatOpenAI
+from typing import Any
+
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
 
 # 全局 LLM 实例
-_llm_instance: Optional[BaseChatModel] = None
-_current_config: Dict[str, Any] = {}
+_llm_instance: BaseChatModel | None = None
+_current_config: dict[str, Any] = {}
 
 
 def init_llm(
     provider: str,
     api_key: str,
     model: str,
-    base_url: Optional[str] = None
+    base_url: str | None = None
 ) -> BaseChatModel:
     """
     初始化 LLM 客户端
@@ -73,7 +74,7 @@ def init_llm(
     return _llm_instance
 
 
-def init_llm_from_db(db) -> Optional[BaseChatModel]:
+def init_llm_from_db(db) -> BaseChatModel | None:
     """
     从数据库配置初始化 LLM
 
@@ -99,7 +100,7 @@ def init_llm_from_db(db) -> Optional[BaseChatModel]:
     )
 
 
-def get_llm() -> Optional[BaseChatModel]:
+def get_llm() -> BaseChatModel | None:
     """
     获取 LLM 实例
 
@@ -135,7 +136,7 @@ def reset_llm():
     _current_config = {}
 
 
-def get_current_config() -> Dict[str, Any]:
+def get_current_config() -> dict[str, Any]:
     """
     获取当前 LLM 配置
 
@@ -172,7 +173,7 @@ def extract_text_content(content) -> str:
     return str(content)
 
 
-def generate(prompt: str, system_prompt: Optional[str] = None) -> str:
+def generate(prompt: str, system_prompt: str | None = None) -> str:
     """
     简化的单次生成接口
 

@@ -3,7 +3,6 @@
 ConfigRepository - 配置相关数据库操作
 """
 
-from typing import Optional, Dict, List, Any
 from .base import BaseRepository
 
 
@@ -12,7 +11,7 @@ class ConfigRepository(BaseRepository):
 
     # ========== LLM 配置 ==========
 
-    def get_llm_config(self) -> Optional[dict]:
+    def get_llm_config(self) -> dict | None:
         """
         获取 LLM 配置
 
@@ -43,7 +42,7 @@ class ConfigRepository(BaseRepository):
 
         return config
 
-    def save_llm_config(self, mode: str, providers: List[Dict]) -> Dict:
+    def save_llm_config(self, mode: str, providers: list[dict]) -> dict:
         """
         保存 LLM 配置
 
@@ -88,7 +87,7 @@ class ConfigRepository(BaseRepository):
 
         return self.get_llm_config()
 
-    def get_llm_provider_for_function(self, function_group: str) -> Optional[dict]:
+    def get_llm_provider_for_function(self, function_group: str) -> dict | None:
         """
         获取指定功能的提供商
 
@@ -110,7 +109,7 @@ class ConfigRepository(BaseRepository):
             return dict(row)
         return None
 
-    def get_active_llm_provider(self) -> Optional[dict]:
+    def get_active_llm_provider(self) -> dict | None:
         """
         获取活跃提供商（单模式）
 
@@ -131,7 +130,7 @@ class ConfigRepository(BaseRepository):
 
     # ========== S2 配置 ==========
 
-    def get_s2_config(self) -> Optional[dict]:
+    def get_s2_config(self) -> dict | None:
         """
         获取 Semantic Scholar 配置
 

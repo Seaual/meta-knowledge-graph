@@ -5,20 +5,20 @@ Deep Research 多智能体架构
 使用 LangGraph 实现多维度并行研究
 """
 
-import json
 import asyncio
-from typing import TypedDict, List, Dict, Any, Optional
-from langgraph.graph import StateGraph, END
-from langchain_core.messages import HumanMessage, SystemMessage
+import json
+from typing import Any, TypedDict
 
-from mkg.llm import get_llm_or_raise, generate
+from langchain_core.messages import HumanMessage
+from langgraph.graph import END, StateGraph
 
+from mkg.llm import get_llm_or_raise
 
 # 全局进度存储（内存），key 为 session_id
-_deep_research_progress: Dict[str, Dict[str, Any]] = {}
+_deep_research_progress: dict[str, dict[str, Any]] = {}
 
 
-def get_deep_research_progress(session_id: str) -> Optional[Dict[str, Any]]:
+def get_deep_research_progress(session_id: str) -> dict[str, Any] | None:
     """获取研究进度"""
     return _deep_research_progress.get(session_id)
 
@@ -28,13 +28,13 @@ class ResearchState(TypedDict):
     target_name: str
     target_type: str
     query: str
-    dimensions: List[str]
-    dimension_findings: Dict[str, str]
+    dimensions: list[str]
+    dimension_findings: dict[str, str]
     final_report: str
-    session_id: Optional[str]  # 用于进度追踪
+    session_id: str | None  # 用于进度追踪
 
 
-def coordinator_node(state: ResearchState) -> Dict[str, Any]:
+def coordinator_node(state: ResearchState) -> dict[str, Any]:
     """
     协调者节点 - 规划研究维度
 
@@ -83,7 +83,7 @@ def coordinator_node(state: ResearchState) -> Dict[str, Any]:
 
         return {"dimensions": dimensions[:5]}
 
-    except Exception as e:
+    except Exception:
         # 默认维度
         default_dims = ["技术分析", "应用场景", "发展趋势", "挑战与机遇"]
         key = _get_progress_key(state)
@@ -126,7 +126,7 @@ async def dimension_agent_async(dimension: str, target_name: str, target_type: s
         return (dimension, f"分析失败: {str(e)}")
 
 
-def research_node(state: ResearchState) -> Dict[str, Any]:
+def research_node(state: ResearchState) -> dict[str, Any]:
     """
     研究节点 - 并行执行各维度研究
     """
@@ -157,7 +157,7 @@ def research_node(state: ResearchState) -> Dict[str, Any]:
     return {"dimension_findings": findings}
 
 
-def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
+def synthesizer_node(state: ResearchState) -> dict[str, Any]:
     """
     综合者节点 - 汇总各维度发现，生成报告
     """
@@ -192,7 +192,7 @@ def synthesizer_node(state: ResearchState) -> Dict[str, Any]:
         return {"final_report": f"报告生成失败: {str(e)}"}
 
 
-def update_progress_after_synthesis(state: ResearchState) -> Dict[str, Any]:
+def update_progress_after_synthesis(state: ResearchState) -> dict[str, Any]:
     """报告合成后更新进度"""
     key = _get_progress_key(state)
     if key in _deep_research_progress:
@@ -227,9 +227,9 @@ def run_deep_research(
     target_name: str,
     target_type: str,
     query: str,
-    dimensions: Optional[List[str]] = None,
-    session_id: Optional[str] = None
-) -> Dict[str, Any]:
+    dimensions: list[str] | None = None,
+    session_id: str | None = None
+) -> dict[str, Any]:
     """
     执行深入研究
 

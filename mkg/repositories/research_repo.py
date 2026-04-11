@@ -3,7 +3,6 @@
 ResearchRepository - 研究会话相关数据库操作
 """
 
-from typing import Optional, List, Dict, Any
 from .base import BaseRepository
 
 
@@ -33,7 +32,7 @@ class ResearchRepository(BaseRepository):
 
         return session_id
 
-    def get_session(self, session_id: str) -> Optional[dict]:
+    def get_session(self, session_id: str) -> dict | None:
         """
         获取研究会话
 
@@ -58,7 +57,7 @@ class ResearchRepository(BaseRepository):
         return None
 
     def update_progress(self, session_id: str, progress: int,
-                        dimensions: List[str] = None) -> bool:
+                        dimensions: list[str] = None) -> bool:
         """
         更新研究会话进度
 
@@ -134,7 +133,7 @@ class ResearchRepository(BaseRepository):
 
     def save_finding(self, session_id: str, dimension: str,
                      finding: str, confidence: float = None,
-                     sources: List[str] = None) -> int:
+                     sources: list[str] = None) -> int:
         """
         保存研究发现
 
@@ -161,7 +160,7 @@ class ResearchRepository(BaseRepository):
 
         return cursor.lastrowid
 
-    def get_findings(self, session_id: str) -> List[dict]:
+    def get_findings(self, session_id: str) -> list[dict]:
         """
         获取研究会话的所有发现
 
@@ -185,7 +184,7 @@ class ResearchRepository(BaseRepository):
 
         return findings
 
-    def get_findings_by_dimension(self, session_id: str, dimension: str) -> List[dict]:
+    def get_findings_by_dimension(self, session_id: str, dimension: str) -> list[dict]:
         """
         按维度获取发现
 
@@ -234,7 +233,7 @@ class ResearchRepository(BaseRepository):
     # ========== S2 推荐 ==========
 
     def add_s2_recommendation(self, source_type: str, source_id: str,
-                               paper_data: Dict) -> int:
+                               paper_data: dict) -> int:
         """
         添加 S2 推荐论文
 
@@ -267,7 +266,7 @@ class ResearchRepository(BaseRepository):
 
         return cursor.lastrowid
 
-    def get_s2_recommendations(self, source_type: str, source_id: str) -> List[dict]:
+    def get_s2_recommendations(self, source_type: str, source_id: str) -> list[dict]:
         """
         获取 S2 推荐
 

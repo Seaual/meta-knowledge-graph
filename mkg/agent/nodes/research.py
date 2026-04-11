@@ -3,13 +3,14 @@
 Research Node - 研究点分析节点
 """
 
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from typing import Dict, Any, Optional
+from typing import Any
 
-from ..state import AgentState
-from .. import tools  # 导入模块而不是变量
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
 from mkg.llm import get_llm_or_raise
 
+from .. import tools  # 导入模块而不是变量
+from ..state import AgentState
 
 RESEARCH_PROMPT = """分析概念「{target_name}」的研究机会。
 
@@ -28,7 +29,7 @@ RESEARCH_PROMPT = """分析概念「{target_name}」的研究机会。
 请用中文回答，结构清晰。不要重复原始数据，给出分析结论。"""
 
 
-def research_node(state: AgentState) -> Dict[str, Any]:
+def research_node(state: AgentState) -> dict[str, Any]:
     """
     Research Node - 分析概念研究点
 

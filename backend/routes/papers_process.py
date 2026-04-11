@@ -3,13 +3,13 @@
 论文处理路由 - PDF 解析和概念提取相关端点
 """
 
-from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
-from typing import Optional, List
-import httpx
 from pathlib import Path
 
-from ..dependencies import get_process_service, get_db
+import httpx
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+
+from ..dependencies import get_db, get_process_service
 from ..services.process_service import ProcessService
 
 router = APIRouter(prefix="/api/papers", tags=["papers-process"])
@@ -24,7 +24,7 @@ class ProcessResponse(BaseModel):
     """处理论文响应"""
     success: bool
     message: str
-    concept_tree: Optional[dict] = None
+    concept_tree: dict | None = None
     duration: float = 0
     concepts_count: int = 0
 
@@ -33,7 +33,7 @@ class ProcessSingleResponse(BaseModel):
     """单个论文处理响应"""
     success: bool
     message: str
-    concept_tree: Optional[dict] = None
+    concept_tree: dict | None = None
     duration: float = 0
     concepts_count: int = 0
 
@@ -42,25 +42,25 @@ class AddFromS2Request(BaseModel):
     """从 S2 添加论文请求"""
     s2_paper_id: str
     title: str
-    year: Optional[int] = None
-    abstract: Optional[str] = None
-    authors: Optional[List[str]] = None
-    venue: Optional[str] = None
-    citation_count: Optional[int] = None
-    tldr: Optional[str] = None
-    open_access_pdf_url: Optional[str] = None
+    year: int | None = None
+    abstract: str | None = None
+    authors: list[str] | None = None
+    venue: str | None = None
+    citation_count: int | None = None
+    tldr: str | None = None
+    open_access_pdf_url: str | None = None
 
 
 class DownloadAndProcessRequest(BaseModel):
     """下载并处理论文请求"""
     s2_paper_id: str
     title: str
-    year: Optional[int] = None
-    abstract: Optional[str] = None
-    authors: Optional[List[str]] = None
-    venue: Optional[str] = None
-    citation_count: Optional[int] = None
-    tldr: Optional[str] = None
+    year: int | None = None
+    abstract: str | None = None
+    authors: list[str] | None = None
+    venue: str | None = None
+    citation_count: int | None = None
+    tldr: str | None = None
     open_access_pdf_url: str
 
 
@@ -102,7 +102,7 @@ def process_single_paper(
 
 @router.post("/process-batch")
 def process_batch_papers(
-    dois: List[str],
+    dois: list[str],
     service: ProcessService = Depends(get_process_service)
 ):
     """批量处理论文"""

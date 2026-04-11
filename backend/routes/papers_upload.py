@@ -3,8 +3,8 @@
 论文上传路由 - 上传和批处理相关端点
 """
 
-from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
-from typing import List
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from ..dependencies import get_upload_service
 from ..services.upload_service import UploadService
@@ -28,7 +28,7 @@ async def upload_paper(
 
 @router.post("/batch-upload")
 async def batch_upload_papers(
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     folder: str = Form("default"),
     service: UploadService = Depends(get_upload_service)
 ):

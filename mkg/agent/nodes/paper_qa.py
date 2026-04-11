@@ -3,13 +3,14 @@
 Paper QA Node - 论文问答节点
 """
 
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from typing import Dict, Any
+from typing import Any
+
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+from mkg.llm import get_llm_or_raise
 
 from ..state import AgentState
 from ..tools import PAPER_QA_TOOLS
-from mkg.llm import get_llm_or_raise
-
 
 PAPER_QA_PROMPT = """回答关于论文「{target_name}」的问题：{question}
 
@@ -38,7 +39,7 @@ def is_simple_question(question: str) -> bool:
     return any(kw in question.lower() for kw in SIMPLE_QUESTION_KEYWORDS)
 
 
-def paper_qa_node(state: AgentState) -> Dict[str, Any]:
+def paper_qa_node(state: AgentState) -> dict[str, Any]:
     """
     Paper QA Node - 回答论文内容问题
 

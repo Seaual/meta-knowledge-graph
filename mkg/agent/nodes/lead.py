@@ -6,12 +6,14 @@ Lead Node - 统一对话节点
 """
 
 import re
-from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolMessage
-from typing import Dict, Any, Optional, List
+from typing import Any
 
-from ..state import AgentState
-from mkg.llm import get_llm_or_raise, extract_text_content
+from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
+
+from mkg.llm import extract_text_content, get_llm_or_raise
+
 from .. import tools as legacy_tools
+from ..state import AgentState
 
 # Tool -> Attachment 类型映射
 TOOL_ATTACHMENT_MAP = {
@@ -25,7 +27,7 @@ TOOL_ATTACHMENT_MAP = {
 }
 
 
-def make_attachment(tool_name: str, result) -> Optional[Dict[str, Any]]:
+def make_attachment(tool_name: str, result) -> dict[str, Any] | None:
     """将 tool 执行结果转换为附件"""
     att_type = TOOL_ATTACHMENT_MAP.get(tool_name)
     if not att_type:
@@ -181,7 +183,7 @@ def build_context_info(state: AgentState) -> str:
     return "\n".join(parts)
 
 
-def lead_node(state: AgentState) -> Dict[str, Any]:
+def lead_node(state: AgentState) -> dict[str, Any]:
     """
     Lead Node - 使用 LangChain tools 处理对话
     """
@@ -226,7 +228,7 @@ def lead_node(state: AgentState) -> Dict[str, Any]:
 
     # 处理 tool calls — 循环处理直到 LLM 不再请求工具
     concept_data = None
-    attachments: List[Dict[str, Any]] = []
+    attachments: list[dict[str, Any]] = []
     response_content = extract_text_content(response.content)
     tool_used = None  # 记录使用的工具
     max_tool_rounds = 5  # 防止无限循环
@@ -327,7 +329,7 @@ def lead_node_stream(state: AgentState):
 
     # 处理 tool calls — 循环处理直到 LLM 不再请求工具
     concept_data = None
-    attachments: List[Dict[str, Any]] = []
+    attachments: list[dict[str, Any]] = []
     response_content = extract_text_content(response.content)
     max_tool_rounds = 5
     round_count = 0

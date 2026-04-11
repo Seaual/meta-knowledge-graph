@@ -3,17 +3,15 @@
 """
 
 import threading
-from datetime import datetime
 import uuid
-from typing import Dict, Optional, List
+from datetime import datetime
 
-from .candidate import CandidateGenerator
 from .analyzer import MergeAnalyzer
+from .candidate import CandidateGenerator
 from .executor import MergeExecutor
 from .floating_fixer import fix_floating_concepts
 
-
-_scan_results: Dict[str, dict] = {}
+_scan_results: dict[str, dict] = {}
 _scan_lock = threading.Lock()
 
 
@@ -23,7 +21,7 @@ def store_scan_result(scan_id: str, result: dict):
         _scan_results[scan_id] = {"result": result, "created_at": datetime.now()}
 
 
-def get_scan_result(scan_id: str, db=None) -> Optional[dict]:
+def get_scan_result(scan_id: str, db=None) -> dict | None:
     """Get scan result from memory or database"""
     # Check memory first (for backward compatibility with sync scans)
     with _scan_lock:
@@ -101,7 +99,7 @@ class ConceptDeduplicator:
         store_scan_result(scan_id, result)
         return result
 
-    def execute_merge(self, scan_id: str, merge_ids: List[str]) -> dict:
+    def execute_merge(self, scan_id: str, merge_ids: list[str]) -> dict:
         """执行合并操作"""
         # Pass db to get_scan_result to check database
         scan_result = get_scan_result(scan_id, self.db)

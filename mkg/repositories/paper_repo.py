@@ -3,7 +3,8 @@
 PaperRepository - 论文相关数据库操作
 """
 
-from typing import Optional, Dict, List, Any
+from typing import Any
+
 from .base import BaseRepository
 
 
@@ -100,7 +101,7 @@ class PaperRepository(BaseRepository):
 
         return doi
 
-    def get(self, identifier: str) -> Optional[dict]:
+    def get(self, identifier: str) -> dict | None:
         """
         获取论文（支持 DOI、arXiv ID 或 S2 Paper ID）
 
@@ -118,7 +119,7 @@ class PaperRepository(BaseRepository):
             return self._row_to_dict(row)
         return None
 
-    def get_all(self, folder_id: str = None, status: str = None) -> List[dict]:
+    def get_all(self, folder_id: str = None, status: str = None) -> list[dict]:
         """
         获取所有论文，可选按文件夹或状态过滤
 
@@ -148,7 +149,7 @@ class PaperRepository(BaseRepository):
         cursor = self.execute_read(query, tuple(params))
         return [self._row_to_dict(row) for row in cursor.fetchall()]
 
-    def get_all_basic(self) -> List[Dict]:
+    def get_all_basic(self) -> list[dict]:
         """
         获取所有论文的基本信息（用于引用图谱）
 
@@ -162,7 +163,7 @@ class PaperRepository(BaseRepository):
         """)
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_by_status(self, status: str) -> List[dict]:
+    def get_by_status(self, status: str) -> list[dict]:
         """
         按状态获取论文列表
 
@@ -178,7 +179,7 @@ class PaperRepository(BaseRepository):
         )
         return [self._row_to_dict(row) for row in cursor.fetchall()]
 
-    def get_by_folder(self, folder_id: str) -> List[dict]:
+    def get_by_folder(self, folder_id: str) -> list[dict]:
         """
         按文件夹获取论文
 
@@ -194,7 +195,7 @@ class PaperRepository(BaseRepository):
         )
         return [self._row_to_dict(row) for row in cursor.fetchall()]
 
-    def get_by_s2_id(self, s2_paper_id: str) -> Optional[dict]:
+    def get_by_s2_id(self, s2_paper_id: str) -> dict | None:
         """
         通过 S2 Paper ID 获取论文
 
@@ -213,7 +214,7 @@ class PaperRepository(BaseRepository):
             return self._row_to_dict(row)
         return None
 
-    def get_with_s2_id(self) -> List[Dict]:
+    def get_with_s2_id(self) -> list[dict]:
         """
         获取所有有 S2 Paper ID 的论文
 
@@ -458,7 +459,7 @@ class PaperRepository(BaseRepository):
 
     # ========== 概念关联 ==========
 
-    def get_concepts(self, paper_doi: str) -> List[dict]:
+    def get_concepts(self, paper_doi: str) -> list[dict]:
         """
         获取论文关联的所有概念
 
@@ -572,7 +573,7 @@ class PaperRepository(BaseRepository):
             VALUES (?, ?, ?, ?)
         """, (paper_doi, action, status, message))
 
-    def get_processing_logs(self, paper_doi: str) -> List[dict]:
+    def get_processing_logs(self, paper_doi: str) -> list[dict]:
         """
         获取论文的处理日志
 
@@ -619,7 +620,7 @@ class PaperRepository(BaseRepository):
         cursor = self.execute_read(query, tuple(params))
         return cursor.fetchone()['count']
 
-    def count_by_status(self) -> Dict[str, int]:
+    def count_by_status(self) -> dict[str, int]:
         """
         按状态统计论文数量
 

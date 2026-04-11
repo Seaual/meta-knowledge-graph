@@ -6,10 +6,7 @@
 - 论文视角：查看某概念下的所有论文
 """
 
-from typing import List, Dict, Optional
 from rich.tree import Tree
-from rich.panel import Panel
-from rich.text import Text
 
 
 class KnowledgeGraph:
@@ -110,7 +107,7 @@ class KnowledgeGraph:
     def _build_knowledge_tree_node(self, node: dict, depth: int = 0) -> Tree:
         """递归构建知识点树节点"""
         if depth > 10:  # 限制深度
-            return Tree(f"... (更多)")
+            return Tree("... (更多)")
 
         # 节点标签
         label = f"{node['text']} ({node['paper_count']}篇)"
@@ -173,7 +170,7 @@ class KnowledgeGraph:
 
         return tree
 
-    def list_concepts(self, parent_concept: str = None) -> List[Dict]:
+    def list_concepts(self, parent_concept: str = None) -> list[dict]:
         """
         列出概念
 
@@ -191,7 +188,7 @@ class KnowledgeGraph:
         else:
             return self.db.get_root_concepts()
 
-    def list_papers(self, concept: str) -> List[Dict]:
+    def list_papers(self, concept: str) -> list[dict]:
         """
         列出某概念下的所有论文
 
@@ -206,11 +203,11 @@ class KnowledgeGraph:
             return []
         return self.db.get_papers_by_concept(node['id'])
 
-    def get_concept_papers(self, concept_id: str) -> List[Dict]:
+    def get_concept_papers(self, concept_id: str) -> list[dict]:
         """获取概念关联的论文"""
         return self.db.get_papers_by_concept(concept_id)
 
-    def get_paper_concepts(self, paper_doi: str) -> List[Dict]:
+    def get_paper_concepts(self, paper_doi: str) -> list[dict]:
         """获取论文关联的概念"""
         return self.db.get_concepts_by_paper(paper_doi)
 
@@ -218,7 +215,7 @@ class KnowledgeGraph:
         """获取图谱统计信息"""
         return self.db.get_stats()
 
-    def navigate(self, concept: str) -> Dict:
+    def navigate(self, concept: str) -> dict:
         """
         导航到指定概念，返回该概念的详细信息
 
@@ -243,7 +240,7 @@ class KnowledgeGraph:
             'papers': self.db.get_papers_by_concept(node['id'])
         }
 
-    def search_concepts(self, query: str) -> List[Dict]:
+    def search_concepts(self, query: str) -> list[dict]:
         """
         搜索概念
 

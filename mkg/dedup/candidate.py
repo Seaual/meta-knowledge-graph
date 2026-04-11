@@ -2,16 +2,16 @@
 候选对生成器 - 预筛选可能重复的概念对
 """
 
-from difflib import SequenceMatcher
-from typing import List, Dict, Generator
+from collections.abc import Generator
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 
 @dataclass
 class ConceptPair:
     """概念对"""
-    concept1: Dict
-    concept2: Dict
+    concept1: dict
+    concept2: dict
     similarity: float
 
 
@@ -53,7 +53,7 @@ class CandidateGenerator:
         """计算两个文本的相似度（0-1）"""
         return SequenceMatcher(None, text1, text2).ratio()
 
-    def generate_candidates(self, folder_id: str = None) -> List[ConceptPair]:
+    def generate_candidates(self, folder_id: str = None) -> list[ConceptPair]:
         """生成所有候选对，可选按文件夹过滤"""
         candidates = []
         for category in self.CATEGORIES:
@@ -135,7 +135,7 @@ class CandidateGenerator:
             "stats": stats
         }
 
-    def generate_candidates_batch(self, batch_size: int = 50, folder_id: str = None) -> Generator[List[ConceptPair], None, None]:
+    def generate_candidates_batch(self, batch_size: int = 50, folder_id: str = None) -> Generator[list[ConceptPair], None, None]:
         """分批生成候选对（用于大库），可选按文件夹过滤"""
         batch = []
         for category in self.CATEGORIES:
@@ -154,7 +154,7 @@ class CandidateGenerator:
         if batch:
             yield batch
 
-    def _generate_pairs_in_category(self, concepts: List[Dict]) -> List[ConceptPair]:
+    def _generate_pairs_in_category(self, concepts: list[dict]) -> list[ConceptPair]:
         """在同类概念中生成候选对"""
         pairs = []
         for i, c1 in enumerate(concepts):

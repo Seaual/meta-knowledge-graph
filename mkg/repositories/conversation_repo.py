@@ -4,7 +4,7 @@ ConversationRepository - 会话相关数据库操作
 """
 
 import uuid
-from typing import Optional, List, Dict, Any
+
 from .base import BaseRepository
 
 
@@ -32,7 +32,7 @@ class ConversationRepository(BaseRepository):
 
         return conv_id
 
-    def get(self, conv_id: str) -> Optional[dict]:
+    def get(self, conv_id: str) -> dict | None:
         """
         获取会话
 
@@ -52,7 +52,7 @@ class ConversationRepository(BaseRepository):
             return dict(row)
         return None
 
-    def get_all(self, device_id: str, limit: int = 50) -> List[dict]:
+    def get_all(self, device_id: str, limit: int = 50) -> list[dict]:
         """
         获取设备的所有会话
 
@@ -129,7 +129,7 @@ class ConversationRepository(BaseRepository):
 
     # ========== 消息 CRUD ==========
 
-    def get_messages(self, conv_id: str) -> List[dict]:
+    def get_messages(self, conv_id: str) -> list[dict]:
         """
         获取会话的所有消息
 
@@ -155,7 +155,7 @@ class ConversationRepository(BaseRepository):
         return messages
 
     def add_message(self, conv_id: str, role: str, content: str,
-                    agent: str = None, attachments: List[Dict] = None) -> str:
+                    agent: str = None, attachments: list[dict] = None) -> str:
         """
         添加消息
 
@@ -189,7 +189,7 @@ class ConversationRepository(BaseRepository):
 
         return msg_id
 
-    def get_message(self, msg_id: str) -> Optional[dict]:
+    def get_message(self, msg_id: str) -> dict | None:
         """
         获取单条消息
 

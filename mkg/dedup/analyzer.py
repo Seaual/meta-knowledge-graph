@@ -3,12 +3,12 @@ LLM 分析器 - 判断概念是否应该合并
 """
 
 import json
-import re
 import logging
-from typing import List, Optional, Literal
-from dataclasses import dataclass, field
-from pydantic import BaseModel, validator
+import re
+from dataclasses import dataclass
+from typing import Literal
 
+from pydantic import BaseModel, validator
 
 logger = logging.getLogger("mkg.dedup")
 
@@ -31,13 +31,13 @@ class MergeSuggestionItem(BaseModel):
     """单个合并建议的验证模型"""
     pair_id: int
     should_merge: bool
-    merge_type: Optional[Literal["synonym", "absorption", "bilingual"]] = None
-    target_id: Optional[str] = None
-    target_text: Optional[str] = None
-    target_category: Optional[str] = None
-    confidence: Optional[float] = None
+    merge_type: Literal["synonym", "absorption", "bilingual"] | None = None
+    target_id: str | None = None
+    target_text: str | None = None
+    target_category: str | None = None
+    confidence: float | None = None
     rationale: str = ""
-    reason_type: Optional[Literal["hierarchical", "parallel", "partial_overlap", "category_gap"]] = None
+    reason_type: Literal["hierarchical", "parallel", "partial_overlap", "category_gap"] | None = None
 
     @validator('confidence')
     def validate_confidence(cls, v):
@@ -55,7 +55,7 @@ class MergeSuggestionItem(BaseModel):
 
 class MergeResponse(BaseModel):
     """LLM 响应的验证模型"""
-    merge_suggestions: List[MergeSuggestionItem]
+    merge_suggestions: list[MergeSuggestionItem]
 
 
 class MergeAnalyzer:
@@ -64,7 +64,7 @@ class MergeAnalyzer:
     def __init__(self, llm_client):
         self.llm_client = llm_client
 
-    def analyze(self, candidates: List) -> List[MergeSuggestion]:
+    def analyze(self, candidates: list) -> list[MergeSuggestion]:
         """分析候选对，返回合并建议"""
         if not candidates:
             return []
@@ -77,7 +77,7 @@ class MergeAnalyzer:
             logger.error(f"LLM 分析失败: {e}")
             return []
 
-    def _build_prompt(self, candidates: List) -> str:
+    def _build_prompt(self, candidates: list) -> str:
         """构建 LLM prompt"""
         candidate_info = []
         for i, pair in enumerate(candidates):
@@ -210,7 +210,7 @@ Output JSON only:
 }}
 </output_format>"""
 
-    def _parse_response(self, response: str, candidates: List) -> List[MergeSuggestion]:
+    def _parse_response(self, response: str, candidates: list) -> list[MergeSuggestion]:
         """解析 LLM 响应，带验证"""
         suggestions = []
 

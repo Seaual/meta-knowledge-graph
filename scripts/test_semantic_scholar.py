@@ -4,9 +4,9 @@ Semantic Scholar API 测试脚本
 测试完成后可删除
 """
 
-import requests
-import json
 import time
+
+import requests
 
 API_KEY = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
 BASE_URL = "https://api.semanticscholar.org/graph/v1"
@@ -58,7 +58,7 @@ def print_summary(name, data, key_fields=None):
             print("返回条数: 0（空列表）")
         else:
             print(f"返回条数: {len(items)}")
-            print(f"第一条完整数据:")
+            print("第一条完整数据:")
             first = items[0]
             for k, v in first.items():
                 if isinstance(v, str) and len(v) > 100:

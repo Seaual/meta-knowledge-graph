@@ -4,9 +4,8 @@
 """
 
 import uuid
-import shutil
-from typing import List, Dict, Optional
 from pathlib import Path
+
 from fastapi import UploadFile
 
 from mkg.database import Database
@@ -20,7 +19,7 @@ class UploadService:
         self.upload_dir = Path(__file__).parent.parent.parent / "papers"
         self.upload_dir.mkdir(exist_ok=True)
 
-    async def upload_single(self, file: UploadFile, folder: str = "default") -> Dict:
+    async def upload_single(self, file: UploadFile, folder: str = "default") -> dict:
         """上传单个论文 PDF"""
         # 生成唯一文件名
         file_id = str(uuid.uuid4())[:8]
@@ -54,7 +53,7 @@ class UploadService:
             "success": True
         }
 
-    async def upload_batch(self, files: List[UploadFile], folder: str = "default") -> Dict:
+    async def upload_batch(self, files: list[UploadFile], folder: str = "default") -> dict:
         """批量上传论文"""
         job_id = str(uuid.uuid4())
         results = []
@@ -83,7 +82,7 @@ class UploadService:
             "total": len(results)
         }
 
-    def get_batch_status(self, job_id: str) -> Optional[Dict]:
+    def get_batch_status(self, job_id: str) -> dict | None:
         """获取批处理状态"""
         cursor = self.db.execute_read(
             "SELECT * FROM batch_jobs WHERE id = ?",

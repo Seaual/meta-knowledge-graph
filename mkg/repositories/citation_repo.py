@@ -3,14 +3,13 @@
 CitationRepository - 引用相关数据库操作
 """
 
-from typing import Optional, List, Dict, Any
 from .base import BaseRepository
 
 
 class CitationRepository(BaseRepository):
     """引用数据访问层"""
 
-    def add(self, paper_doi: str, citation_data: Dict) -> int:
+    def add(self, paper_doi: str, citation_data: dict) -> int:
         """
         添加引用关系
 
@@ -51,7 +50,7 @@ class CitationRepository(BaseRepository):
 
         return cursor.lastrowid
 
-    def get_all(self) -> List[dict]:
+    def get_all(self) -> list[dict]:
         """
         获取所有引用关系
 
@@ -63,7 +62,7 @@ class CitationRepository(BaseRepository):
         )
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_by_s2_id(self, s2_id: str) -> List[dict]:
+    def get_by_s2_id(self, s2_id: str) -> list[dict]:
         """
         通过 S2 ID 获取引用关系
 
@@ -81,7 +80,7 @@ class CitationRepository(BaseRepository):
 
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_paper_citations(self, paper_doi: str) -> List[dict]:
+    def get_paper_citations(self, paper_doi: str) -> list[dict]:
         """
         获取论文引用的论文（该论文引用了哪些论文）
 
@@ -99,7 +98,7 @@ class CitationRepository(BaseRepository):
 
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_paper_cited_by(self, paper_doi: str) -> List[dict]:
+    def get_paper_cited_by(self, paper_doi: str) -> list[dict]:
         """
         获取引用该论文的论文（哪些论文引用了该论文）
 
@@ -117,7 +116,7 @@ class CitationRepository(BaseRepository):
 
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_internal_edges(self) -> List[dict]:
+    def get_internal_edges(self) -> list[dict]:
         """
         获取内部引用边（两篇论文都在库中的引用关系）
 
@@ -132,7 +131,7 @@ class CitationRepository(BaseRepository):
 
         return [dict(row) for row in cursor.fetchall()]
 
-    def get_all_edges(self) -> List[dict]:
+    def get_all_edges(self) -> list[dict]:
         """
         获取所有引用边（用于可视化）
 

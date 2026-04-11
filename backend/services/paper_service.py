@@ -3,8 +3,9 @@
 论文服务 - 论文 CRUD 操作
 """
 
-from typing import Optional, List, Dict, Any
+import builtins
 from pathlib import Path
+
 from mkg.database import Database
 
 
@@ -14,15 +15,15 @@ class PaperService:
     def __init__(self, db: Database):
         self.db = db
 
-    def list(self, status: str = None, folder: str = None) -> List[Dict]:
+    def list(self, status: str = None, folder: str = None) -> list[dict]:
         """获取论文列表"""
         return self.db.papers.get_all(folder_id=folder, status=status)
 
-    def get(self, doi: str) -> Optional[Dict]:
+    def get(self, doi: str) -> dict | None:
         """获取单个论文"""
         return self.db.papers.get(doi)
 
-    def get_by_folder(self, folder_id: str) -> List[Dict]:
+    def get_by_folder(self, folder_id: str) -> builtins.list[dict]:
         """获取文件夹中的论文"""
         return self.db.papers.get_by_folder(folder_id)
 
@@ -60,7 +61,7 @@ class PaperService:
         self.db.papers.move_to_folder(doi, folder_id)
         return True
 
-    def get_text(self, doi: str) -> Optional[str]:
+    def get_text(self, doi: str) -> str | None:
         """获取论文文本"""
         paper = self.db.papers.get(doi)
         if not paper or not paper.get('pdf_path'):
@@ -79,10 +80,10 @@ class PaperService:
         except Exception:
             return None
 
-    def get_contribution(self, doi: str) -> Dict:
+    def get_contribution(self, doi: str) -> dict:
         """获取论文贡献统计"""
         return self.db.papers.get_contribution(doi)
 
-    def get_concepts(self, doi: str) -> List[Dict]:
+    def get_concepts(self, doi: str) -> builtins.list[dict]:
         """获取论文关联的概念"""
         return self.db.papers.get_concepts(doi)

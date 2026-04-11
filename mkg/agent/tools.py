@@ -5,11 +5,9 @@ LangChain Tools - Agent 可调用的工具
 所有功能都作为 tool，由 lead agent 统一调用
 """
 
+from typing import Any
+
 from langchain_core.tools import tool
-from typing import Optional, List, Dict, Any
-
-from mkg.llm import get_llm_or_raise, generate
-
 
 # ============================================================
 # 依赖注入 - 在运行时初始化
@@ -43,7 +41,7 @@ def init_tools(db=None, s2_client=None, pdf_parser=None, llm=None):
 # ============================================================
 
 @tool
-def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
+def search_paper(query: str, limit: int = 10) -> dict[str, Any]:
     """搜索论文。当用户问「有哪些论文」「搜索论文」「找论文」「XX下有什么论文」时使用。
 
     在本地数据库中搜索论文，支持按标题、作者、摘要、概念名搜索。
@@ -96,7 +94,7 @@ def search_paper(query: str, limit: int = 10) -> Dict[str, Any]:
 
 
 @tool
-def get_paper_by_title(title: str) -> Dict[str, Any]:
+def get_paper_by_title(title: str) -> dict[str, Any]:
     """根据标题查找论文。
 
     支持部分匹配，返回最匹配的论文信息。
@@ -172,7 +170,7 @@ def read_paper_content(title: str, max_chars: int = 10000) -> str:
 # ============================================================
 
 @tool
-def analyze_citations(paper_title: str) -> Dict[str, Any]:
+def analyze_citations(paper_title: str) -> dict[str, Any]:
     """分析论文的引用关系。
 
     当用户问"引用关系"、"被谁引用"、"引用了谁"时调用。
@@ -263,7 +261,7 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
                 elif isinstance(s2_data, dict):
                     s2_items = [normalize_s2_citation(c) for c in s2_data.get('citations', [])[:50]]
                     citations.extend(s2_items)
-            except Exception as e:
+            except Exception:
                 pass
 
     return {
@@ -282,7 +280,7 @@ def analyze_citations(paper_title: str) -> Dict[str, Any]:
 # ============================================================
 
 @tool
-def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
+def get_concept_graph(concept_name: str = None) -> dict[str, Any]:
     """显示概念图谱的可视化界面。
 
     【重要】仅当用户明确说「查看图谱」「显示图谱」「概念图谱」时才调用此工具！
@@ -339,7 +337,7 @@ def get_concept_graph(concept_name: str = None) -> Dict[str, Any]:
 
 
 @tool
-def analyze_research_points(concept_name: str) -> Dict[str, Any]:
+def analyze_research_points(concept_name: str) -> dict[str, Any]:
     """分析概念的研究点和研究方向。
 
     【重要】当用户提到「研究点」「研究方向」「研究机会」「分析...的研究点」时调用此工具！
@@ -460,7 +458,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
                 "related_papers": [{"title": p.get("title")} for p in concept_papers[:5]],
             },
         }
-    except Exception as e:
+    except Exception:
         # Fallback：返回基础概念数据
         papers = _db.get_papers_by_concept(concept_id) or []
         children = _db.get_concept_children(concept_id) or []
@@ -487,7 +485,7 @@ def analyze_research_points(concept_name: str) -> Dict[str, Any]:
 # ============================================================
 
 @tool
-def list_folders() -> List[Dict[str, Any]]:
+def list_folders() -> list[dict[str, Any]]:
     """获取所有文件夹列表。
 
     Returns:
@@ -562,7 +560,7 @@ def create_folder(name: str, description: str = "") -> str:
 # ============================================================
 
 @tool
-def recommend_papers(concept_name: str, limit: int = 10) -> Dict[str, Any]:
+def recommend_papers(concept_name: str, limit: int = 10) -> dict[str, Any]:
     """推荐与某概念相关的论文。
 
     当用户说「推荐论文」「相关论文」「找相关工作」「有什么新论文」时调用。
@@ -632,8 +630,8 @@ def recommend_papers(concept_name: str, limit: int = 10) -> Dict[str, Any]:
 
 @tool
 def deep_research(target_name: str, target_type: str, query: str,
-                  dimensions: Optional[List[str]] = None,
-                  session_id: Optional[str] = None) -> Dict[str, Any]:
+                  dimensions: list[str] | None = None,
+                  session_id: str | None = None) -> dict[str, Any]:
     """深入研究 - 多智能体协作分析。
 
     启动多个维度的研究 agent，并行分析后综合报告。

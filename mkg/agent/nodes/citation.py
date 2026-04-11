@@ -3,13 +3,14 @@
 Citation Node - 引用分析节点
 """
 
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from typing import Dict, Any
+from typing import Any
+
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+
+from mkg.llm import get_llm_or_raise
 
 from ..state import AgentState
 from ..tools import CITATION_TOOLS
-from mkg.llm import get_llm_or_raise
-
 
 CITATION_PROMPT = """分析论文「{target_name}」的引用关系。
 
@@ -27,7 +28,7 @@ CITATION_PROMPT = """分析论文「{target_name}」的引用关系。
 请用中文回答，结构清晰。不要重复原始数据，给出分析结论。"""
 
 
-def citation_node(state: AgentState) -> Dict[str, Any]:
+def citation_node(state: AgentState) -> dict[str, Any]:
     """
     Citation Node - 分析论文引用关系
 

@@ -8,10 +8,10 @@
 - ConceptDeduplicator: 主控制器
 """
 
-from .candidate import CandidateGenerator, ConceptPair
 from .analyzer import MergeAnalyzer, MergeSuggestion
-from .executor import MergeExecutor, MergeResult
+from .candidate import CandidateGenerator, ConceptPair
 from .deduplicator import ConceptDeduplicator
+from .executor import MergeExecutor, MergeResult
 
 __all__ = [
     'CandidateGenerator', 'ConceptPair',

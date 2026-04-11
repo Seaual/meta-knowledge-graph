@@ -3,7 +3,7 @@
 FolderRepository - 文件夹相关数据库操作
 """
 
-from typing import Optional, List
+
 from .base import BaseRepository
 
 
@@ -31,7 +31,7 @@ class FolderRepository(BaseRepository):
 
         return folder_id
 
-    def get(self, folder_id: str) -> Optional[dict]:
+    def get(self, folder_id: str) -> dict | None:
         """
         获取文件夹
 
@@ -50,7 +50,7 @@ class FolderRepository(BaseRepository):
             return dict(row)
         return None
 
-    def get_all(self) -> List[dict]:
+    def get_all(self) -> list[dict]:
         """
         获取所有文件夹
 

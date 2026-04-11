@@ -3,7 +3,8 @@
 LangGraph Agent 状态定义
 """
 
-from typing import TypedDict, Annotated, Optional, List, Dict, Any
+from typing import Annotated, Any, TypedDict
+
 from langchain_core.messages import BaseMessage
 from langgraph.graph import add_messages
 
@@ -16,19 +17,19 @@ class AgentState(TypedDict):
     """
 
     # 对话历史（自动累加）
-    messages: Annotated[List[BaseMessage], add_messages]
+    messages: Annotated[list[BaseMessage], add_messages]
 
     # 上下文（当前关注的目标）
-    current_target: Optional[Dict[str, Any]]  # {type: "paper"|"concept", id: str, name: str}
-    uploaded_papers: List[Dict[str, str]]     # [{doi: str, title: str}]
+    current_target: dict[str, Any] | None  # {type: "paper"|"concept", id: str, name: str}
+    uploaded_papers: list[dict[str, str]]     # [{doi: str, title: str}]
 
     # 路由决策
     intent: str      # lead | citation | research | deep_research | paper_qa | move_paper
-    target_name: Optional[str]
+    target_name: str | None
 
     # 输出
     response: str
     agent_used: str
     needs_summary: bool  # 是否需要 Lead Agent 汇总
-    concept_data: Optional[Dict[str, Any]]  # deprecated，向后兼容
-    attachments: Optional[List[Dict[str, Any]]]  # 新增：[{type: str, data: dict}]
+    concept_data: dict[str, Any] | None  # deprecated，向后兼容
+    attachments: list[dict[str, Any]] | None  # 新增：[{type: str, data: dict}]

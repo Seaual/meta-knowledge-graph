@@ -3,9 +3,9 @@
 去重路由 - 概念去重相关端点
 """
 
+
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import List, Optional
 
 from ..dependencies import get_dedup_service
 from ..services.dedup_service import DedupService
@@ -15,13 +15,13 @@ router = APIRouter(prefix="/api/concepts", tags=["dedup"])
 
 class DedupScanRequest(BaseModel):
     """去重扫描请求"""
-    folder_id: Optional[str] = None
+    folder_id: str | None = None
 
 
 class DedupExecuteRequest(BaseModel):
     """去重执行请求"""
     scan_id: str
-    merge_ids: List[str]
+    merge_ids: list[str]
 
 
 @router.post("/dedup/scan")

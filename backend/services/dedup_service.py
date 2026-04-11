@@ -4,7 +4,7 @@
 """
 
 import uuid
-from typing import Dict, List, Optional
+
 from mkg.database import Database
 
 
@@ -14,7 +14,7 @@ class DedupService:
     def __init__(self, db: Database):
         self.db = db
 
-    def start_scan(self, folder_id: str = None) -> Dict:
+    def start_scan(self, folder_id: str = None) -> dict:
         """开始去重扫描"""
         scan_id = str(uuid.uuid4())
 
@@ -32,7 +32,7 @@ class DedupService:
 
         return {"scan_id": scan_id, "total_concepts": len(concepts)}
 
-    def get_scan_status(self, scan_id: str) -> Optional[Dict]:
+    def get_scan_status(self, scan_id: str) -> dict | None:
         """获取扫描状态"""
         cursor = self.db.execute_read(
             "SELECT * FROM dedup_scans WHERE id = ?",
@@ -59,7 +59,7 @@ class DedupService:
                 tuple(values)
             )
 
-    def execute_merge(self, scan_id: str, merge_ids: List[str]) -> Dict:
+    def execute_merge(self, scan_id: str, merge_ids: list[str]) -> dict:
         """执行概念合并"""
         scan = self.get_scan_status(scan_id)
         if not scan:
