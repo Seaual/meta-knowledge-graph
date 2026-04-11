@@ -78,68 +78,77 @@ class Database:
     # ========== Repository 属性访问器 ==========
 
     @property
-    def papers(self) -> 'PaperRepository':
+    def papers(self) -> "PaperRepository":
         """获取 Paper Repository"""
         if self._papers is None:
             from .repositories import PaperRepository
+
             self._papers = PaperRepository(self)
         return self._papers
 
     @property
-    def concepts(self) -> 'ConceptRepository':
+    def concepts(self) -> "ConceptRepository":
         """获取 Concept Repository"""
         if self._concepts is None:
             from .repositories import ConceptRepository
+
             self._concepts = ConceptRepository(self)
         return self._concepts
 
     @property
-    def folders(self) -> 'FolderRepository':
+    def folders(self) -> "FolderRepository":
         """获取 Folder Repository"""
         if self._folders is None:
             from .repositories import FolderRepository
+
             self._folders = FolderRepository(self)
         return self._folders
 
     @property
-    def config(self) -> 'ConfigRepository':
+    def config(self) -> "ConfigRepository":
         """获取 Config Repository"""
         if self._config is None:
             from .repositories import ConfigRepository
+
             self._config = ConfigRepository(self)
         return self._config
 
     @property
-    def conversations(self) -> 'ConversationRepository':
+    def conversations(self) -> "ConversationRepository":
         """获取 Conversation Repository"""
         if self._conversations is None:
             from .repositories import ConversationRepository
+
             self._conversations = ConversationRepository(self)
         return self._conversations
 
     @property
-    def research(self) -> 'ResearchRepository':
+    def research(self) -> "ResearchRepository":
         """获取 Research Repository"""
         if self._research is None:
             from .repositories import ResearchRepository
+
             self._research = ResearchRepository(self)
         return self._research
 
     @property
-    def citations(self) -> 'CitationRepository':
+    def citations(self) -> "CitationRepository":
         """获取 Citation Repository"""
         if self._citations is None:
             from .repositories import CitationRepository
+
             self._citations = CitationRepository(self)
         return self._citations
 
     @property
-    def neo4j_store(self) -> 'Neo4jStore | None':
+    def neo4j_store(self) -> "Neo4jStore | None":
         """获取 Neo4j 存储（延迟初始化，如果启用）"""
         if self._neo4j_store is None:
             import os
+
             if os.getenv("USE_NEO4J", "").lower() in ("true", "1", "yes"):
                 from .neo4j_store import Neo4jStore
+
                 self._neo4j_store = Neo4jStore()
         return self._neo4j_store
 
@@ -681,13 +690,13 @@ class Database:
         cursor = self.conn.cursor()
 
         # 检查是否已存在（通过 DOI）
-        cursor.execute("SELECT doi FROM papers WHERE doi = ?",
-                      (paper_data.get('doi'),))
+        cursor.execute("SELECT doi FROM papers WHERE doi = ?", (paper_data.get("doi"),))
         existing = cursor.fetchone()
 
         if existing:
             # 更新
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE papers SET
                     title = ?, abstract = ?, authors = ?,
                     keywords = ?, contributions = ?,
@@ -698,60 +707,65 @@ class Database:
                     tldr = ?, s2_fields_of_study = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE doi = ?
-            """, (
-                paper_data.get('title'),
-                paper_data.get('abstract'),
-                json.dumps(paper_data.get('authors', [])),
-                json.dumps(paper_data.get('keywords', [])),
-                json.dumps(paper_data.get('contributions', [])),
-                paper_data.get('pdf_path'),
-                paper_data.get('published'),
-                paper_data.get('s2_paper_id'),
-                paper_data.get('venue'),
-                paper_data.get('year'),
-                paper_data.get('citation_count'),
-                paper_data.get('reference_count'),
-                paper_data.get('influential_citation_count'),
-                paper_data.get('open_access_pdf'),
-                paper_data.get('s2_doi'),
-                paper_data.get('s2_arxiv_id'),
-                paper_data.get('s2_external_ids'),
-                paper_data.get('tldr'),
-                paper_data.get('s2_fields_of_study'),
-                paper_data.get('doi')
-            ))
-            doi = existing['doi']
+            """,
+                (
+                    paper_data.get("title"),
+                    paper_data.get("abstract"),
+                    json.dumps(paper_data.get("authors", [])),
+                    json.dumps(paper_data.get("keywords", [])),
+                    json.dumps(paper_data.get("contributions", [])),
+                    paper_data.get("pdf_path"),
+                    paper_data.get("published"),
+                    paper_data.get("s2_paper_id"),
+                    paper_data.get("venue"),
+                    paper_data.get("year"),
+                    paper_data.get("citation_count"),
+                    paper_data.get("reference_count"),
+                    paper_data.get("influential_citation_count"),
+                    paper_data.get("open_access_pdf"),
+                    paper_data.get("s2_doi"),
+                    paper_data.get("s2_arxiv_id"),
+                    paper_data.get("s2_external_ids"),
+                    paper_data.get("tldr"),
+                    paper_data.get("s2_fields_of_study"),
+                    paper_data.get("doi"),
+                ),
+            )
+            doi = existing["doi"]
         else:
             # 插入
-            doi = paper_data.get('doi', paper_data.get('arxiv_id'))
-            cursor.execute("""
+            doi = paper_data.get("doi", paper_data.get("arxiv_id"))
+            cursor.execute(
+                """
                 INSERT INTO papers (doi, arxiv_id, title, abstract, authors, keywords, contributions, pdf_path, published_date, status,
                     s2_paper_id, venue, year, citation_count, reference_count, influential_citation_count, open_access_pdf,
                     s2_doi, s2_arxiv_id, s2_external_ids, tldr, s2_fields_of_study)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                doi,
-                paper_data.get('arxiv_id'),
-                paper_data.get('title'),
-                paper_data.get('abstract'),
-                json.dumps(paper_data.get('authors', [])),
-                json.dumps(paper_data.get('keywords', [])),
-                json.dumps(paper_data.get('contributions', [])),
-                paper_data.get('pdf_path'),
-                paper_data.get('published'),
-                paper_data.get('s2_paper_id'),
-                paper_data.get('venue'),
-                paper_data.get('year'),
-                paper_data.get('citation_count'),
-                paper_data.get('reference_count'),
-                paper_data.get('influential_citation_count'),
-                paper_data.get('open_access_pdf'),
-                paper_data.get('s2_doi'),
-                paper_data.get('s2_arxiv_id'),
-                paper_data.get('s2_external_ids'),
-                paper_data.get('tldr'),
-                paper_data.get('s2_fields_of_study'),
-            ))
+            """,
+                (
+                    doi,
+                    paper_data.get("arxiv_id"),
+                    paper_data.get("title"),
+                    paper_data.get("abstract"),
+                    json.dumps(paper_data.get("authors", [])),
+                    json.dumps(paper_data.get("keywords", [])),
+                    json.dumps(paper_data.get("contributions", [])),
+                    paper_data.get("pdf_path"),
+                    paper_data.get("published"),
+                    paper_data.get("s2_paper_id"),
+                    paper_data.get("venue"),
+                    paper_data.get("year"),
+                    paper_data.get("citation_count"),
+                    paper_data.get("reference_count"),
+                    paper_data.get("influential_citation_count"),
+                    paper_data.get("open_access_pdf"),
+                    paper_data.get("s2_doi"),
+                    paper_data.get("s2_arxiv_id"),
+                    paper_data.get("s2_external_ids"),
+                    paper_data.get("tldr"),
+                    paper_data.get("s2_fields_of_study"),
+                ),
+            )
 
         self.conn.commit()
         return doi
@@ -759,51 +773,60 @@ class Database:
     def update_paper_status(self, doi: str, status: str, error_message: str = None):
         """更新论文处理状态"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE papers SET status = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
             WHERE doi = ?
-        """, (status, error_message, doi))
+        """,
+            (status, error_message, doi),
+        )
         self.conn.commit()
 
     def add_pdf_path(self, doi: str, pdf_path: str):
         """更新 PDF 路径"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE papers SET pdf_path = ?, status = 'downloaded', updated_at = CURRENT_TIMESTAMP
             WHERE doi = ?
-        """, (pdf_path, doi))
+        """,
+            (pdf_path, doi),
+        )
         self.conn.commit()
 
     def get_paper(self, identifier: str) -> dict | None:
         """获取论文（支持 DOI、arXiv ID 或 S2 Paper ID）"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM papers WHERE doi = ? OR arxiv_id = ? OR s2_paper_id = ?
-        """, (identifier, identifier, identifier))
+        """,
+            (identifier, identifier, identifier),
+        )
         row = cursor.fetchone()
         if row:
             paper = dict(row)
             # Deserialize JSON fields
-            if paper.get('authors') and isinstance(paper['authors'], str):
+            if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
-                    paper['authors'] = json.loads(paper['authors'])
+                    paper["authors"] = json.loads(paper["authors"])
                 except:
-                    paper['authors'] = []
-            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
-                    paper['keywords'] = json.loads(paper['keywords'])
+                    paper["keywords"] = json.loads(paper["keywords"])
                 except:
-                    paper['keywords'] = []
-            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
-                    paper['contributions'] = json.loads(paper['contributions'])
+                    paper["contributions"] = json.loads(paper["contributions"])
                 except:
-                    paper['contributions'] = []
-            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                    paper["contributions"] = []
+            if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
-                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                    paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
                 except:
-                    paper['s2_fields_of_study'] = []
+                    paper["s2_fields_of_study"] = []
             return paper
         return None
 
@@ -815,26 +838,26 @@ class Database:
         if row:
             paper = dict(row)
             # Deserialize JSON fields
-            if paper.get('authors') and isinstance(paper['authors'], str):
+            if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
-                    paper['authors'] = json.loads(paper['authors'])
+                    paper["authors"] = json.loads(paper["authors"])
                 except:
-                    paper['authors'] = []
-            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
-                    paper['keywords'] = json.loads(paper['keywords'])
+                    paper["keywords"] = json.loads(paper["keywords"])
                 except:
-                    paper['keywords'] = []
-            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
-                    paper['contributions'] = json.loads(paper['contributions'])
+                    paper["contributions"] = json.loads(paper["contributions"])
                 except:
-                    paper['contributions'] = []
-            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                    paper["contributions"] = []
+            if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
-                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                    paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
                 except:
-                    paper['s2_fields_of_study'] = []
+                    paper["s2_fields_of_study"] = []
             return paper
         return None
 
@@ -845,26 +868,26 @@ class Database:
         papers = [dict(row) for row in cursor.fetchall()]
         # Deserialize JSON fields
         for paper in papers:
-            if paper.get('authors') and isinstance(paper['authors'], str):
+            if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
-                    paper['authors'] = json.loads(paper['authors'])
+                    paper["authors"] = json.loads(paper["authors"])
                 except:
-                    paper['authors'] = []
-            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
-                    paper['keywords'] = json.loads(paper['keywords'])
+                    paper["keywords"] = json.loads(paper["keywords"])
                 except:
-                    paper['keywords'] = []
-            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
-                    paper['contributions'] = json.loads(paper['contributions'])
+                    paper["contributions"] = json.loads(paper["contributions"])
                 except:
-                    paper['contributions'] = []
-            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                    paper["contributions"] = []
+            if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
-                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                    paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
                 except:
-                    paper['s2_fields_of_study'] = []
+                    paper["s2_fields_of_study"] = []
         return papers
 
     def get_all_papers(self) -> list:
@@ -874,32 +897,33 @@ class Database:
         papers = [dict(row) for row in cursor.fetchall()]
         # Deserialize JSON fields
         for paper in papers:
-            if paper.get('authors') and isinstance(paper['authors'], str):
+            if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
-                    paper['authors'] = json.loads(paper['authors'])
+                    paper["authors"] = json.loads(paper["authors"])
                 except:
-                    paper['authors'] = []
-            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
-                    paper['keywords'] = json.loads(paper['keywords'])
+                    paper["keywords"] = json.loads(paper["keywords"])
                 except:
-                    paper['keywords'] = []
-            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
-                    paper['contributions'] = json.loads(paper['contributions'])
+                    paper["contributions"] = json.loads(paper["contributions"])
                 except:
-                    paper['contributions'] = []
-            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                    paper["contributions"] = []
+            if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
-                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                    paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
                 except:
-                    paper['s2_fields_of_study'] = []
+                    paper["s2_fields_of_study"] = []
         return papers
 
     def update_paper_metadata(self, doi: str, metadata: dict):
         """更新论文元数据（作者、摘要、关键词、创新点、S2元数据等）"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE papers SET
                 title = COALESCE(?, title),
                 abstract = COALESCE(?, abstract),
@@ -919,25 +943,27 @@ class Database:
                 s2_matched_at = COALESCE(?, s2_matched_at),
                 updated_at = CURRENT_TIMESTAMP
             WHERE doi = ?
-        """, (
-            metadata.get('title'),
-            metadata.get('abstract'),
-            json.dumps(metadata['authors']) if metadata.get('authors') else None,
-            json.dumps(metadata['keywords']) if metadata.get('keywords') else None,
-            json.dumps(metadata['contributions']) if metadata.get('contributions') else None,
-            metadata.get('s2_paper_id'),
-            metadata.get('s2_doi'),
-            metadata.get('citation_count'),
-            metadata.get('reference_count'),
-            metadata.get('influential_citation_count'),
-            metadata.get('venue'),
-            metadata.get('year'),
-            metadata.get('tldr'),
-            metadata.get('s2_fields_of_study'),
-            metadata.get('open_access_pdf_url'),
-            metadata.get('s2_matched_at'),
-            doi
-        ))
+        """,
+            (
+                metadata.get("title"),
+                metadata.get("abstract"),
+                json.dumps(metadata["authors"]) if metadata.get("authors") else None,
+                json.dumps(metadata["keywords"]) if metadata.get("keywords") else None,
+                json.dumps(metadata["contributions"]) if metadata.get("contributions") else None,
+                metadata.get("s2_paper_id"),
+                metadata.get("s2_doi"),
+                metadata.get("citation_count"),
+                metadata.get("reference_count"),
+                metadata.get("influential_citation_count"),
+                metadata.get("venue"),
+                metadata.get("year"),
+                metadata.get("tldr"),
+                metadata.get("s2_fields_of_study"),
+                metadata.get("open_access_pdf_url"),
+                metadata.get("s2_matched_at"),
+                doi,
+            ),
+        )
         self.conn.commit()
 
     # ========== 概念操作方法 ==========
@@ -945,7 +971,7 @@ class Database:
     def add_concept(self, concept_data: dict) -> str:
         """添加概念（如果不存在）"""
         cursor = self.conn.cursor()
-        concept_id = concept_data['id']
+        concept_id = concept_data["id"]
 
         # 检查概念是否已存在
         cursor.execute("SELECT id FROM concepts WHERE id = ?", (concept_id,))
@@ -953,59 +979,82 @@ class Database:
 
         if existing:
             # 更新 text_en/text_zh 如果提供了且当前为空
-            if concept_data.get('text_en'):
-                cursor.execute("""
+            if concept_data.get("text_en"):
+                cursor.execute(
+                    """
                     UPDATE concepts SET text_en = ?
                     WHERE id = ? AND (text_en IS NULL OR text_en = '')
-                """, (concept_data['text_en'], concept_id))
-            if concept_data.get('text_zh'):
-                cursor.execute("""
+                """,
+                    (concept_data["text_en"], concept_id),
+                )
+            if concept_data.get("text_zh"):
+                cursor.execute(
+                    """
                     UPDATE concepts SET text_zh = ?
                     WHERE id = ? AND (text_zh IS NULL OR text_zh = '')
-                """, (concept_data['text_zh'], concept_id))
+                """,
+                    (concept_data["text_zh"], concept_id),
+                )
         else:
             # 插入新概念
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO concepts (id, text, text_en, text_zh, category, paper_count, updated_at)
                 VALUES (?, ?, ?, ?, ?, 0, CURRENT_TIMESTAMP)
-            """, (
-                concept_id,
-                concept_data['text'],
-                concept_data.get('text_en'),
-                concept_data.get('text_zh'),
-                concept_data.get('category'),
-            ))
+            """,
+                (
+                    concept_id,
+                    concept_data["text"],
+                    concept_data.get("text_en"),
+                    concept_data.get("text_zh"),
+                    concept_data.get("category"),
+                ),
+            )
 
         self.conn.commit()
         return concept_id
 
-    def add_paper_concept(self, paper_doi: str, concept_id: str,
-                          confidence: float = 1.0, source: str = 'llm',
-                          is_anchor: bool = False, contribution_role: str = None):
+    def add_paper_concept(
+        self,
+        paper_doi: str,
+        concept_id: str,
+        confidence: float = 1.0,
+        source: str = "llm",
+        is_anchor: bool = False,
+        contribution_role: str = None,
+    ):
         """添加论文 - 概念关联（支持多归属）"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source, is_anchor, contribution_role)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (paper_doi, concept_id, confidence, source, 1 if is_anchor else 0, contribution_role))
+        """,
+            (paper_doi, concept_id, confidence, source, 1 if is_anchor else 0, contribution_role),
+        )
 
         # 更新 paper_count（基于实际关联数量）
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE concepts SET paper_count = (
                 SELECT COUNT(DISTINCT paper_doi) FROM paper_concepts WHERE concept_id = ?
             ) WHERE id = ?
-        """, (concept_id, concept_id))
+        """,
+            (concept_id, concept_id),
+        )
 
         self.conn.commit()
 
-    def add_concept_relation(self, parent_id: str, child_id: str,
-                             relation_type: str = 'is_subconcept_of'):
+    def add_concept_relation(self, parent_id: str, child_id: str, relation_type: str = "is_subconcept_of"):
         """添加概念层级关系（父子关系）"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO concept_relations (parent_id, child_id, relation_type, created_at)
             VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-        """, (parent_id, child_id, relation_type))
+        """,
+            (parent_id, child_id, relation_type),
+        )
         self.conn.commit()
 
     def get_concept(self, concept_id: str) -> dict | None:
@@ -1050,9 +1099,12 @@ class Database:
             category: 概念类别 (field/direction/subdirection/task/method/technique)
         """
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM concepts WHERE category = ? ORDER BY paper_count DESC
-        """, (category,))
+        """,
+            (category,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concepts_by_category_and_folder(self, category: str, folder_id: str) -> list:
@@ -1063,35 +1115,44 @@ class Database:
             folder_id: 文件夹 ID
         """
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT c.id, c.text, c.category, c.paper_count, c.depth_cache
             FROM concepts c
             JOIN paper_concepts pc ON c.id = pc.concept_id
             JOIN papers p ON pc.paper_doi = p.doi
             WHERE c.category = ? AND p.folder_id = ?
             ORDER BY c.paper_count DESC
-        """, (category, folder_id))
+        """,
+            (category, folder_id),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concept_children(self, concept_id: str) -> list:
         """获取概念的子节点"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT c.* FROM concepts c
             JOIN concept_relations cr ON c.id = cr.child_id
             WHERE cr.parent_id = ?
             ORDER BY c.paper_count DESC
-        """, (concept_id,))
+        """,
+            (concept_id,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concept_parents(self, concept_id: str) -> list:
         """获取概念的父节点"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT c.* FROM concepts c
             JOIN concept_relations cr ON c.id = cr.parent_id
             WHERE cr.child_id = ?
-        """, (concept_id,))
+        """,
+            (concept_id,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concept_tree(self, root_id: str = None) -> dict:
@@ -1102,7 +1163,7 @@ class Database:
         if root_id is None:
             roots = self.get_root_concepts()
             if roots:
-                root_id = roots[0]['id']
+                root_id = roots[0]["id"]
             else:
                 return {}
 
@@ -1112,39 +1173,47 @@ class Database:
 
         # 递归获取子节点
         children = self.get_concept_children(root_id)
-        concept['children'] = [self.get_concept_tree(child['id']) for child in children]
+        concept["children"] = [self.get_concept_tree(child["id"]) for child in children]
 
         # 获取关联论文
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.doi, p.title FROM papers p
             JOIN paper_concepts pk ON p.doi = pk.paper_doi
             WHERE pk.concept_id = ?
-        """, (root_id,))
-        concept['papers'] = [{'doi': row['doi'], 'title': row['title']}
-                            for row in cursor.fetchall()]
+        """,
+            (root_id,),
+        )
+        concept["papers"] = [{"doi": row["doi"], "title": row["title"]} for row in cursor.fetchall()]
 
         return concept
 
     def get_papers_by_concept(self, concept_id: str) -> list:
         """获取概念关联的论文"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.* FROM papers p
             JOIN paper_concepts pk ON p.doi = pk.paper_doi
             WHERE pk.concept_id = ?
             ORDER BY p.published_date DESC
-        """, (concept_id,))
+        """,
+            (concept_id,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concepts_by_paper(self, paper_doi: str) -> list:
         """获取论文关联的所有概念"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT c.* FROM concepts c
             JOIN paper_concepts pk ON c.id = pk.concept_id
             WHERE pk.paper_doi = ?
             ORDER BY pk.confidence DESC
-        """, (paper_doi,))
+        """,
+            (paper_doi,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     # ========== 概念提取结果存储 ==========
@@ -1152,22 +1221,28 @@ class Database:
     def save_concept_extraction(self, paper_doi: str, hierarchy: dict, raw_response: str):
         """保存 LLM 提取的概念层级结构"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO concept_extractions (paper_doi, concept_hierarchy, raw_llm_response)
             VALUES (?, ?, ?)
-        """, (paper_doi, json.dumps(hierarchy), raw_response))
+        """,
+            (paper_doi, json.dumps(hierarchy), raw_response),
+        )
         self.conn.commit()
 
     def get_concept_extraction(self, paper_doi: str) -> dict | None:
         """获取已保存的概念提取结果"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT * FROM concept_extractions WHERE paper_doi = ?
-        """, (paper_doi,))
+        """,
+            (paper_doi,),
+        )
         row = cursor.fetchone()
         if row:
             result = dict(row)
-            result['concept_hierarchy'] = json.loads(result['concept_hierarchy'])
+            result["concept_hierarchy"] = json.loads(result["concept_hierarchy"])
             return result
         return None
 
@@ -1176,10 +1251,13 @@ class Database:
     def log_processing(self, paper_doi: str, action: str, status: str, message: str = None):
         """记录处理日志"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO processing_log (paper_doi, action, status, message)
             VALUES (?, ?, ?, ?)
-        """, (paper_doi, action, status, message))
+        """,
+            (paper_doi, action, status, message),
+        )
         self.conn.commit()
 
     def get_stats(self) -> dict:
@@ -1190,21 +1268,21 @@ class Database:
 
         # 论文统计
         cursor.execute("SELECT status, COUNT(*) as count FROM papers GROUP BY status")
-        stats['papers'] = {row['status']: row['count'] for row in cursor.fetchall()}
+        stats["papers"] = {row["status"]: row["count"] for row in cursor.fetchall()}
         cursor.execute("SELECT COUNT(*) as count FROM papers")
-        stats['papers']['total'] = cursor.fetchone()['count']
+        stats["papers"]["total"] = cursor.fetchone()["count"]
 
         # 概念统计
         cursor.execute("SELECT COUNT(*) as count FROM concepts")
-        stats['concepts'] = {'total': cursor.fetchone()['count']}
+        stats["concepts"] = {"total": cursor.fetchone()["count"]}
 
         # 关系统计
         cursor.execute("SELECT COUNT(*) as count FROM concept_relations")
-        stats['relations'] = cursor.fetchone()['count']
+        stats["relations"] = cursor.fetchone()["count"]
 
         # 根概念数量
         roots = self.get_root_concepts()
-        stats['root_concepts'] = len(roots)
+        stats["root_concepts"] = len(roots)
 
         return stats
 
@@ -1231,39 +1309,42 @@ class Database:
                     ...
                 }
         """
+
         # 递归插入概念树
         def insert_concept(node: dict, parent_id: str = None) -> str:
             # 解析概念名称（支持双语格式）
-            concept_data = node.get('concept', '')
+            concept_data = node.get("concept", "")
             if isinstance(concept_data, dict):
                 # 新格式: {"en": "...", "zh": "..."}
-                concept_text = concept_data.get('zh', concept_data.get('en', ''))
-                concept_en = concept_data.get('en')
-                concept_zh = concept_data.get('zh')
+                concept_text = concept_data.get("zh", concept_data.get("en", ""))
+                concept_en = concept_data.get("en")
+                concept_zh = concept_data.get("zh")
             else:
                 # 旧格式
                 concept_text = concept_data
-                concept_en = node.get('concept_en')
-                concept_zh = node.get('concept_zh')
+                concept_en = node.get("concept_en")
+                concept_zh = node.get("concept_zh")
 
             # 生成 ID（优先使用英文）
-            concept_id = node.get('id', self._to_slug(concept_en or concept_text))
+            concept_id = node.get("id", self._to_slug(concept_en or concept_text))
 
             # 创建或获取概念
             concept_data = {
-                'id': concept_id,
-                'text': concept_text,
-                'text_en': concept_en,
-                'text_zh': concept_zh,
-                'category': node.get('category', 'method')
+                "id": concept_id,
+                "text": concept_text,
+                "text_en": concept_en,
+                "text_zh": concept_zh,
+                "category": node.get("category", "method"),
             }
             self.add_concept(concept_data)
 
             # 关联论文（包含 is_anchor 和 contribution_role）
             self.add_paper_concept(
-                paper_doi, concept_id, node.get('confidence', 1.0),
-                is_anchor=node.get('is_anchor', False),
-                contribution_role=node.get('contribution_role')
+                paper_doi,
+                concept_id,
+                node.get("confidence", 1.0),
+                is_anchor=node.get("is_anchor", False),
+                contribution_role=node.get("contribution_role"),
             )
 
             # 建立父子关系
@@ -1271,7 +1352,7 @@ class Database:
                 self.add_concept_relation(parent_id, concept_id)
 
             # 递归处理子节点
-            for child in node.get('children', []):
+            for child in node.get("children", []):
                 insert_concept(child, concept_id)
 
             return concept_id
@@ -1280,7 +1361,7 @@ class Database:
         insert_concept(concept_tree)
 
         # 更新论文状态
-        self.update_paper_status(paper_doi, 'processed')
+        self.update_paper_status(paper_doi, "processed")
 
     def _to_slug(self, text: str) -> str:
         """将文本转换为 slug ID（支持中文）"""
@@ -1290,11 +1371,12 @@ class Database:
         # 尝试转换为拼音（如果安装了 pypinyin）
         try:
             from pypinyin import lazy_pinyin
-            slug = '-'.join(lazy_pinyin(text))
+
+            slug = "-".join(lazy_pinyin(text))
             slug = slug.lower()
-            slug = re.sub(r'[^a-z0-9-]', '', slug)
-            slug = re.sub(r'-+', '-', slug)
-            slug = slug.strip('-')
+            slug = re.sub(r"[^a-z0-9-]", "", slug)
+            slug = re.sub(r"-+", "-", slug)
+            slug = slug.strip("-")
             if slug:
                 return slug[:100]
         except ImportError:
@@ -1303,9 +1385,9 @@ class Database:
         # 回退：使用文本的 hash 作为 ID
         # 对于英文，尝试正常转换
         slug = text.lower()
-        slug = re.sub(r'[\s_]+', '-', slug)
-        slug = re.sub(r'[^a-z0-9-]', '', slug)
-        slug = slug.strip('-')
+        slug = re.sub(r"[\s_]+", "-", slug)
+        slug = re.sub(r"[^a-z0-9-]", "", slug)
+        slug = slug.strip("-")
 
         if slug:
             return slug[:100]
@@ -1319,22 +1401,31 @@ class Database:
         """迁移论文关联：将 source 的论文关联迁移到 target"""
         cursor = self.conn.cursor()
         # 将 source 的论文关联迁移到 target（避免重复）
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence, source)
             SELECT paper_doi, ?, confidence, source
             FROM paper_concepts WHERE concept_id = ?
-        """, (target_id, source_id))
+        """,
+            (target_id, source_id),
+        )
         # 删除 source 的论文关联
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM paper_concepts WHERE concept_id = ?
-        """, (source_id,))
+        """,
+            (source_id,),
+        )
 
         # 更新 target 的 paper_count
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE concepts SET paper_count = (
                 SELECT COUNT(DISTINCT paper_doi) FROM paper_concepts WHERE concept_id = ?
             ) WHERE id = ?
-        """, (target_id, target_id))
+        """,
+            (target_id, target_id),
+        )
 
         self.conn.commit()
 
@@ -1348,23 +1439,32 @@ class Database:
         cursor = self.conn.cursor()
 
         # 删除现有的父子关系
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
-        """, (concept_id, concept_id))
+        """,
+            (concept_id, concept_id),
+        )
 
         # 添加新的父关系
         for parent_id in relations.get("parents", []):
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
                 VALUES (?, ?)
-            """, (parent_id, concept_id))
+            """,
+                (parent_id, concept_id),
+            )
 
         # 添加新的子关系
         for child_id in relations.get("children", []):
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO concept_relations (parent_id, child_id)
                 VALUES (?, ?)
-            """, (concept_id, child_id))
+            """,
+                (concept_id, child_id),
+            )
 
         self.conn.commit()
 
@@ -1376,9 +1476,12 @@ class Database:
         cursor.execute("DELETE FROM paper_concepts WHERE concept_id = ?", (concept_id,))
 
         # 删除层级关系
-        cursor.execute("""
+        cursor.execute(
+            """
             DELETE FROM concept_relations WHERE parent_id = ? OR child_id = ?
-        """, (concept_id, concept_id))
+        """,
+            (concept_id, concept_id),
+        )
 
         # 删除概念本身
         cursor.execute("DELETE FROM concepts WHERE id = ?", (concept_id,))
@@ -1401,25 +1504,32 @@ class Database:
             LEFT JOIN concept_relations cr ON c.id = cr.child_id
             WHERE cr.parent_id IS NULL
         """)
-        roots = [row['id'] for row in cursor.fetchall()]
+        roots = [row["id"] for row in cursor.fetchall()]
 
         # BFS 计算深度
         from collections import deque
+
         queue = deque([(root_id, 0) for root_id in roots])
 
         while queue:
             node_id, depth = queue.popleft()
 
             # 更新深度
-            cursor.execute("""
+            cursor.execute(
+                """
                 UPDATE concepts SET depth_cache = ? WHERE id = ?
-            """, (depth, node_id))
+            """,
+                (depth, node_id),
+            )
 
             # 获取子节点
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT child_id FROM concept_relations WHERE parent_id = ?
-            """, (node_id,))
-            children = [row['child_id'] for row in cursor.fetchall()]
+            """,
+                (node_id,),
+            )
+            children = [row["child_id"] for row in cursor.fetchall()]
 
             for child_id in children:
                 queue.append((child_id, depth + 1))
@@ -1431,10 +1541,13 @@ class Database:
     def create_batch_job(self, job_id: str, total: int):
         """创建批量任务"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO batch_jobs (id, total, status)
             VALUES (?, ?, 'pending')
-        """, (job_id, total))
+        """,
+            (job_id, total),
+        )
         self.conn.commit()
 
     def get_batch_job(self, job_id: str) -> dict | None:
@@ -1447,11 +1560,14 @@ class Database:
     def update_batch_job(self, job_id: str, completed: int, successful: int, failed: int, status: str):
         """更新批量任务状态"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             UPDATE batch_jobs
             SET completed = ?, successful = ?, failed = ?, status = ?
             WHERE id = ?
-        """, (completed, successful, failed, status, job_id))
+        """,
+            (completed, successful, failed, status, job_id),
+        )
         self.conn.commit()
 
     # ========== 扫描任务操作方法 ==========
@@ -1459,11 +1575,15 @@ class Database:
     def create_scan_job(self, scan_id: str, total_concepts: int):
         """创建扫描任务"""
         import time
+
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO scan_jobs (id, total_concepts, status, created_at)
             VALUES (?, ?, 'pending', ?)
-        """, (scan_id, total_concepts, time.time()))
+        """,
+            (scan_id, total_concepts, time.time()),
+        )
         self.conn.commit()
 
     def get_scan_job(self, scan_id: str) -> dict | None:
@@ -1475,12 +1595,13 @@ class Database:
             return None
         result = dict(row)
         # Parse suggestions JSON if present
-        if result.get('suggestions') and isinstance(result['suggestions'], str):
+        if result.get("suggestions") and isinstance(result["suggestions"], str):
             try:
                 import json
-                result['suggestions'] = json.loads(result['suggestions'])
+
+                result["suggestions"] = json.loads(result["suggestions"])
             except:
-                result['suggestions'] = None
+                result["suggestions"] = None
         return result
 
     def update_scan_job(self, scan_id: str, **kwargs):
@@ -1491,8 +1612,9 @@ class Database:
         set_parts = []
         values = []
         for key, value in kwargs.items():
-            if key == 'suggestions' and isinstance(value, (list, dict)):
+            if key == "suggestions" and isinstance(value, (list, dict)):
                 import json
+
                 value = json.dumps(value)
             set_parts.append(f"{key} = ?")
             values.append(value)
@@ -1501,38 +1623,45 @@ class Database:
             return
 
         values.append(scan_id)
-        cursor.execute(f"""
-            UPDATE scan_jobs SET {', '.join(set_parts)}
+        cursor.execute(
+            f"""
+            UPDATE scan_jobs SET {", ".join(set_parts)}
             WHERE id = ?
-        """, values)
+        """,
+            values,
+        )
         self.conn.commit()
 
     def cleanup_old_scan_jobs(self, max_age_hours: int = 24):
         """清理过期的扫描任务"""
         import time
+
         cursor = self.conn.cursor()
         cutoff = time.time() - (max_age_hours * 3600)
         cursor.execute(
             "DELETE FROM scan_jobs WHERE completed_at < ? OR (status IN ('completed', 'failed') AND created_at < ?)",
-            (cutoff, cutoff)
+            (cutoff, cutoff),
         )
         self.conn.commit()
 
     def get_concept_count(self, folder_id: str = None) -> int:
         """获取概念总数，可选按文件夹过滤"""
         cursor = self.conn.cursor()
-        if folder_id and folder_id != 'default':
+        if folder_id and folder_id != "default":
             # 获取该文件夹中论文关联的概念数
-            cursor.execute("""
+            cursor.execute(
+                """
                 SELECT COUNT(DISTINCT c.id) as count
                 FROM concepts c
                 JOIN paper_concepts pc ON c.id = pc.concept_id
                 JOIN papers p ON pc.paper_doi = p.doi
                 WHERE p.folder_id = ?
-            """, (folder_id,))
+            """,
+                (folder_id,),
+            )
         else:
             cursor.execute("SELECT COUNT(*) as count FROM concepts")
-        return cursor.fetchone()['count']
+        return cursor.fetchone()["count"]
 
     # ========== LLM Configuration ==========
 
@@ -1545,12 +1674,12 @@ class Database:
             return None
 
         config = dict(row)
-        config_id = config['id']
+        config_id = config["id"]
 
         # Get provider configs
         cursor.execute("SELECT * FROM llm_provider_config WHERE config_id = ?", (config_id,))
         providers = [dict(r) for r in cursor.fetchall()]
-        config['providers'] = providers
+        config["providers"] = providers
 
         return config
 
@@ -1563,27 +1692,27 @@ class Database:
         cursor.execute("DELETE FROM llm_config")
 
         # Insert new config
-        cursor.execute(
-            "INSERT INTO llm_config (mode) VALUES (?)",
-            (mode,)
-        )
+        cursor.execute("INSERT INTO llm_config (mode) VALUES (?)", (mode,))
         config_id = cursor.lastrowid
 
         # Insert provider configs
         for p in providers:
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT INTO llm_provider_config
                 (config_id, function_group, provider, api_key, base_url, model, is_active)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (
-                config_id,
-                p.get('function_group'),
-                p['provider'],
-                p.get('api_key'),
-                p.get('base_url'),
-                p.get('model'),
-                p.get('is_active', True)
-            ))
+            """,
+                (
+                    config_id,
+                    p.get("function_group"),
+                    p["provider"],
+                    p.get("api_key"),
+                    p.get("base_url"),
+                    p.get("model"),
+                    p.get("is_active", True),
+                ),
+            )
 
         self.conn.commit()
         return self.get_llm_config()
@@ -1591,11 +1720,14 @@ class Database:
     def get_llm_provider_for_function(self, function_group: str) -> dict | None:
         """Get provider config for a specific function"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT p.* FROM llm_provider_config p
             JOIN llm_config c ON p.config_id = c.id
             WHERE c.mode = 'per_function' AND p.function_group = ? AND p.is_active = 1
-        """, (function_group,))
+        """,
+            (function_group,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -1629,23 +1761,29 @@ class Database:
     def create_folder(self, folder_data: dict) -> str:
         """创建文件夹"""
         cursor = self.conn.cursor()
-        folder_id = self._to_slug(folder_data['name'])
-        cursor.execute("""
+        folder_id = self._to_slug(folder_data["name"])
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO folders (id, name, description)
             VALUES (?, ?, ?)
-        """, (folder_id, folder_data['name'], folder_data.get('description')))
+        """,
+            (folder_id, folder_data["name"], folder_data.get("description")),
+        )
         self.conn.commit()
         return folder_id
 
     def update_folder(self, folder_id: str, data: dict):
         """更新文件夹"""
         cursor = self.conn.cursor()
-        if 'name' in data:
-            cursor.execute("UPDATE folders SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                          (data['name'], folder_id))
-        if 'description' in data:
-            cursor.execute("UPDATE folders SET description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                          (data['description'], folder_id))
+        if "name" in data:
+            cursor.execute(
+                "UPDATE folders SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (data["name"], folder_id)
+            )
+        if "description" in data:
+            cursor.execute(
+                "UPDATE folders SET description = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (data["description"], folder_id),
+            )
         self.conn.commit()
 
     def delete_folder(self, folder_id: str, delete_contents: bool = True) -> bool:
@@ -1659,7 +1797,7 @@ class Database:
         Returns:
             是否删除成功
         """
-        if folder_id == 'default':
+        if folder_id == "default":
             return False  # 不能删除默认文件夹
 
         cursor = self.conn.cursor()
@@ -1671,7 +1809,7 @@ class Database:
         if delete_contents:
             # 获取该文件夹中的所有论文
             cursor.execute("SELECT doi FROM papers WHERE folder_id = ?", (folder_id,))
-            papers = [row['doi'] for row in cursor.fetchall()]
+            papers = [row["doi"] for row in cursor.fetchall()]
 
             # 删除每篇论文及其关联的概念（会自动清理孤立概念）
             for doi in papers:
@@ -1702,26 +1840,26 @@ class Database:
         cursor.execute("SELECT * FROM papers WHERE folder_id = ? ORDER BY created_at DESC", (folder_id,))
         papers = [dict(row) for row in cursor.fetchall()]
         for paper in papers:
-            if paper.get('authors') and isinstance(paper['authors'], str):
+            if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
-                    paper['authors'] = json.loads(paper['authors'])
+                    paper["authors"] = json.loads(paper["authors"])
                 except:
-                    paper['authors'] = []
-            if paper.get('keywords') and isinstance(paper['keywords'], str):
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
-                    paper['keywords'] = json.loads(paper['keywords'])
+                    paper["keywords"] = json.loads(paper["keywords"])
                 except:
-                    paper['keywords'] = []
-            if paper.get('contributions') and isinstance(paper['contributions'], str):
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
-                    paper['contributions'] = json.loads(paper['contributions'])
+                    paper["contributions"] = json.loads(paper["contributions"])
                 except:
-                    paper['contributions'] = []
-            if paper.get('s2_fields_of_study') and isinstance(paper['s2_fields_of_study'], str):
+                    paper["contributions"] = []
+            if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
-                    paper['s2_fields_of_study'] = json.loads(paper['s2_fields_of_study'])
+                    paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
                 except:
-                    paper['s2_fields_of_study'] = []
+                    paper["s2_fields_of_study"] = []
         return papers
 
     def move_paper_to_folder(self, doi: str, folder_id: str):
@@ -1733,41 +1871,50 @@ class Database:
     def get_concepts_by_folder(self, folder_id: str) -> list:
         """获取指定文件夹中的论文关联的所有概念"""
         cursor = self.conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT c.id, c.text, c.category, c.paper_count, c.depth_cache
             FROM concepts c
             JOIN paper_concepts pc ON c.id = pc.concept_id
             JOIN papers p ON pc.paper_doi = p.doi
             WHERE p.folder_id = ?
-        """, (folder_id,))
+        """,
+            (folder_id,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_concept_relations_by_folder(self, folder_id: str) -> list:
         """获取指定文件夹中的概念关系（确保两端节点都在文件夹中）"""
         cursor = self.conn.cursor()
         # 先获取该文件夹中所有概念的 ID 集合
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT c.id
             FROM concepts c
             JOIN paper_concepts pc ON c.id = pc.concept_id
             JOIN papers p ON pc.paper_doi = p.doi
             WHERE p.folder_id = ?
-        """, (folder_id,))
-        concept_ids = set(row['id'] for row in cursor.fetchall())
+        """,
+            (folder_id,),
+        )
+        concept_ids = set(row["id"] for row in cursor.fetchall())
 
         # 获取所有关系，然后过滤
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT DISTINCT cr.parent_id, cr.child_id
             FROM concept_relations cr
             JOIN paper_concepts pc1 ON cr.parent_id = pc1.concept_id
             JOIN papers p1 ON pc1.paper_doi = p1.doi
             WHERE p1.folder_id = ?
-        """, (folder_id,))
+        """,
+            (folder_id,),
+        )
 
         # 只返回两端节点都在文件夹中的关系
         relations = []
         for row in cursor.fetchall():
-            if row['parent_id'] in concept_ids and row['child_id'] in concept_ids:
+            if row["parent_id"] in concept_ids and row["child_id"] in concept_ids:
                 relations.append(dict(row))
         return relations
 
@@ -1776,21 +1923,27 @@ class Database:
         cursor = self.conn.cursor()
 
         # 获取该论文关联的概念数
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) as count FROM paper_concepts WHERE paper_doi = ?
-        """, (doi,))
-        node_count = cursor.fetchone()['count']
+        """,
+            (doi,),
+        )
+        node_count = cursor.fetchone()["count"]
 
         # 获取根概念（该论文的概念树的根）
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT c.text FROM concepts c
             JOIN paper_concepts pc ON c.id = pc.concept_id
             LEFT JOIN concept_relations cr ON c.id = cr.child_id
             WHERE pc.paper_doi = ? AND cr.parent_id IS NULL
             LIMIT 1
-        """, (doi,))
+        """,
+            (doi,),
+        )
         row = cursor.fetchone()
-        root_concept = row['text'] if row else None
+        root_concept = row["text"] if row else None
 
         return {"node_count": node_count, "root_concept": root_concept}
 
@@ -1808,10 +1961,13 @@ class Database:
         cursor = self.conn.cursor()
 
         # 获取该论文关联的概念
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT concept_id FROM paper_concepts WHERE paper_doi = ?
-        """, (doi,))
-        concepts = [row['concept_id'] for row in cursor.fetchall()]
+        """,
+            (doi,),
+        )
+        concepts = [row["concept_id"] for row in cursor.fetchall()]
 
         # 删除 paper_concepts 关联
         cursor.execute("DELETE FROM paper_concepts WHERE paper_doi = ?", (doi,))
@@ -1836,18 +1992,24 @@ class Database:
         cursor = self.conn.cursor()
 
         # 检查是否有其他论文引用此概念
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT COUNT(*) as count FROM paper_concepts WHERE concept_id = ?
-        """, (concept_id,))
+        """,
+            (concept_id,),
+        )
 
-        if cursor.fetchone()['count'] > 0:
+        if cursor.fetchone()["count"] > 0:
             return  # 还有论文引用，不删除
 
         # 获取子概念
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT child_id FROM concept_relations WHERE parent_id = ?
-        """, (concept_id,))
-        children = [row['child_id'] for row in cursor.fetchall()]
+        """,
+            (concept_id,),
+        )
+        children = [row["child_id"] for row in cursor.fetchall()]
 
         # 删除与父概念的关系以及作为父节点的关系
         cursor.execute("DELETE FROM concept_relations WHERE child_id = ? OR parent_id = ?", (concept_id, concept_id))
@@ -1871,14 +2033,17 @@ class Database:
 
     def save_s2_config(self, api_key: str, enabled: bool = True) -> dict:
         """保存 Semantic Scholar 配置"""
-        cursor = self.execute_write("""
+        cursor = self.execute_write(
+            """
             INSERT INTO s2_config (id, api_key, enabled, updated_at)
             VALUES (1, ?, ?, CURRENT_TIMESTAMP)
             ON CONFLICT(id) DO UPDATE SET
                 api_key = excluded.api_key,
                 enabled = excluded.enabled,
                 updated_at = CURRENT_TIMESTAMP
-        """, (api_key, enabled))
+        """,
+            (api_key, enabled),
+        )
         return self.get_s2_config()
 
     # ==================== Paper Citations ====================
@@ -1896,7 +2061,8 @@ class Database:
                 is_internal
             }
         """
-        self.execute_write("""
+        self.execute_write(
+            """
             INSERT INTO paper_citations (
                 citing_paper_id, cited_paper_id,
                 citing_s2_id, cited_s2_id,
@@ -1911,26 +2077,31 @@ class Database:
                 cited_year = excluded.cited_year,
                 cited_citation_count = excluded.cited_citation_count,
                 is_internal = excluded.is_internal
-        """, (
-            data['citing_paper_id'],
-            data['cited_paper_id'],
-            data.get('citing_s2_id'),
-            data.get('cited_s2_id'),
-            data.get('citing_title'),
-            data.get('citing_year'),
-            data.get('cited_title'),
-            data.get('cited_year'),
-            data.get('cited_citation_count'),
-            data.get('is_internal', False)
-        ))
+        """,
+            (
+                data["citing_paper_id"],
+                data["cited_paper_id"],
+                data.get("citing_s2_id"),
+                data.get("cited_s2_id"),
+                data.get("citing_title"),
+                data.get("citing_year"),
+                data.get("cited_title"),
+                data.get("cited_year"),
+                data.get("cited_citation_count"),
+                data.get("is_internal", False),
+            ),
+        )
 
     def get_paper_citations(self, paper_id: str) -> list[dict]:
         """获取论文引用的所有论文（这篇论文引用了谁）"""
-        cursor = self.execute_read("""
+        cursor = self.execute_read(
+            """
             SELECT * FROM paper_citations
             WHERE citing_paper_id = ?
             ORDER BY cited_citation_count DESC
-        """, (paper_id,))
+        """,
+            (paper_id,),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_paper_cited_by(self, paper_id: str) -> list[dict]:
@@ -1940,21 +2111,27 @@ class Database:
         """
         # 先获取论文的 S2 paper ID
         paper = self.get_paper(paper_id)
-        s2_id = paper.get('s2_paper_id') if paper else None
+        s2_id = paper.get("s2_paper_id") if paper else None
 
         if s2_id:
             # 同时匹配 DOI 和 S2 ID
-            cursor = self.execute_read("""
+            cursor = self.execute_read(
+                """
                 SELECT * FROM paper_citations
                 WHERE cited_paper_id = ? OR cited_s2_id = ?
                 ORDER BY cited_citation_count DESC
-            """, (paper_id, s2_id))
+            """,
+                (paper_id, s2_id),
+            )
         else:
-            cursor = self.execute_read("""
+            cursor = self.execute_read(
+                """
                 SELECT * FROM paper_citations
                 WHERE cited_paper_id = ?
                 ORDER BY cited_citation_count DESC
-            """, (paper_id,))
+            """,
+                (paper_id,),
+            )
         return [dict(row) for row in cursor.fetchall()]
 
     def get_internal_citation_edges(self) -> list[dict]:
@@ -2001,12 +2178,15 @@ class Database:
 
     def get_citation_by_s2_id(self, s2_id: str) -> dict:
         """根据 S2 ID 获取引用信息"""
-        cursor = self.execute_read("""
+        cursor = self.execute_read(
+            """
             SELECT cited_title, cited_year, cited_citation_count
             FROM paper_citations
             WHERE cited_s2_id = ?
             LIMIT 1
-        """, (s2_id,))
+        """,
+            (s2_id,),
+        )
         row = cursor.fetchone()
         return dict(row) if row else None
 
@@ -2028,8 +2208,7 @@ class Database:
         """清除论文引用关系（可选指定论文）"""
         if paper_id:
             self.execute_write(
-                "DELETE FROM paper_citations WHERE citing_paper_id = ? OR cited_paper_id = ?",
-                (paper_id, paper_id)
+                "DELETE FROM paper_citations WHERE citing_paper_id = ? OR cited_paper_id = ?", (paper_id, paper_id)
             )
         else:
             self.execute_write("DELETE FROM paper_citations")
@@ -2038,7 +2217,8 @@ class Database:
 
     def add_s2_recommendation(self, data: dict):
         """添加推荐论文"""
-        self.execute_write("""
+        self.execute_write(
+            """
             INSERT INTO s2_recommendations (
                 source_type, source_id,
                 recommended_s2_id, recommended_title,
@@ -2046,40 +2226,41 @@ class Database:
                 recommended_citation_count, recommended_tldr,
                 recommended_open_access_pdf, score
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            data['source_type'],
-            data['source_id'],
-            data['recommended_s2_id'],
-            data.get('recommended_title'),
-            data.get('recommended_abstract'),
-            data.get('recommended_year'),
-            data.get('recommended_citation_count'),
-            data.get('recommended_tldr'),
-            data.get('recommended_open_access_pdf'),
-            data.get('score')
-        ))
+        """,
+            (
+                data["source_type"],
+                data["source_id"],
+                data["recommended_s2_id"],
+                data.get("recommended_title"),
+                data.get("recommended_abstract"),
+                data.get("recommended_year"),
+                data.get("recommended_citation_count"),
+                data.get("recommended_tldr"),
+                data.get("recommended_open_access_pdf"),
+                data.get("score"),
+            ),
+        )
 
     def get_s2_recommendations(self, source_type: str, source_id: str) -> list[dict]:
         """获取推荐论文"""
-        cursor = self.execute_read("""
+        cursor = self.execute_read(
+            """
             SELECT * FROM s2_recommendations
             WHERE source_type = ? AND source_id = ?
             ORDER BY score DESC, recommended_citation_count DESC
-        """, (source_type, source_id))
+        """,
+            (source_type, source_id),
+        )
         return [dict(row) for row in cursor.fetchall()]
 
     def clear_s2_recommendations(self, source_type: str = None, source_id: str = None):
         """清除推荐论文缓存"""
         if source_type and source_id:
             self.execute_write(
-                "DELETE FROM s2_recommendations WHERE source_type = ? AND source_id = ?",
-                (source_type, source_id)
+                "DELETE FROM s2_recommendations WHERE source_type = ? AND source_id = ?", (source_type, source_id)
             )
         elif source_type:
-            self.execute_write(
-                "DELETE FROM s2_recommendations WHERE source_type = ?",
-                (source_type,)
-            )
+            self.execute_write("DELETE FROM s2_recommendations WHERE source_type = ?", (source_type,))
         else:
             self.execute_write("DELETE FROM s2_recommendations")
 
@@ -2093,7 +2274,8 @@ class Database:
             doi: 论文 DOI
             metadata: S2 元数据字典
         """
-        self.execute_write("""
+        self.execute_write(
+            """
             UPDATE papers SET
                 s2_paper_id = ?,
                 s2_doi = ?,
@@ -2108,83 +2290,91 @@ class Database:
                 s2_matched_at = ?,
                 updated_at = CURRENT_TIMESTAMP
             WHERE doi = ?
-        """, (
-            metadata.get('s2_paper_id'),
-            metadata.get('doi'),
-            metadata.get('citation_count', 0),
-            metadata.get('reference_count', 0),
-            metadata.get('influential_citation_count', 0),
-            metadata.get('venue'),
-            metadata.get('year'),
-            metadata.get('tldr'),
-            metadata.get('s2_fields_of_study'),
-            metadata.get('open_access_pdf_url'),
-            metadata.get('s2_matched_at'),
-            doi
-        ))
+        """,
+            (
+                metadata.get("s2_paper_id"),
+                metadata.get("doi"),
+                metadata.get("citation_count", 0),
+                metadata.get("reference_count", 0),
+                metadata.get("influential_citation_count", 0),
+                metadata.get("venue"),
+                metadata.get("year"),
+                metadata.get("tldr"),
+                metadata.get("s2_fields_of_study"),
+                metadata.get("open_access_pdf_url"),
+                metadata.get("s2_matched_at"),
+                doi,
+            ),
+        )
 
     # ========== Research Session Methods ==========
 
-    def create_research_session(self, session_id: str, target_type: str, target_id: str,
-                                 target_name: str, query: str, dimensions: list[str]) -> None:
+    def create_research_session(
+        self, session_id: str, target_type: str, target_id: str, target_name: str, query: str, dimensions: list[str]
+    ) -> None:
         """创建新的研究会话"""
-        self.execute_write("""
+        self.execute_write(
+            """
             INSERT INTO research_sessions (id, target_type, target_id, target_name, query, dimensions, status, progress)
             VALUES (?, ?, ?, ?, ?, ?, 'running', 0)
-        """, (session_id, target_type, target_id, target_name, query, json.dumps(dimensions)))
+        """,
+            (session_id, target_type, target_id, target_name, query, json.dumps(dimensions)),
+        )
 
     def get_research_session(self, session_id: str) -> dict | None:
         """获取研究会话"""
-        row = self.execute_read(
-            "SELECT * FROM research_sessions WHERE id = ?", (session_id,)
-        ).fetchone()
+        row = self.execute_read("SELECT * FROM research_sessions WHERE id = ?", (session_id,)).fetchone()
         if row:
             return dict(row)
         return None
 
-    def update_research_progress(self, session_id: str, progress: int,
-                                  completed_dimensions: list[str]) -> None:
+    def update_research_progress(self, session_id: str, progress: int, completed_dimensions: list[str]) -> None:
         """更新研究进度"""
-        self.execute_write("""
+        self.execute_write(
+            """
             UPDATE research_sessions
             SET progress = ?, completed_dimensions = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (progress, json.dumps(completed_dimensions), session_id))
+        """,
+            (progress, json.dumps(completed_dimensions), session_id),
+        )
 
-    def save_research_finding(self, session_id: str, dimension: str,
-                              finding_type: str, content: str, sources: list[str],
-                              confidence: float) -> None:
+    def save_research_finding(
+        self, session_id: str, dimension: str, finding_type: str, content: str, sources: list[str], confidence: float
+    ) -> None:
         """保存研究发现"""
-        self.execute_write("""
+        self.execute_write(
+            """
             INSERT INTO research_findings (session_id, dimension, finding_type, content, sources, confidence)
             VALUES (?, ?, ?, ?, ?, ?)
-        """, (session_id, dimension, finding_type, content, json.dumps(sources), confidence))
+        """,
+            (session_id, dimension, finding_type, content, json.dumps(sources), confidence),
+        )
 
     def get_research_findings(self, session_id: str) -> list[dict]:
         """获取会话的所有发现"""
         rows = self.execute_read(
-            "SELECT * FROM research_findings WHERE session_id = ? ORDER BY created_at",
-            (session_id,)
+            "SELECT * FROM research_findings WHERE session_id = ? ORDER BY created_at", (session_id,)
         ).fetchall()
         return [dict(row) for row in rows]
 
     def save_research_report(self, session_id: str, report: str) -> None:
         """保存研究报告"""
-        self.execute_write("""
+        self.execute_write(
+            """
             UPDATE research_sessions
             SET report = ?, status = 'completed', completed_at = CURRENT_TIMESTAMP
             WHERE id = ?
-        """, (report, session_id))
+        """,
+            (report, session_id),
+        )
 
     # ========== Conversation Methods ==========
 
     def create_conversation(self, device_id: str) -> str:
         """创建新对话，返回对话 ID"""
         conv_id = str(uuid.uuid4())
-        self.execute_write(
-            "INSERT INTO conversations (id, device_id) VALUES (?, ?)",
-            (conv_id, device_id)
-        )
+        self.execute_write("INSERT INTO conversations (id, device_id) VALUES (?, ?)", (conv_id, device_id))
         return conv_id
 
     def get_conversations(self, device_id: str, limit: int = 50) -> list[dict]:
@@ -2195,7 +2385,7 @@ class Database:
                WHERE device_id = ?
                ORDER BY updated_at DESC
                LIMIT ?""",
-            (device_id, limit)
+            (device_id, limit),
         )
         rows = cursor.fetchall()
         return [dict(row) for row in rows]
@@ -2203,8 +2393,7 @@ class Database:
     def get_conversation(self, conv_id: str) -> dict | None:
         """获取单个对话信息"""
         cursor = self.execute_read(
-            "SELECT id, device_id, title, created_at, updated_at FROM conversations WHERE id = ?",
-            (conv_id,)
+            "SELECT id, device_id, title, created_at, updated_at FROM conversations WHERE id = ?", (conv_id,)
         )
         row = cursor.fetchone()
         return dict(row) if row else None
@@ -2212,27 +2401,22 @@ class Database:
     def update_conversation_title(self, conv_id: str, title: str):
         """更新对话标题"""
         self.execute_write(
-            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (title, conv_id)
+            "UPDATE conversations SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (title, conv_id)
         )
 
     def update_conversation_timestamp(self, conv_id: str):
         """更新对话的 updated_at 时间"""
-        self.execute_write(
-            "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (conv_id,)
-        )
+        self.execute_write("UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (conv_id,))
 
     def delete_conversation(self, conv_id: str):
         """删除对话（消息会通过 CASCADE 自动删除）"""
-        self.execute_write(
-            "DELETE FROM conversations WHERE id = ?",
-            (conv_id,)
-        )
+        self.execute_write("DELETE FROM conversations WHERE id = ?", (conv_id,))
 
     # ========== Message Methods ==========
 
-    def add_message(self, conv_id: str, role: str, content: str, agent: str | None = None, attachments: list | None = None):
+    def add_message(
+        self, conv_id: str, role: str, content: str, agent: str | None = None, attachments: list | None = None
+    ):
         """添加消息到对话"""
         msg_id = str(uuid.uuid4())
         attachments_json = json.dumps(attachments) if attachments else None
@@ -2240,7 +2424,7 @@ class Database:
             """INSERT INTO conversation_messages
                (id, conversation_id, role, content, agent, attachments)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            (msg_id, conv_id, role, content, agent, attachments_json)
+            (msg_id, conv_id, role, content, agent, attachments_json),
         )
         # 更新对话时间戳
         self.update_conversation_timestamp(conv_id)
@@ -2252,16 +2436,16 @@ class Database:
                FROM conversation_messages
                WHERE conversation_id = ?
                ORDER BY created_at ASC""",
-            (conv_id,)
+            (conv_id,),
         )
         rows = cursor.fetchall()
         messages = []
         for row in rows:
             msg = dict(row)
-            if msg['attachments']:
-                msg['attachments'] = json.loads(msg['attachments'])
+            if msg["attachments"]:
+                msg["attachments"] = json.loads(msg["attachments"])
             else:
-                msg['attachments'] = None
+                msg["attachments"] = None
             messages.append(msg)
         return messages
 
@@ -2274,226 +2458,10 @@ class Database:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    # ========== 向后兼容方法（委托给 Repository）==========
-
-    # Paper 方法
-    def add_paper(self, paper_data: dict) -> str:
-        return self.papers.add(paper_data)
-
-    def get_paper(self, identifier: str):
-        return self.papers.get(identifier)
-
-    def get_all_papers(self) -> list:
-        return self.papers.get_all()
-
-    def get_papers_by_status(self, status: str) -> list:
-        return self.papers.get_by_status(status)
-
-    def get_papers_by_folder(self, folder_id: str) -> list:
-        return self.papers.get_by_folder(folder_id)
-
-    def update_paper_status(self, doi: str, status: str, error_message: str = None):
-        return self.papers.update_status(doi, status, error_message)
-
-    def add_pdf_path(self, doi: str, pdf_path: str):
-        return self.papers.add_pdf_path(doi, pdf_path)
-
-    def move_paper_to_folder(self, doi: str, folder_id: str):
-        return self.papers.move_to_folder(doi, folder_id)
-
-    def get_paper_by_s2_id(self, s2_paper_id: str):
-        return self.papers.get_by_s2_id(s2_paper_id)
-
-    def get_papers_with_s2_id(self) -> list:
-        return self.papers.get_with_s2_id()
-
-    def get_all_papers_basic(self) -> list:
-        return self.papers.get_all_basic()
-
-    def update_paper_metadata(self, doi: str, metadata: dict):
-        return self.papers.update_metadata(doi, metadata)
-
-    def update_paper_s2_metadata(self, doi: str, metadata: dict):
-        return self.papers.update_s2_metadata(doi, metadata)
-
-    # Concept 方法
-    def add_concept(self, concept_data: dict) -> str:
-        return self.concepts.add(concept_data)
-
-    def get_concept(self, concept_id: str):
-        return self.concepts.get(concept_id)
-
-    def get_concept_by_text(self, text: str):
-        return self.concepts.get_by_text(text)
-
-    def get_all_concepts(self) -> list:
-        return self.concepts.get_all()
-
-    def get_root_concepts(self) -> list:
-        return self.concepts.get_root()
-
-    def get_concept_children(self, concept_id: str) -> list:
-        return self.concepts.get_children(concept_id)
-
-    def get_concept_parents(self, concept_id: str) -> list:
-        return self.concepts.get_parents(concept_id)
-
-    def get_concept_tree(self, root_id: str = None) -> dict:
-        return self.concepts.get_tree(root_id)
-
-    def get_papers_by_concept(self, concept_id: str) -> list:
-        return self.concepts.get_papers(concept_id)
-
-    def get_concepts_by_paper(self, paper_doi: str) -> list:
-        return self.papers.get_concepts(paper_doi)
-
-    def add_concept_relation(self, parent_id: str, child_id: str, relation_type: str = "parent-child"):
-        return self.concepts.add_relation(parent_id, child_id, relation_type)
-
-    def update_concept_relations(self, concept_id: str, relations: dict):
-        return self.concepts.update_relations(concept_id, relations)
-
-    def delete_concept(self, concept_id: str):
-        return self.concepts.delete(concept_id)
-
-    def get_concept_count(self, folder_id: str = None) -> int:
-        return self.concepts.get_count(folder_id)
-
-    def get_concepts_by_category(self, category: str) -> list:
-        return self.concepts.get_by_category(category)
-
-    def get_concepts_by_category_and_folder(self, category: str, folder_id: str) -> list:
-        return self.concepts.get_by_category_and_folder(category, folder_id)
-
-    def get_concepts_by_folder(self, folder_id: str) -> list:
-        return self.concepts.get_by_folder(folder_id)
-
-    def get_concept_relations_by_folder(self, folder_id: str) -> list:
-        return self.concepts.get_relations_by_folder(folder_id)
-
-    def save_concept_extraction(self, paper_doi: str, hierarchy: dict, raw_response: str):
-        return self.concepts.save_extraction(paper_doi, hierarchy, raw_response)
-
-    def get_concept_extraction(self, paper_doi: str):
-        return self.concepts.get_extraction(paper_doi)
-
-    def recalculate_depth_cache(self, concept_id: str = None):
-        return self.concepts.recalculate_depth_cache(concept_id)
-
-    # Folder 方法
-    def get_all_folders(self) -> list:
-        return self.folders.get_all()
-
-    def get_folder(self, folder_id: str):
-        return self.folders.get(folder_id)
-
-    def create_folder(self, folder_data: dict) -> str:
-        return self.folders.create(folder_data.get('name'), folder_data.get('description'))
-
-    def update_folder(self, folder_id: str, data: dict):
-        return self.folders.update(folder_id, data.get('name'), data.get('description'))
-
-    def delete_folder(self, folder_id: str, delete_contents: bool = True) -> bool:
-        return self.folders.delete(folder_id)
-
-    def ensure_default_folder(self):
-        return self.folders.ensure_default()
-
-    # LLM Config 方法
-    def get_llm_config(self):
-        return self.config.get_llm_config()
-
-    def save_llm_config(self, mode: str, providers: list) -> dict:
-        return self.config.save_llm_config(mode, providers)
-
-    def get_llm_provider_for_function(self, function_group: str):
-        return self.config.get_llm_provider_for_function(function_group)
-
-    def get_active_llm_provider(self):
-        return self.config.get_active_llm_provider()
-
-    # S2 Config 方法
-    def get_s2_config(self):
-        return self.config.get_s2_config()
-
-    def save_s2_config(self, api_key: str, enabled: bool = True) -> dict:
-        return self.config.save_s2_config(api_key, enabled)
-
-    # Conversation 方法
-    def create_conversation(self, device_id: str) -> str:
-        return self.conversations.create(device_id)
-
-    def get_conversation(self, conv_id: str):
-        return self.conversations.get(conv_id)
-
-    def get_conversations(self, device_id: str, limit: int = 50) -> list:
-        return self.conversations.get_all(device_id, limit)
-
-    def update_conversation_title(self, conv_id: str, title: str):
-        return self.conversations.update_title(conv_id, title)
-
-    def update_conversation_timestamp(self, conv_id: str):
-        return self.conversations.update_timestamp(conv_id)
-
-    def delete_conversation(self, conv_id: str):
-        return self.conversations.delete(conv_id)
-
-    def add_message(self, conv_id: str, role: str, content: str, agent=None, attachments=None):
-        return self.conversations.add_message(conv_id, role, content, agent, attachments)
-
-    def get_messages(self, conv_id: str) -> list:
-        return self.conversations.get_messages(conv_id)
-
-    # Research 方法
-    def create_research_session(self, session_id: str, target_type: str, target_id: str, query: str):
-        return self.research.create_session(session_id, target_type, target_id, query)
-
-    def get_research_session(self, session_id: str):
-        return self.research.get_session(session_id)
-
-    def update_research_progress(self, session_id: str, progress: int, dimensions: list):
-        return self.research.update_progress(session_id, progress, dimensions)
-
-    def save_research_finding(self, session_id: str, dimension: str, finding: str, confidence=None):
-        return self.research.save_finding(session_id, dimension, finding, confidence)
-
-    def get_research_findings(self, session_id: str) -> list:
-        return self.research.get_findings(session_id)
-
-    def save_research_report(self, session_id: str, report: str):
-        return self.research.save_report(session_id, report)
-
-    # S2 Recommendation 方法
-    def add_s2_recommendation(self, data: dict):
-        return self.research.add_s2_recommendation(data.get('source_type'), data.get('source_id'), data)
-
-    def get_s2_recommendations(self, source_type: str, source_id: str) -> list:
-        return self.research.get_s2_recommendations(source_type, source_id)
-
-    def clear_s2_recommendations(self, source_type=None, source_id=None):
-        return self.research.clear_s2_recommendations(source_type, source_id)
-
-    # Citation 方法
-    def add_paper_citation(self, data: dict):
-        return self.citations.add(data.get('paper_doi'), data)
-
-    def get_paper_citations(self, paper_doi: str) -> list:
-        return self.citations.get_paper_citations(paper_doi)
-
-    def get_paper_cited_by(self, paper_doi: str) -> list:
-        return self.citations.get_paper_cited_by(paper_doi)
-
-    def get_internal_citation_edges(self) -> list:
-        return self.citations.get_internal_edges()
-
-    def get_all_citations(self) -> list:
-        return self.citations.get_all()
-
-    def get_all_citation_edges(self) -> list:
-        return self.citations.get_all_edges()
-
-    def get_citation_by_s2_id(self, s2_id: str):
-        return self.citations.get_by_s2_id(s2_id)
-
-    def clear_paper_citations(self, paper_doi: str = None):
-        return self.citations.clear_paper_citations(paper_doi)
+    def __getattr__(self, name: str):
+        """向后兼容: 将 Database 方法转发到 Repository"""
+        for repo_attr in ("papers", "concepts", "folders", "config", "conversations", "research", "citations"):
+            repo = getattr(self, repo_attr)
+            if hasattr(repo, name):
+                return getattr(repo, name)
+        raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'")

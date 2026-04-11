@@ -51,8 +51,8 @@ def test_root_concepts(test_db):
 
 
 def test_backward_compatibility(test_db):
-    """测试向后兼容方法"""
-    concept_id = test_db.add_concept({"text": "Backward Compat"})
+    """测试通过 Database 类添加概念（直接实现）"""
+    concept_id = test_db.add_concept({"id": "backwardcompat", "text": "Backward Compat"})
     assert concept_id == "backwardcompat"
 
     concept = test_db.get_concept("backwardcompat")
