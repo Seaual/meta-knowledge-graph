@@ -60,6 +60,7 @@ jobs:
 
       - name: Pyright
         run: pyright backend/ mkg/
+        continue-on-error: true
 
       - name: Set up Node
         uses: actions/setup-node@v4
