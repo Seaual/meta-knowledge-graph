@@ -3,23 +3,6 @@
 PaperRepository tests
 """
 
-import pytest
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from mkg.database import Database
-
-
-@pytest.fixture
-def test_db():
-    """创建测试数据库"""
-    db = Database(":memory:")
-    db.connect()
-    yield db
-    db.close()
-
 
 def test_add_paper(test_db):
     """测试添加论文"""

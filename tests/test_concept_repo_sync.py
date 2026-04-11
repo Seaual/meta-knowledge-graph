@@ -1,24 +1,11 @@
 """
 ConceptRepository Neo4j 同步行为测试
 """
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from mkg.database import Database
 from mkg.repositories.concept_repo import ConceptRepository
-
-
-@pytest.fixture
-def test_db():
-    db = Database(":memory:")
-    db.connect()
-    yield db
-    db.close()
 
 
 @pytest.fixture

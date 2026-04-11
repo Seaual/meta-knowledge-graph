@@ -2,24 +2,16 @@
 Agent Memory 模块测试
 """
 
-import sys
-from pathlib import Path
-
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from mkg.database import Database
 from mkg.memory import AgentMemory
 
 
 @pytest.fixture
-def test_db():
-    db = Database(":memory:")
-    db.connect()
-    db.conn.execute("PRAGMA foreign_keys=OFF")
-    yield db
-    db.close()
+def test_db(test_db):
+    """Extend shared test_db with PRAGMA foreign_keys=OFF."""
+    test_db.conn.execute("PRAGMA foreign_keys=OFF")
+    yield test_db
 
 
 def test_user_preferences_table_exists(test_db):
