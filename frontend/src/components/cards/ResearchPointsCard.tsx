@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { removeThinkingTags } from "../../lib/textUtils";
+import { useTranslation } from "../../i18n";
 
 interface ResearchPoint {
   title: string;
@@ -55,20 +56,10 @@ const RATING_COLORS: Record<string, string> = {
   high: "#c2410c", // terracotta
 };
 
-// Discovery method labels
-const METHOD_LABELS: Record<string, string> = {
-  gap_analysis: "缺口分析",
-  contradiction: "矛盾发现",
-  evolution: "演化追踪",
-  synthesis: "综合推理",
-  frontier: "前沿探测",
-  bridge: "跨域桥接",
-};
-
 // Get display label for discovery method
-function getMethodLabel(method: string): string {
-  if (!method) return "未知方法";
-  return METHOD_LABELS[method] || method;
+function getMethodLabel(method: string, t: ReturnType<typeof useTranslation>["t"]): string {
+  if (!method) return t.common.unknownMethod;
+  return (t.concepts.researchPoints.method as Record<string, string>)[method] || method;
 }
 
 // Research point item component
@@ -78,12 +69,14 @@ function ResearchPointItem({
   isExpanded,
   onToggle,
   onAction,
+  t,
 }: {
   point: ResearchPoint;
   index: number;
   isExpanded: boolean;
   onToggle: () => void;
   onAction: (text: string) => void;
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   const handleDeepResearch = () => {
     onAction(`深入研究「${point.title}」这个研究方向`);
@@ -210,7 +203,7 @@ function ResearchPointItem({
                   color: "#6b4423",
                 }}
               >
-                {getMethodLabel(point.discovery_method)}
+                {getMethodLabel(point.discovery_method, t)}
               </span>
             </div>
           )}
@@ -270,6 +263,7 @@ function ResearchPointItem({
 }
 
 export default function ResearchPointsCard({ data, onAction }: Props) {
+  const { t } = useTranslation();
   const [expandedPoints, setExpandedPoints] = useState<Set<number>>(new Set());
 
   // 调试日志
@@ -302,7 +296,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
         }}
       >
         <p className="font-body text-sm">
-          研究点数据格式错误：缺少 research_points 字段
+          {t.common.researchDataError}
         </p>
         <p className="font-mono text-xs mt-2 opacity-70">
           收到的数据: {JSON.stringify(Object.keys(data))}
@@ -357,7 +351,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
     (data.analysis_context.ancestors ||
       data.analysis_context.descendants ||
       data.analysis_context.edge_nodes);
-  const conceptName = data.concept_name || "未命名概念";
+  const conceptName = data.concept_name || t.common.unnamedConcept;
 
   return (
     <div
@@ -395,7 +389,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
                 onClick={allExpanded ? collapseAll : expandAll}
                 className="text-xs text-academic-muted hover:text-academic-amber transition-colors font-mono"
               >
-                {allExpanded ? "全部收起" : "全部展开"}
+                {allExpanded ? t.common.collapseAll : t.common.expandAll}
               </button>
             </div>
           )}
@@ -457,7 +451,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
       <div className="p-4 space-y-3">
         {data.research_points.length === 0 ? (
           <div className="text-center py-6">
-            <p className="text-sm text-academic-muted">暂无研究点</p>
+            <p className="text-sm text-academic-muted">{t.common.noResearchPoints}</p>
           </div>
         ) : (
           data.research_points.map((point, index) => (
@@ -468,6 +462,7 @@ export default function ResearchPointsCard({ data, onAction }: Props) {
               isExpanded={expandedPoints.has(index)}
               onToggle={() => togglePoint(index)}
               onAction={onAction}
+              t={t}
             />
           ))
         )}

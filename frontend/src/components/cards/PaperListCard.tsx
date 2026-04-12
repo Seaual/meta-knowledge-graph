@@ -1,4 +1,5 @@
 // frontend/src/components/cards/PaperListCard.tsx
+import { useTranslation } from "../../i18n";
 interface PaperItem {
   title: string;
   authors?: string[];
@@ -26,10 +27,11 @@ function formatAuthors(authors?: string[]): string {
 }
 
 export default function PaperListCard({ data, onAction }: Props) {
+  const { t } = useTranslation();
   const { query, papers, count } = data;
 
   // Header title based on whether there's a search query
-  const headerTitle = query ? `搜索结果：${query}` : "论文列表";
+  const headerTitle = query ? `${t.common.searchResults}：${query}` : t.nav.papers;
 
   return (
     <div

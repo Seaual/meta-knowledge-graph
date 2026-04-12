@@ -6,6 +6,7 @@ export const en = {
     papers: "Papers",
     concepts: "Concepts",
     citations: "Citations",
+    settings: "Settings",
   },
 
   // Home page
@@ -329,11 +330,17 @@ export const en = {
     viewOnS2: "View on Semantic Scholar",
   },
 
+  // Research points card
+  researchPoints: {
+    dataError: "Research data format error: missing research_points field",
+  },
+
   // Common
   common: {
     loading: "Loading...",
     all: "All",
     search: "Search",
+    searchResults: "Search results",
     download: "Download",
     delete: "Delete",
     edit: "Edit",
@@ -346,6 +353,76 @@ export const en = {
     english: "English",
     retry: "Retry",
     back: "Back",
+    newChat: "New Chat",
+    conversationHistory: "Conversation History",
+    noConversationHistory: "No conversation history",
+    collapse: "Collapse",
+    expand: "Expand",
+    uploadPdf: "Upload PDF",
+    uploading: "Uploading...",
+    uploadSuccess: "Upload successful",
+    uploadFailed: "Upload failed, please retry",
+    uploadPdfOnly: "Please upload PDF files only",
+    dragDropPdf: "Drag and drop PDF files here to upload",
+    multiPdfSupport: "Supports single or multiple PDF files",
+    loadGraphFailed: "Failed to load graph",
+    selectFolder: "Please select a folder graph to display",
+    allFolders: "All",
+    allConcepts: "All Concepts",
+    unknownMethod: "Unknown method",
+    noResearchPoints: "No research points",
+    expandAll: "Expand All",
+    collapseAll: "Collapse All",
+    researchDataError: "Research data format error: missing research_points field",
+    unnamedConcept: "Unnamed concept",
+  },
+
+  // Citation analysis card
+  citationAnalysis: {
+    internalPapers: "Internal Papers",
+    externalPapers: "External Papers",
+    noCitationData: "No citation data",
+  },
+
+  // Recommendation card
+  recommendationCard: {
+    recommendedPapers: "Recommended Papers",
+    viewPaperDetail: "View paper details",
+  },
+
+  // Research agent bubble
+  researchAgent: {
+    title: "Research Assistant",
+    ready: "Research Assistant Ready",
+    placeholder: "Enter a research question...",
+    analyzeCitations: "Analyze Paper Citations",
+    discoverConcepts: "Discover Concept Research Points",
+    deepDive: "Deep Dive into Topics",
+    errorMsg: "Encountered a problem processing the request, please retry.",
+  },
+
+  // Settings page
+  settings: {
+    pageTitle: "Settings",
+    pageSubtitle: "Configure API, language, and storage options",
+    llmSection: "LLM Configuration",
+    testConnection: "Test Connection",
+    testing: "Testing...",
+    saveConfig: "Save Configuration",
+    saving: "Saving...",
+    saved: "Saved",
+    testSuccess: "Connection successful! Model: {{model}}",
+    testFailed: "Connection failed",
+    languageSection: "Language",
+    currentLanguage: "Current Language",
+    current: "Current",
+    toggle: "Toggle",
+    foldersSection: "Folders",
+    noFolders: "No folders yet",
+    databaseSection: "Database",
+    papers: "Papers",
+    concepts: "Concepts",
+    conversations: "Conversations",
   },
 };
 

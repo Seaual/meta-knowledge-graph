@@ -6,6 +6,7 @@ export const zh = {
     papers: "论文",
     concepts: "概念",
     citations: "引用",
+    settings: "设置",
   },
 
   // Home page
@@ -324,11 +325,17 @@ export const zh = {
     viewOnS2: "在 Semantic Scholar 查看",
   },
 
+  // Research points card
+  researchPoints: {
+    dataError: "研究点数据格式错误：缺少 research_points 字段",
+  },
+
   // Common
   common: {
     loading: "加载中...",
     all: "全部",
     search: "搜索",
+    searchResults: "搜索结果",
     download: "下载",
     delete: "删除",
     edit: "编辑",
@@ -341,6 +348,76 @@ export const zh = {
     english: "English",
     retry: "重试",
     back: "返回",
+    newChat: "新对话",
+    conversationHistory: "对话历史",
+    noConversationHistory: "暂无对话历史",
+    collapse: "收起",
+    expand: "展开",
+    uploadPdf: "上传 PDF",
+    uploading: "上传中...",
+    uploadSuccess: "上传成功",
+    uploadFailed: "上传失败，请重试",
+    uploadPdfOnly: "请上传 PDF 文件",
+    dragDropPdf: "拖放 PDF 文件到此处上传",
+    multiPdfSupport: "支持单个或多个 PDF 文件",
+    loadGraphFailed: "加载图谱失败",
+    selectFolder: "请选择要显示的文件夹图谱",
+    allFolders: "全部",
+    allConcepts: "全部概念",
+    unknownMethod: "未知方法",
+    noResearchPoints: "暂无研究点",
+    expandAll: "全部展开",
+    collapseAll: "全部收起",
+    researchDataError: "研究点数据格式错误：缺少 research_points 字段",
+    unnamedConcept: "未命名概念",
+  },
+
+  // Citation analysis card
+  citationAnalysis: {
+    internalPapers: "库内论文",
+    externalPapers: "外部论文",
+    noCitationData: "暂无引用数据",
+  },
+
+  // Recommendation card
+  recommendationCard: {
+    recommendedPapers: "推荐论文",
+    viewPaperDetail: "查看论文详情",
+  },
+
+  // Research agent bubble
+  researchAgent: {
+    title: "研究助手",
+    ready: "研究助手已就绪",
+    placeholder: "输入研究问题...",
+    analyzeCitations: "分析论文引用关系",
+    discoverConcepts: "发现概念研究点",
+    deepDive: "深入研究主题",
+    errorMsg: "处理请求时遇到问题，请重试。",
+  },
+
+  // Settings page
+  settings: {
+    pageTitle: "设置",
+    pageSubtitle: "配置 API、语言和存储选项",
+    llmSection: "LLM 配置",
+    testConnection: "测试连接",
+    testing: "测试中...",
+    saveConfig: "保存配置",
+    saving: "保存中...",
+    saved: "已保存",
+    testSuccess: "连接成功！模型: {{model}}",
+    testFailed: "连接失败",
+    languageSection: "语言",
+    currentLanguage: "当前语言",
+    current: "当前",
+    toggle: "切换",
+    foldersSection: "文件夹",
+    noFolders: "暂无文件夹",
+    databaseSection: "数据库",
+    papers: "论文",
+    concepts: "概念",
+    conversations: "对话",
   },
 };
 

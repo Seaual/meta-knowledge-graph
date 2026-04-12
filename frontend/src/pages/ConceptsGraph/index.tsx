@@ -1421,15 +1421,7 @@ export default function ConceptsGraph() {
                           style={{ background: "rgba(184, 134, 11, 0.04)" }}
                         >
                           <span style={{ color: "var(--color-muted)" }}>
-                            {point.discovery_method === "gap_filling"
-                              ? "🔍 空白地带法"
-                              : point.discovery_method === "leaf_extension"
-                                ? "🌱 末端延伸法"
-                                : point.discovery_method === "bottleneck"
-                                  ? "🔥 瓶颈识别法"
-                                  : point.discovery_method === "transfer"
-                                    ? "🔄 迁移应用法"
-                                    : ""}
+                            {(t.concepts.researchPoints.method as Record<string, string>)[point.discovery_method] || point.discovery_method}
                           </span>
                           <span
                             className="mx-2"

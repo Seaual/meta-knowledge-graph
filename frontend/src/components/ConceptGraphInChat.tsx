@@ -7,6 +7,7 @@ import ForceGraph from "force-graph";
 import { forceManyBody, forceCollide, forceLink, forceCenter } from "d3-force";
 import { graphApi, foldersApi } from "../lib/api";
 import { Folder, ChevronDown } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 // Types
 interface Concept {
@@ -102,6 +103,7 @@ export default function ConceptGraphInChat({
   data: _data,
   onNodeClick,
 }: Props) {
+  const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const graphRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +162,7 @@ export default function ConceptGraphInChat({
         setError(null);
       } catch (err) {
         console.error("Failed to load graph:", err);
-        setError("加载图谱失败");
+        setError(t.common.loadGraphFailed);
       } finally {
         setLoading(false);
       }
@@ -335,7 +337,7 @@ export default function ConceptGraphInChat({
     return (
       <div className="my-3 p-6 rounded-xl bg-gradient-warm">
         <div className="text-center mb-4">
-          <p className="text-sepia font-medium">请选择要显示的文件夹图谱</p>
+          <p className="text-sepia font-medium">{t.common.selectFolder}</p>
         </div>
         <div className="flex flex-wrap justify-center gap-2">
           {folders.map((folder) => (
@@ -383,7 +385,7 @@ export default function ConceptGraphInChat({
                 style={{ color: "#666" }}
               >
                 <Folder className="w-3.5 h-3.5" />
-                {folders.find((f) => f.id === activeFolder)?.name || "全部"}
+                {folders.find((f) => f.id === activeFolder)?.name || t.common.allFolders}
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
 
@@ -417,7 +419,7 @@ export default function ConceptGraphInChat({
 
           {folders.length <= 1 && (
             <span className="text-xs" style={{ color: "#666" }}>
-              {folders.find((f) => f.id === activeFolder)?.name || "全部概念"}
+              {folders.find((f) => f.id === activeFolder)?.name || t.common.allConcepts}
             </span>
           )}
         </div>
@@ -451,23 +453,7 @@ export default function ConceptGraphInChat({
                 style={{ background: color }}
               />
               <span style={{ color: "#666" }}>
-                {cat === "field"
-                  ? "领域"
-                  : cat === "direction"
-                    ? "方向"
-                    : cat === "subdirection"
-                      ? "子方向"
-                      : cat === "task"
-                        ? "任务"
-                        : cat === "method"
-                          ? "方法"
-                          : cat === "technique"
-                            ? "技术"
-                            : cat === "dataset"
-                              ? "数据集"
-                              : cat === "finding"
-                                ? "发现"
-                                : cat}
+                {(t.concepts.category as Record<string, string>)[cat] || cat}
               </span>
             </span>
           ))}

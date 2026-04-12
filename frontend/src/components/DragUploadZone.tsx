@@ -2,6 +2,7 @@
 import { useState, useCallback, useRef } from "react";
 import { Upload, Loader2 } from "lucide-react";
 import { papersApi } from "../lib/api";
+import { useTranslation } from "../i18n";
 
 interface UploadedPaper {
   doi: string;
@@ -17,6 +18,7 @@ export default function DragUploadZone({
   onUploadSuccess,
   onUploadError,
 }: DragUploadZoneProps) {
+  const { t } = useTranslation();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -57,7 +59,7 @@ export default function DragUploadZone({
       );
 
       if (files.length === 0) {
-        onUploadError("请上传 PDF 文件");
+        onUploadError(t.common.uploadPdfOnly);
         return;
       }
 
@@ -89,7 +91,7 @@ export default function DragUploadZone({
       if (uploadedPapers.length > 0) {
         onUploadSuccess(uploadedPapers);
       } else {
-        onUploadError("上传失败，请重试");
+        onUploadError(t.common.uploadFailed);
       }
     },
     [onUploadSuccess, onUploadError]
@@ -128,7 +130,7 @@ export default function DragUploadZone({
               className="font-body text-sm"
               style={{ color: "var(--color-sepia)" }}
             >
-              上传中... {uploadProgress}%
+              {t.common.uploading} {uploadProgress}%
             </p>
           </>
         ) : (
@@ -141,13 +143,13 @@ export default function DragUploadZone({
               className="font-display text-lg mb-2"
               style={{ color: "var(--color-sepia)" }}
             >
-              拖放 PDF 文件到此处上传
+              {t.common.dragDropPdf}
             </p>
             <p
               className="font-body text-sm"
               style={{ color: "var(--color-muted)" }}
             >
-              支持单个或多个 PDF 文件
+              {t.common.multiPdfSupport}
             </p>
           </>
         )}

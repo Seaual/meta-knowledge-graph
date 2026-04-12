@@ -1,6 +1,7 @@
 // frontend/src/components/cards/CitationAnalysisCard.tsx
 import { BookOpen, ExternalLink, Quote } from "lucide-react";
 import { cn } from "../../lib/utils";
+import { useTranslation } from "../../i18n";
 
 interface CitationItem {
   title?: string;
@@ -85,6 +86,7 @@ function CitationItemRow({ citation }: { citation: CitationItem }) {
 }
 
 export default function CitationAnalysisCard({ data }: Props) {
+  const { t } = useTranslation();
   const paperTitle = data.paper?.title || data.paper_title || "Unknown Paper";
   const totalCitations = data.citation_count;
 
@@ -164,7 +166,7 @@ export default function CitationAnalysisCard({ data }: Props) {
               }}
             >
               <span className="text-xs font-medium text-green-700">
-                库内论文
+                {t.citationAnalysis.internalPapers}
               </span>
               <span className="text-xs text-green-600">
                 ({internalCitations.length})
@@ -195,7 +197,7 @@ export default function CitationAnalysisCard({ data }: Props) {
                 className="text-xs font-medium"
                 style={{ color: "var(--color-ink-tertiary)" }}
               >
-                外部论文
+                {t.citationAnalysis.externalPapers}
               </span>
               <span
                 className="text-xs"
@@ -240,7 +242,7 @@ export default function CitationAnalysisCard({ data }: Props) {
             style={{ color: "var(--color-ink-muted)" }}
           >
             <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-30" />
-            <p className="text-sm">暂无引用数据</p>
+            <p className="text-sm">{t.citationAnalysis.noCitationData}</p>
           </div>
         )}
       </div>

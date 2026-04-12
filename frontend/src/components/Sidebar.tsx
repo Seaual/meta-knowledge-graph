@@ -116,7 +116,7 @@ export default function Sidebar() {
             }}
           >
             <MessageSquare className="w-[18px] h-[18px]" />
-            <span className="font-body text-sm font-medium">新对话</span>
+            <span className="font-body text-sm font-medium">{t.common.newChat}</span>
           </Link>
         )}
 
@@ -130,7 +130,7 @@ export default function Sidebar() {
                 : item.labelKey === "papers"
                   ? t.nav.papers
                   : item.labelKey === "settings"
-                    ? "设置"
+                    ? t.nav.settings
                     : item.labelKey;
 
           return (
@@ -168,7 +168,7 @@ export default function Sidebar() {
               className="text-xs px-3 py-1"
               style={{ color: "var(--color-ink-muted)" }}
             >
-              对话历史
+              {t.common.conversationHistory}
             </div>
             <ConversationHistory onSelect={() => {}} />
           </div>
@@ -185,12 +185,12 @@ export default function Sidebar() {
           onClick={toggleLanguage}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors duration-150"
           style={{ color: "var(--color-ink-tertiary)" }}
-          title={language === "zh" ? "Switch to English" : "切换到中文"}
+          title={language === "zh" ? t.common.english : t.common.chinese}
         >
           <Globe className="w-[18px] h-[18px]" />
           {!isCollapsed && (
             <span className="font-body text-sm">
-              {language === "zh" ? "English" : "中文"}
+              {language === "zh" ? t.common.english : t.common.chinese}
             </span>
           )}
         </button>
@@ -206,7 +206,7 @@ export default function Sidebar() {
           ) : (
             <>
               <ChevronLeft className="w-[18px] h-[18px]" />
-              <span className="font-body text-sm">收起</span>
+              <span className="font-body text-sm">{t.common.collapse}</span>
             </>
           )}
         </button>

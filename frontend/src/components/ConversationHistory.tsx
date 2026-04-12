@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useConversationStore } from "../stores/conversationStore";
 import { MessageSquare, Trash2 } from "lucide-react";
+import { useTranslation } from "../i18n";
 
 interface ConversationHistoryProps {
   onSelect?: () => void;
@@ -11,6 +12,7 @@ export default function ConversationHistory({
   onSelect,
 }: ConversationHistoryProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const {
     conversations,
     currentConversationId,
@@ -27,7 +29,7 @@ export default function ConversationHistory({
 
   const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm("确定删除此对话？")) {
+    if (confirm(t.common.delete)) {
       await deleteConversation(id);
     }
   };
@@ -39,7 +41,7 @@ export default function ConversationHistory({
           className="text-xs text-center"
           style={{ color: "var(--color-ink-muted)" }}
         >
-          加载中...
+          {t.common.loading}
         </div>
       </div>
     );
@@ -52,7 +54,7 @@ export default function ConversationHistory({
           className="text-xs text-center"
           style={{ color: "var(--color-ink-muted)" }}
         >
-          暂无对话历史
+          {t.common.noConversationHistory}
         </div>
       </div>
     );
@@ -100,14 +102,14 @@ export default function ConversationHistory({
                     : "var(--color-ink-secondary)",
               }}
             >
-              {conv.title || "新对话"}
+              {conv.title || t.common.newChat}
             </span>
           </div>
           <button
             onClick={(e) => handleDelete(conv.id, e)}
             className="p-1 rounded hover:bg-overlay transition-colors"
             style={{ color: "var(--color-ink-muted)" }}
-            title="删除"
+            title={t.common.delete}
             aria-label="删除此对话"
             type="button"
           >

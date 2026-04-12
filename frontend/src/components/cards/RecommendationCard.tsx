@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, Check, Loader2 } from "lucide-react";
 import { s2PaperApi } from "../../lib/api";
+import { useTranslation } from "../../i18n";
 
 interface RecommendedPaper {
   title: string;
@@ -24,6 +25,7 @@ interface Props {
 }
 
 export default function RecommendationCard({ data, onAction }: Props) {
+  const { t } = useTranslation();
   const { concept_name, papers, count } = data;
   const [addingPaperId, setAddingPaperId] = useState<string | null>(null);
   const [addedPaperIds, setAddedPaperIds] = useState<Set<string>>(new Set());
@@ -59,7 +61,7 @@ export default function RecommendationCard({ data, onAction }: Props) {
   };
 
   const handleTitleClick = (paper: RecommendedPaper) => {
-    onAction(`查看论文详情: ${paper.title}`);
+    onAction(`${t.recommendationCard.viewPaperDetail}: ${paper.title}`);
   };
 
   return (
@@ -82,7 +84,7 @@ export default function RecommendationCard({ data, onAction }: Props) {
           className="font-display font-medium text-base"
           style={{ color: "var(--color-sepia)" }}
         >
-          推荐论文
+          {t.recommendationCard.recommendedPapers}
         </h3>
         <p
           className="font-body text-xs mt-0.5"

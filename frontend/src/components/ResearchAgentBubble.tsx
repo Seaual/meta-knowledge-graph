@@ -11,6 +11,7 @@ import {
 import { useAgentStore, Message } from "../stores/agentStore";
 import { agentApi } from "../lib/api";
 import { DeepResearchProgress } from "./DeepResearchProgress";
+import { useTranslation } from "../i18n";
 
 // 静默状态 - 右侧垂直窄条
 function CollapsedBar({
@@ -103,9 +104,11 @@ function CollapsedBar({
 function DialogHeader({
   onMouseDown,
   onCollapse,
+  t,
 }: {
   onMouseDown: (e: React.MouseEvent) => void;
   onCollapse: () => void;
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   return (
     <div
@@ -147,7 +150,7 @@ function DialogHeader({
           e.currentTarget.style.color = "var(--color-muted)";
         }}
       >
-        <span className="text-sm">收起</span>
+        <span className="text-sm">{t.common.collapse}</span>
         <ChevronRight className="w-4 h-4" />
       </button>
     </div>
@@ -158,9 +161,11 @@ function DialogHeader({
 function ContextIndicator({
   target,
   onClear,
+  t,
 }: {
   target?: { type: "concept" | "paper"; id: string; name: string };
   onClear: () => void;
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   if (!target) return null;
 
@@ -189,7 +194,7 @@ function ContextIndicator({
             color: "var(--color-muted)",
           }}
         >
-          {target.type === "paper" ? "论文" : "概念"}
+          {target.type === "paper" ? t.nav.papers : t.nav.concepts}
         </span>
       </div>
       <button
@@ -235,9 +240,11 @@ function MessageBubble({ msg, isUser }: { msg: Message; isUser: boolean }) {
 function MessageList({
   messages,
   onResearchComplete,
+  t,
 }: {
   messages: Message[];
   onResearchComplete: (sessionId: string, report: string) => void;
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -259,13 +266,13 @@ function MessageList({
             className="text-base font-medium"
             style={{ color: "var(--color-sepia)" }}
           >
-            研究助手已就绪
+            {t.researchAgent.ready}
           </p>
           <div
             className="flex flex-col gap-2 text-sm mt-5"
             style={{ color: "var(--color-muted)" }}
           >
-            {["分析论文引用关系", "发现概念研究点", "深入研究主题"].map(
+            {[t.researchAgent.analyzeCitations, t.researchAgent.discoverConcepts, t.researchAgent.deepDive].map(
               (item, i) => (
                 <div
                   key={i}
@@ -304,9 +311,11 @@ function MessageList({
 function ChatInput({
   onSend,
   isLoading,
+  t,
 }: {
   onSend: (message: string) => void;
   isLoading: boolean;
+  t: ReturnType<typeof useTranslation>["t"];
 }) {
   const [input, setInput] = useState("");
 
@@ -332,7 +341,7 @@ function ChatInput({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="输入研究问题..."
+          placeholder={t.researchAgent.placeholder}
           style={{
             flex: 1,
             padding: "0.75rem 1rem",
@@ -365,6 +374,7 @@ function ChatInput({
 // 主组件
 export default function ResearchAgentBubble() {
   const location = useLocation();
+  const { t } = useTranslation();
 
   // 在 Chat 页面和 Concepts 页面不显示这个浮框
   if (location.pathname === "/chat" || location.pathname === "/concepts") {
@@ -470,7 +480,7 @@ export default function ResearchAgentBubble() {
     } catch {
       addMessage({
         role: "assistant",
-        content: "处理请求时遇到问题，请重试。",
+        content: t.researchAgent.errorMsg,
       });
     } finally {
       setLoading(false);
@@ -536,16 +546,19 @@ export default function ResearchAgentBubble() {
       <DialogHeader
         onMouseDown={handleMouseDown}
         onCollapse={() => setIsExpanded(false)}
+        t={t}
       />
       <ContextIndicator
         target={contextSummary.currentTarget}
         onClear={handleClearContext}
+        t={t}
       />
       <MessageList
         messages={messages}
         onResearchComplete={handleResearchComplete}
+        t={t}
       />
-      <ChatInput onSend={handleSend} isLoading={isLoading} />
+      <ChatInput onSend={handleSend} isLoading={isLoading} t={t} />
     </div>
   );
 }

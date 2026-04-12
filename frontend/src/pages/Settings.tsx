@@ -26,7 +26,7 @@ interface LLMConfig {
 }
 
 export default function Settings() {
-  const { language, toggleLanguage } = useTranslation();
+  const { t, language, toggleLanguage } = useTranslation();
   const [llmConfig, setLlmConfig] = useState<LLMConfig | null>(null);
   const [folders, setFolders] = useState<{ id: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -127,18 +127,18 @@ export default function Settings() {
       if (res.data?.success) {
         setTestResult({
           success: true,
-          message: `连接成功！模型: ${res.data.model || provider.model || "unknown"}`,
+          message: `${t.settings.testSuccess.replace('{{model}}', res.data.model || provider.model || 'unknown')}`,
         });
       } else {
         setTestResult({
           success: false,
-          message: res.data?.message || "连接失败",
+          message: res.data?.message || t.settings.testFailed,
         });
       }
     } catch (e: any) {
       setTestResult({
         success: false,
-        message: e.response?.data?.detail || e.message || "连接失败",
+        message: e.response?.data?.detail || e.message || t.settings.testFailed,
       });
     } finally {
       setTesting(false);
@@ -165,13 +165,13 @@ export default function Settings() {
             className="font-display text-2xl font-medium"
             style={{ color: "var(--color-sepia)" }}
           >
-            设置
+            {t.settings.pageTitle}
           </h1>
           <p
             className="font-body text-sm mt-1"
             style={{ color: "var(--color-muted)" }}
           >
-            配置 API、语言和存储选项
+            {t.settings.pageSubtitle}
           </p>
         </div>
 
@@ -183,7 +183,7 @@ export default function Settings() {
               className="font-display text-lg font-medium"
               style={{ color: "var(--color-sepia)" }}
             >
-              LLM 配置
+              {t.settings.llmSection}
             </h2>
           </div>
 
@@ -280,12 +280,12 @@ export default function Settings() {
                 {testing ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    测试中...
+                    {t.settings.testing}
                   </>
                 ) : (
                   <>
                     <Zap className="w-4 h-4" />
-                    测试连接
+                    {t.settings.testConnection}
                   </>
                 )}
               </button>
@@ -315,16 +315,16 @@ export default function Settings() {
             }}
           >
             {saving ? (
-              <>保存中...</>
+              <>{t.settings.saving}</>
             ) : saved ? (
               <>
                 <Check className="w-4 h-4" />
-                已保存
+                {t.settings.saved}
               </>
             ) : (
               <>
                 <Save className="w-4 h-4" />
-                保存配置
+                {t.settings.saveConfig}
               </>
             )}
           </button>
@@ -341,7 +341,7 @@ export default function Settings() {
               className="font-display text-lg font-medium"
               style={{ color: "var(--color-sepia)" }}
             >
-              语言 / Language
+              {t.settings.languageSection}
             </h2>
           </div>
 
@@ -357,7 +357,7 @@ export default function Settings() {
                 className="font-body text-sm"
                 style={{ color: "var(--color-ink)" }}
               >
-                当前语言 / Current: {language === "zh" ? "中文" : "English"}
+                {t.settings.currentLanguage}: {language === "zh" ? t.common.chinese : t.common.english}
               </span>
               <button
                 onClick={toggleLanguage}
@@ -368,7 +368,7 @@ export default function Settings() {
                   color: "var(--color-sepia)",
                 }}
               >
-                切换 / Switch
+                {t.settings.toggle}
               </button>
             </div>
           </div>
@@ -385,7 +385,7 @@ export default function Settings() {
               className="font-display text-lg font-medium"
               style={{ color: "var(--color-sepia)" }}
             >
-              文件夹
+              {t.settings.foldersSection}
             </h2>
           </div>
 
@@ -422,7 +422,7 @@ export default function Settings() {
                 className="font-body text-sm"
                 style={{ color: "var(--color-muted)" }}
               >
-                暂无文件夹
+                {t.settings.noFolders}
               </p>
             )}
           </div>
@@ -439,7 +439,7 @@ export default function Settings() {
               className="font-display text-lg font-medium"
               style={{ color: "var(--color-sepia)" }}
             >
-              数据库
+              {t.settings.databaseSection}
             </h2>
           </div>
 
@@ -462,7 +462,7 @@ export default function Settings() {
                   className="font-mono text-xs"
                   style={{ color: "var(--color-muted)" }}
                 >
-                  论文
+                  {t.settings.papers}
                 </div>
               </div>
               <div>
@@ -476,7 +476,7 @@ export default function Settings() {
                   className="font-mono text-xs"
                   style={{ color: "var(--color-muted)" }}
                 >
-                  概念
+                  {t.settings.concepts}
                 </div>
               </div>
               <div>
@@ -490,7 +490,7 @@ export default function Settings() {
                   className="font-mono text-xs"
                   style={{ color: "var(--color-muted)" }}
                 >
-                  对话
+                  {t.settings.conversations}
                 </div>
               </div>
             </div>
