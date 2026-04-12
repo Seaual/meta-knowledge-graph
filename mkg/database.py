@@ -890,6 +890,38 @@ class Database:
                     paper["s2_fields_of_study"] = []
         return papers
 
+    def search_papers(self, query: str, limit: int = 10) -> list:
+        """按关键词搜索论文（标题和摘要模糊匹配）"""
+        cursor = self.conn.cursor()
+        like_query = f"%{query}%"
+        cursor.execute(
+            """
+            SELECT * FROM papers
+            WHERE title LIKE ? OR abstract LIKE ? OR keywords LIKE ?
+            ORDER BY citation_count DESC
+            LIMIT ?
+            """,
+            (like_query, like_query, like_query, limit),
+        )
+        papers = [dict(row) for row in cursor.fetchall()]
+        for paper in papers:
+            if paper.get("authors") and isinstance(paper["authors"], str):
+                try:
+                    paper["authors"] = json.loads(paper["authors"])
+                except:
+                    paper["authors"] = []
+            if paper.get("keywords") and isinstance(paper["keywords"], str):
+                try:
+                    paper["keywords"] = json.loads(paper["keywords"])
+                except:
+                    paper["keywords"] = []
+            if paper.get("contributions") and isinstance(paper["contributions"], str):
+                try:
+                    paper["contributions"] = json.loads(paper["contributions"])
+                except:
+                    paper["contributions"] = []
+        return papers
+
     def get_all_papers(self) -> list:
         """获取所有论文"""
         cursor = self.conn.cursor()
