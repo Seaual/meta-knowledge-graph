@@ -20,10 +20,17 @@ def translate_concept_if_needed(concept: dict, db: Database) -> str:
         response = llm.invoke(prompt)
         content = response.content if hasattr(response, 'content') else str(response)
         if isinstance(content, list):
-            content = '\n'.join(
-                item.get('text', str(item)) if isinstance(item, dict) else str(item)
-                for item in content
-            )
+            parts = []
+            for item in content:
+                if isinstance(item, dict):
+                    # Only extract text content, ignore thinking/thinking blocks
+                    if item.get('type') == 'text':
+                        parts.append(item.get('text', ''))
+                    elif 'text' in item:
+                        parts.append(item['text'])
+                else:
+                    parts.append(str(item))
+            content = '\n'.join(parts)
         en_name = content.strip()
 
         # 保存到数据库
