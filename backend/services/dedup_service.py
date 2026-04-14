@@ -291,10 +291,14 @@ class DedupService:
             target_id = sug["target"]["id"]
 
             try:
-                # 获取 source 概念的论文关联
-                source_papers = self.db.concepts.get_papers(source_id)
+                # === 1. 保存 source 的层级关系 ===
+                # 获取 source 的子概念 → 需要重新连接到 target
+                children = self.db.concepts.get_children(source_id)
+                # 获取 source 的父概念 → target 需要连接到它们
+                parents = self.db.concepts.get_parents(source_id)
 
-                # 将 source 的论文重新关联到 target
+                # === 2. 迁移论文关联 ===
+                source_papers = self.db.concepts.get_papers(source_id)
                 for p in source_papers:
                     paper_doi = p.get("paper_doi")
                     if paper_doi:
@@ -303,14 +307,28 @@ class DedupService:
                             (paper_doi, target_id),
                         )
 
-                # 更新 target 的 paper_count
+                # === 3. 更新 paper_count ===
                 new_count = sug["source"]["paper_count"] + sug["target"]["paper_count"]
                 self.db.execute_write(
                     "UPDATE concepts SET paper_count = ? WHERE id = ?",
                     (new_count, target_id),
                 )
 
-                # 删除关联记录（必须在删除概念之前，因为有 FK 约束）
+                # === 4. 重连子节点到 target ===
+                for child in children:
+                    self.db.execute_write(
+                        "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
+                        (target_id, child["id"]),
+                    )
+
+                # === 5. 连接 target 到 source 的父概念 ===
+                for parent in parents:
+                    self.db.execute_write(
+                        "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
+                        (parent["id"], target_id),
+                    )
+
+                # === 6. 删除 source 的所有关联 ===
                 self.db.execute_write(
                     "DELETE FROM paper_concepts WHERE concept_id = ?",
                     (source_id,),
@@ -324,7 +342,7 @@ class DedupService:
                     (source_id,),
                 )
 
-                # 最后删除概念本身
+                # === 7. 删除概念本身 ===
                 self.db.execute_write(
                     "DELETE FROM concepts WHERE id = ?",
                     (source_id,),
