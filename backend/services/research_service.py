@@ -175,8 +175,13 @@ class ResearchService:
         if not self.s2_client:
             return {"error": "S2 client not configured", "concept_id": concept_id}
 
+        # 如果概念缺少英文名，自动翻译
+        if not concept.get("text_en"):
+            from backend.services.concept_translation import translate_concept_if_needed
+            translate_concept_if_needed(concept, self.db)
+            concept = self.db.concepts.get(concept_id)  # 重新获取更新后的概念
+
         try:
-            # 使用 S2 搜索
             # 始终使用英文概念名搜索 Semantic Scholar
             query = concept.get("text_en") or concept["text"]
             papers = self.s2_client.search_papers(query, limit=limit * 2)
@@ -191,7 +196,7 @@ class ResearchService:
 
             return {
                 "concept_id": concept_id,
-                "concept_text": concept["text"],
+                "concept_text": concept.get("text_en") or concept["text"],
                 "papers": papers,
                 "total": len(papers)
             }
