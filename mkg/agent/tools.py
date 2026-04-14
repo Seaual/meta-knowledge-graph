@@ -507,10 +507,12 @@ def recommend_papers(concept_name: str, limit: int = 10) -> dict[str, Any]:
     if concept and not concept.get('text_en'):
         from backend.services.concept_translation import translate_concept_if_needed
         en_name = translate_concept_if_needed(concept, _db)
-        concept["text_en"] = en_name  # 更新内存中的概念，避免重新查询数据库
+        # Only update text_en if we actually got an English translation
+        if en_name and en_name != concept.get('text', ''):
+            concept["text_en"] = en_name
 
-    # 始终优先使用英文概念名搜索
-    search_query = concept.get('text_en') if concept else concept_name
+    # 始终优先使用英文概念名搜索（降级到用户原始输入）
+    search_query = (concept.get('text_en') or concept_name) if concept else concept_name
 
     papers = []
     if _s2_client:
