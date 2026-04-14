@@ -27,6 +27,7 @@ export interface ContextSummary {
 export interface ConceptNode {
   id: string;
   name: string;
+  text_en?: string;
   category?: string;
   paper_count: number;
   children?: ConceptNode[];

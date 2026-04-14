@@ -4,6 +4,16 @@
 import { useEffect, useRef } from "react";
 import ForceGraph from "force-graph";
 import { ConceptNode } from "../stores/agentStore";
+import { getLanguage } from "../i18n";
+
+// Get the display name for a concept node based on user language
+function getNodeDisplayName(node: ConceptNode): string {
+  const lang = getLanguage();
+  if (lang === "en" && node.text_en) {
+    return node.text_en;
+  }
+  return node.name;
+}
 
 interface Props {
   data: ConceptNode;
@@ -32,7 +42,7 @@ export default function MiniConceptGraph({
     const nodes: any[] = [
       {
         id: data.id,
-        name: data.name,
+        name: getNodeDisplayName(data),
         type: "center",
         paperCount: data.paper_count,
         category: data.category,
@@ -45,7 +55,7 @@ export default function MiniConceptGraph({
     data.children?.forEach((child) => {
       nodes.push({
         id: child.id,
-        name: child.name,
+        name: getNodeDisplayName(child),
         type: "child",
         paperCount: child.paper_count,
         category: child.category,
@@ -57,7 +67,7 @@ export default function MiniConceptGraph({
     data.parents?.forEach((parent) => {
       nodes.push({
         id: parent.id,
-        name: parent.name,
+        name: getNodeDisplayName(parent),
         type: "parent",
         paperCount: parent.paper_count,
         category: parent.category,

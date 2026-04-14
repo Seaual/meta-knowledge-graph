@@ -8,15 +8,9 @@ import { forceManyBody, forceCollide, forceLink, forceCenter } from "d3-force";
 import { graphApi, foldersApi } from "../lib/api";
 import { Folder, ChevronDown } from "lucide-react";
 import { useTranslation } from "../i18n";
+import { getConceptDisplayName, Concept } from "../lib/concept";
 
-// Types
-interface Concept {
-  id: string;
-  text: string;
-  text_en?: string;
-  category: string | null | undefined;
-  paper_count: number;
-}
+// Concept is now imported from ../lib/concept
 
 interface GraphNode {
   id: string;
@@ -193,8 +187,7 @@ export default function ConceptGraphInChat({
 
     const nodes: GraphNode[] = concepts.map((c) => ({
       id: c.id,
-      name: c.text,
-      name_en: c.text_en,
+      name: getConceptDisplayName(c as Concept),
       type: "concept",
       category: c.category || "method",
       paperCount: c.paper_count,
