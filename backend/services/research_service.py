@@ -119,6 +119,7 @@ class ResearchService:
             # 构建提示词
             concept_data = {
                 'text': concept['text'],
+                'text_en': concept.get('text_en'),
                 'category': concept.get('category'),
                 'paper_count': concept.get('paper_count', 0),
             }
