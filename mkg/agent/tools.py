@@ -343,7 +343,7 @@ def analyze_research_points(concept_name: str) -> dict[str, Any]:
     【重要】当用户提到「研究点」「研究方向」「研究机会」「分析...的研究点」时调用此工具！
 
     这个工具用于分析某个概念的研究现状和潜在研究方向。
-    会调用 LLM 深入分析图谱结构，生成研究点建议。
+    会调用 ResearchService.discover_research_points() 进行研究点发现。
 
     不要与 get_concept_graph 混淆：
     - 用户说「研究点」→ 用这个工具 analyze_research_points
@@ -363,12 +363,10 @@ def analyze_research_points(concept_name: str) -> dict[str, Any]:
     if not concept:
         all_concepts = _db.get_all_concepts()
         # 改进的模糊匹配：提取关键词匹配
-        # 使用简单的滑动窗口提取 2-4 字词组
         keywords = []
-        for n in [4, 3, 2]:  # 优先匹配更长的词
+        for n in [4, 3, 2]:
             for i in range(len(concept_name) - n + 1):
                 word = concept_name[i:i+n]
-                # 只保留中文和英文词组
                 if all('\u4e00' <= c <= '\u9fff' or c.isalpha() for c in word):
                     if word not in ['研究', '分析', '方向', '查看', '帮我', '进行', '的']:
                         keywords.append(word)
@@ -381,12 +379,12 @@ def analyze_research_points(concept_name: str) -> dict[str, Any]:
             score = 0
             for kw in keywords:
                 if kw.lower() in text.lower():
-                    score += len(kw)  # 关键词越长，权重越高
+                    score += len(kw)
             if score > best_score:
                 best_score = score
                 best_match = c
 
-        if best_match and best_score >= 4:  # 至少匹配4个字符
+        if best_match and best_score >= 4:
             concept = best_match
 
     if not concept:
@@ -394,90 +392,11 @@ def analyze_research_points(concept_name: str) -> dict[str, Any]:
 
     concept_id = concept['id']
 
-    # 调用 LLM 进行研究与方向分析
-    try:
-        from mkg.llm import get_llm_or_raise
+    # 使用 ResearchService 统一的研究点发现逻辑
+    from backend.services.research_service import ResearchService
 
-        llm = get_llm_or_raise()
-        import json
-        import re
-
-        # 构建研究点分析提示
-        child_texts = [c.get('text', '') for c in children[:5]]
-        parent_texts = [p.get('text', '') for p in parents[:3]]
-        concept_papers = _db.get_papers_by_concept(concept_id) or []
-
-        prompt = f"""分析以下概念的研究机会：
-
-概念：{concept.get('text', '')}
-子概念：{', '.join(child_texts) if child_texts else '无'}
-父概念：{', '.join(parent_texts) if parent_texts else '无'}
-相关论文数：{len(concept_papers)}
-
-请提供 3-5 个研究点，每个研究点包含：
-1. 标题
-2. 研究假设
-3. 简要描述
-4. 研究方法建议
-
-以 JSON 数组格式返回。"""
-
-        response = llm.invoke(prompt)
-        content = response.content if hasattr(response, 'content') else str(response)
-
-        # 解析 JSON
-        research_points = []
-        json_match = re.search(r'\[[\s\S]*\]', content)
-        if json_match:
-            try:
-                research_points = json.loads(json_match.group())
-            except json.JSONDecodeError:
-                # 简单解析
-                lines = content.split("\n")
-                current = None
-                for line in lines:
-                    if line.startswith("##") or line.startswith("**") or re.match(r'^\d+\.', line):
-                        if current:
-                            research_points.append(current)
-                        title = re.sub(r'^[#*>\d.\s]+', '', line).strip()
-                        current = {"title": title, "description": ""}
-                    elif current and line.strip():
-                        current["description"] += line.strip() + " "
-                if current:
-                    research_points.append(current)
-                research_points = research_points[:5]
-
-        return {
-            "concept_name": concept.get('text', concept_name),
-            "research_points": research_points,
-            "analysis_context": {
-                "concept": {"id": concept_id, "name": concept.get("text"), "category": concept.get("category")},
-                "ancestors": [{"id": p["id"], "name": p.get("text")} for p in parents],
-                "descendants": [{"id": c["id"], "name": c.get("text")} for c in children],
-                "edge_nodes": [],
-                "related_papers": [{"title": p.get("title")} for p in concept_papers[:5]],
-            },
-        }
-    except Exception:
-        # Fallback：返回基础概念数据
-        papers = _db.get_papers_by_concept(concept_id) or []
-        children = _db.get_concept_children(concept_id) or []
-        parents = _db.get_concept_parents(concept_id) or []
-
-        return {
-            "concept_name": concept.get('text', concept_name),
-            "research_points": [],
-            "analysis_context": {
-                "concept": {"id": concept_id, "name": concept.get("text"), "category": concept.get("category")},
-                "ancestors": [{"id": p["id"], "name": p.get("text")} for p in parents],
-                "descendants": [{"id": c["id"], "name": c.get("text")} for c in children],
-                "edge_nodes": [],
-                "related_papers": [{"title": p.get("title")} for p in papers[:5]],
-            },
-            "local_papers": papers,
-            "children_concepts": [c.get('text') for c in children],
-            "parent_concepts": [p.get('text') for p in parents],
-        }
+    service = ResearchService(db=_db, s2_client=_s2_client)
+    return service.discover_research_points(concept_id)
 
 
 # ============================================================
@@ -575,7 +494,7 @@ def recommend_papers(concept_name: str, limit: int = 10) -> dict[str, Any]:
     if not _db:
         return {"error": "数据库未初始化"}
 
-    # 查找概念（获取英文名用于搜索）
+    # 查找概念
     concept = _db.get_concept_by_text(concept_name)
     if not concept:
         all_concepts = _db.get_all_concepts()
@@ -584,12 +503,14 @@ def recommend_papers(concept_name: str, limit: int = 10) -> dict[str, Any]:
                 concept = c
                 break
 
-    # 使用英文名搜索（如果有），否则用中文名
-    search_query = concept_name
-    if concept and concept.get('text_en'):
-        search_query = concept['text_en']
-    elif concept:
-        search_query = concept.get('text', concept_name)
+    # 如果概念缺少英文名，自动翻译
+    if concept and not concept.get('text_en'):
+        from backend.services.concept_translation import translate_concept_if_needed
+        en_name = translate_concept_if_needed(concept, _db)
+        concept["text_en"] = en_name  # 更新内存中的概念，避免重新查询数据库
+
+    # 始终优先使用英文概念名搜索
+    search_query = concept.get('text_en') if concept else concept_name
 
     papers = []
     if _s2_client:
