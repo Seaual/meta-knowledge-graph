@@ -63,3 +63,9 @@ export function useTranslation() {
 }
 
 export { I18nContext };
+
+export function getLanguage(): string {
+  return typeof window !== "undefined"
+    ? (localStorage.getItem(LANGUAGE_KEY) || "zh")
+    : "zh";
+}
