@@ -1099,9 +1099,13 @@ class Database:
         return None
 
     def get_concept_by_text(self, text: str) -> dict | None:
-        """通过文本获取概念"""
+        """通过文本（中/英文）获取概念"""
         cursor = self.conn.cursor()
         cursor.execute("SELECT * FROM concepts WHERE LOWER(text) = LOWER(?)", (text,))
+        row = cursor.fetchone()
+        if row:
+            return dict(row)
+        cursor.execute("SELECT * FROM concepts WHERE LOWER(text_en) = LOWER(?)", (text,))
         row = cursor.fetchone()
         if row:
             return dict(row)
