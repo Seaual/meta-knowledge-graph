@@ -178,8 +178,8 @@ class ResearchService:
         # 如果概念缺少英文名，自动翻译
         if not concept.get("text_en"):
             from backend.services.concept_translation import translate_concept_if_needed
-            translate_concept_if_needed(concept, self.db)
-            concept = self.db.concepts.get(concept_id)  # 重新获取更新后的概念
+            en_name = translate_concept_if_needed(concept, self.db)
+            concept["text_en"] = en_name  # 更新内存中的概念，避免重新查询数据库
 
         try:
             # 始终使用英文概念名搜索 Semantic Scholar
