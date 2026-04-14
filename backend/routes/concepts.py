@@ -5,8 +5,10 @@
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from ..dependencies import get_concept_service
+from ..dependencies import get_concept_service, get_language
 from ..services.concept_service import ConceptService
+from ..services.concept_translation import translate_concept_if_needed
+from ..services.localization import localize_concept, localize_concept_list
 
 router = APIRouter(prefix="/api/concepts", tags=["concepts"])
 
@@ -14,7 +16,8 @@ router = APIRouter(prefix="/api/concepts", tags=["concepts"])
 @router.get("/")
 def list_concepts(service: ConceptService = Depends(get_concept_service)):
     """获取所有概念"""
-    return service.list()
+    lang = get_language()
+    return localize_concept_list(service.list(), lang)
 
 
 @router.get("/search")
@@ -23,7 +26,8 @@ def search_concepts(
     service: ConceptService = Depends(get_concept_service)
 ):
     """搜索概念"""
-    return service.search(q)
+    lang = get_language()
+    return localize_concept_list(service.search(q), lang)
 
 
 @router.get("/{concept_id}")
@@ -35,7 +39,14 @@ def get_concept(
     concept = service.get(concept_id)
     if not concept:
         raise HTTPException(status_code=404, detail="Concept not found")
-    return concept
+
+    # English user requesting concept missing English name -> auto-translate
+    lang = get_language()
+    if lang == "en" and not concept.get("text_en"):
+        translate_concept_if_needed(concept, service.db)
+        concept = service.get(concept_id)  # Re-fetch updated concept
+
+    return localize_concept(concept, lang)
 
 
 @router.get("/{concept_id}/papers")
