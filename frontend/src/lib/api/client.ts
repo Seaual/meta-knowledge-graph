@@ -1,5 +1,6 @@
 // frontend/src/lib/api/client.ts
 import axios from "axios";
+import { getLanguage } from '../../i18n';
 
 const api = axios.create({
   baseURL: "/api",
@@ -24,6 +25,12 @@ function getOrCreateDeviceId(): string {
 api.interceptors.request.use((config) => {
   const deviceId = getOrCreateDeviceId();
   config.headers["X-Device-ID"] = deviceId;
+  return config;
+});
+
+// Add Accept-Language header to all requests
+api.interceptors.request.use((config) => {
+  config.headers["Accept-Language"] = getLanguage();
   return config;
 });
 
