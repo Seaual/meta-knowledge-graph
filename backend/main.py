@@ -11,6 +11,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.dependencies import set_language
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -43,6 +45,15 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def language_middleware(request, call_next):
+    lang = request.headers.get("Accept-Language", "zh")[:2]
+    if lang not in ("zh", "en"):
+        lang = "zh"
+    set_language(lang)
+    response = await call_next(request)
+    return response
 
 # Include routers
 # Papers routes

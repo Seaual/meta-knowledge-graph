@@ -3,6 +3,7 @@
 依赖注入配置 - 提供服务和资源实例
 """
 
+from contextvars import ContextVar
 from pathlib import Path
 
 # 延迟导入避免循环依赖
@@ -16,7 +17,7 @@ def get_db():
     global _db_instance
     if _db_instance is None:
         from mkg.database import Database
-        db_path = Path(__file__).parent.parent / "mkg.db"
+        db_path = Path(__file__).parent.parent / "data" / "mkg.db"
         _db_instance = Database(str(db_path))
         _db_instance.connect()
     elif _db_instance.conn is None:
@@ -83,3 +84,18 @@ def get_research_service():
     """获取 ResearchService 实例"""
     from .services.research_service import ResearchService
     return ResearchService(get_db(), get_s2_client())
+
+
+# ========== Language Context ==========
+
+_request_language: ContextVar[str] = ContextVar("language", default="zh")
+
+
+def get_language() -> str:
+    """获取当前请求的用户语言偏好"""
+    return _request_language.get()
+
+
+def set_language(lang: str):
+    """设置当前请求的语言（由 middleware 调用）"""
+    _request_language.set(lang)
