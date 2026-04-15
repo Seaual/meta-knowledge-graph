@@ -40,11 +40,13 @@
 
 | 特性 | 描述 |
 |------|------|
-| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要 |
+| 📄 **PDF 解析** | 自动提取论文标题、作者、摘要（MarkItDown，无需 Java） |
+| 🌍 **自动翻译** | LLM 驱动的双语概念名（中/英），支持跨语言搜索 |
 | 🧠 **两阶段概念提取** | 阶段一：论文理解 → 阶段二：8 类别层次化概念提取 |
 | 🌐 **Semantic Scholar 集成** | 自动增强论文元数据（DOI、引用数、期刊、被引次数） |
 | 📊 **交互式图谱可视化** | 力导向图 + 类别节点大小 + 搜索筛选 |
 | 🔍 **研究点发现** | 4 种方法论：填补空白、叶子延伸、瓶颈突破、迁移应用 |
+| 🏷️ **研究点徽章** | 难度、新颖性、潜在影响彩色徽章直观显示 |
 | 📤 **多格式导出** | HTML 交互式图谱、Obsidian Canvas、Markdown 双链 |
 | 📁 **文件夹管理** | 侧边栏分类组织论文 |
 | ⚡ **队列处理** | 顺序批量处理 + 时间预估 |
@@ -262,9 +264,9 @@ MKG 内置了基于 LangGraph 的多代理系统，提供智能研究辅助：
 
 ## 技术栈
 
-**后端：** Python 3.10+ • FastAPI • SQLite • PyMuPDF • LangGraph
+**后端：** Python 3.10+ • FastAPI • SQLite • MarkItDown • LangGraph
 
-**前端：** React 18 • TypeScript • Vite • TailwindCSS • D3.js
+**前端：** React 18 • TypeScript • Vite • TailwindCSS • D3.js • i18n
 
 **LLM：** Claude / Gemini / Qwen / DeepSeek / OpenRouter / OpenAI
 
@@ -342,6 +344,9 @@ meta-knowledge-graph/
 - [x] 多 LLM 后端
 - [x] AI 研究代理（聊天、论文问答、引用分析、研究）
 - [x] 异步深度研究 + 进度跟踪
+- [x] 中文概念名自动翻译（LLM 驱动）
+- [x] 研究点难度/新颖性/影响徽章
+- [x] MarkItDown PDF 解析（无需 Java）
 - [ ] 实时协作
 - [ ] Neo4j 支持
 
