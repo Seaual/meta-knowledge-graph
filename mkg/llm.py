@@ -56,6 +56,8 @@ def init_llm(
         _llm_instance = ChatAnthropic(
             model=model,
             api_key=api_key,
+            timeout=120,
+            max_tokens=8192,
         )
     else:
         # OpenAI 兼容 API
