@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/papers", tags=["papers"])
 
 class PaperMetadataUpdate(BaseModel):
     """论文元数据更新"""
+
     title: str | None = None
     abstract: str | None = None
     authors: list | None = None
@@ -23,6 +24,7 @@ class PaperMetadataUpdate(BaseModel):
 
 class MovePaperRequest(BaseModel):
     """移动论文请求"""
+
     folder_id: str = "default"
 
 
@@ -34,6 +36,43 @@ def list_papers(
 ):
     """获取论文列表"""
     return service.list(status=status, folder=folder)
+
+
+# ========== 子路由必须在 /{doi:path} 之前注册，避免被贪婪匹配 ==========
+
+
+@router.get("/{doi:path}/contribution")
+def get_contribution(
+    doi: str,
+    service: PaperService = Depends(get_paper_service)
+):
+    """获取论文贡献统计"""
+    return service.get_contribution(doi)
+
+
+@router.get("/{doi:path}/concepts")
+def get_paper_concepts(
+    doi: str,
+    service: PaperService = Depends(get_paper_service)
+):
+    """获取论文关联的概念"""
+    concepts = service.get_concepts(doi)
+    return {"doi": doi, "concepts": concepts}
+
+
+@router.get("/{doi:path}/text")
+def get_paper_text(
+    doi: str,
+    service: PaperService = Depends(get_paper_service)
+):
+    """获取论文文本"""
+    text = service.get_text(doi)
+    if text is None:
+        raise HTTPException(status_code=404, detail="Text not available")
+    return {"text": text, "doi": doi}
+
+
+# ========== 基础 CRUD（捕获所有剩余 /{doi} 路径） ==========
 
 
 @router.get("/{doi:path}")
@@ -71,27 +110,6 @@ def update_metadata(
     return {"status": "updated", "doi": doi}
 
 
-@router.get("/{doi:path}/text")
-def get_paper_text(
-    doi: str,
-    service: PaperService = Depends(get_paper_service)
-):
-    """获取论文文本"""
-    text = service.get_text(doi)
-    if text is None:
-        raise HTTPException(status_code=404, detail="Text not available")
-    return {"text": text, "doi": doi}
-
-
-@router.get("/{doi:path}/contribution")
-def get_contribution(
-    doi: str,
-    service: PaperService = Depends(get_paper_service)
-):
-    """获取论文贡献统计"""
-    return service.get_contribution(doi)
-
-
 @router.patch("/{doi:path}/move")
 def move_paper(
     doi: str,
@@ -112,13 +130,3 @@ def move_paper_alias(
 ):
     """移动论文到文件夹（alias for /move）"""
     return move_paper(doi, request, service)
-
-
-@router.get("/{doi:path}/concepts")
-def get_paper_concepts(
-    doi: str,
-    service: PaperService = Depends(get_paper_service)
-):
-    """获取论文关联的概念"""
-    concepts = service.get_concepts(doi)
-    return {"doi": doi, "concepts": concepts}
