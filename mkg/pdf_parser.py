@@ -2,8 +2,8 @@
 PDF 解析模块 - 使用 LLM 解析学术论文
 
 设计：
-- 首选 OpenDataLoader-PDF 提取结构化 Markdown（正确阅读顺序、表格结构、标题层级）
-- PyMuPDF 作为 fallback（Java 不可用时）
+- 首选 MarkItDown 提取结构化 Markdown（轻量、无需 Java、支持多种格式）
+- PyMuPDF 作为 fallback
 - 发送结构化文本给 LLM，提取结构化信息：
   - 元数据（标题、作者、摘要）
   - 研究问题/贡献
@@ -15,8 +15,6 @@ import json
 import logging
 import re
 import statistics
-import subprocess
-import tempfile
 from pathlib import Path
 
 import fitz  # PyMuPDF
@@ -27,27 +25,7 @@ logger = logging.getLogger(__name__)
 
 
 class PDFParser:
-    """PDF 解析器 - 首选 OpenDataLoader-PDF，PyMuPDF fallback"""
-
-    def __init__(self):
-        self._java_available = self._check_java()
-        engine = "OpenDataLoader-PDF" if self._java_available else "PyMuPDF"
-        logger.info(f"PDF engine: {engine} ({'Java available' if self._java_available else 'Java not available'})")
-        print(f"[PDF] 解析引擎: {engine}")
-
-    @staticmethod
-    def _check_java() -> bool:
-        """检测 Java 是否可用（带 class-level 缓存）"""
-        if hasattr(PDFParser, "_java_available"):
-            return PDFParser._java_available
-
-        try:
-            result = subprocess.run(["java", "-version"], capture_output=True, timeout=5)
-            PDFParser._java_available = result.returncode == 0
-        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
-            PDFParser._java_available = False
-
-        return PDFParser._java_available
+    """PDF 解析器 - 首选 MarkItDown，PyMuPDF fallback"""
 
     def parse(self, pdf_path: str) -> PaperContent | None:
         """
@@ -59,100 +37,91 @@ class PDFParser:
         Returns:
             论文内容，解析失败返回 None
         """
-        if self._java_available:
-            result = self._parse_with_opendataloader(pdf_path)
-            if result:
-                return result
-            logger.warning("OpenDataLoader parsing failed, falling back to PyMuPDF")
-            print("[PDF] OpenDataLoader 解析失败，回退到 PyMuPDF")
+        result = self._parse_with_markitdown(pdf_path)
+        if result:
+            return result
+        logger.warning("MarkItDown parsing failed, falling back to PyMuPDF")
+        print("[PDF] MarkItDown 解析失败，回退到 PyMuPDF")
         return self._parse_with_pymupdf(pdf_path)
 
     def extract_text(self, pdf_path: str) -> str | None:
         """
         只提取纯文本（供 LLM 使用，自动选择引擎）
         """
-        if self._java_available:
-            text = self._extract_text_opendataloader(pdf_path)
-            if text:
-                return text
-            logger.warning("OpenDataLoader text extraction failed, falling back to PyMuPDF")
+        text = self._extract_text_markitdown(pdf_path)
+        if text:
+            return text
+        logger.warning("MarkItDown text extraction failed, falling back to PyMuPDF")
         return self._extract_text_pymupdf(pdf_path)
 
-    def _parse_with_opendataloader(self, pdf_path: str) -> PaperContent | None:
+    def _parse_with_markitdown(self, pdf_path: str) -> PaperContent | None:
         """
-        使用 OpenDataLoader-PDF 解析 PDF
+        使用 MarkItDown 解析 PDF
 
-        输出 Markdown（结构化文本，供 LLM 使用）和 JSON（元数据）。
+        输出 Markdown（结构化文本，供 LLM 使用）。
         """
-        import opendataloader_pdf
+        from markitdown import MarkItDown
 
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                opendataloader_pdf.convert(input_path=[pdf_path], output_dir=tmpdir, format="markdown,json")
+            md = MarkItDown()
+            result = md.convert(pdf_path)
+            full_text = result.text_content if result else ""
 
-                base_name = Path(pdf_path).stem
-                md_path = Path(tmpdir) / f"{base_name}.md"
-                json_path = Path(tmpdir) / f"{base_name}.json"
+            if not full_text:
+                return None
 
-                full_text = md_path.read_text(encoding="utf-8") if md_path.exists() else ""
-                if not full_text:
-                    return None
+            if len(full_text) > 700000:
+                full_text = full_text[:700000] + "\n\n... [文本过长，已截断]"
 
-                metadata = {}
-                if json_path.exists():
-                    with open(json_path, encoding="utf-8") as f:
-                        metadata = json.load(f)
+            metadata = {}
+            title = self._extract_title_from_markdown(full_text, metadata)
+            authors = self._extract_authors_from_metadata(metadata, full_text)
+            abstract = self._extract_abstract_from_markdown(full_text)
+            sections = self._extract_sections_from_markdown(full_text)
+            doi = self._extract_doi_from_metadata(metadata, full_text)
+            arxiv_id = self._extract_arxiv_id_from_metadata(metadata, full_text)
 
-                title = self._extract_title_from_markdown(full_text, metadata)
-                authors = self._extract_authors_from_metadata(metadata, full_text)
-                abstract = self._extract_abstract_from_markdown(full_text)
-                sections = self._extract_sections_from_markdown(full_text)
-                doi = self._extract_doi_from_metadata(metadata, full_text)
-                arxiv_id = self._extract_arxiv_id_from_metadata(metadata, full_text)
-
-                return PaperContent(
-                    title=title,
-                    authors=authors,
-                    abstract=abstract,
-                    full_text=full_text,
-                    sections=sections,
-                    metadata=metadata,
-                    doi=doi,
-                    arxiv_id=arxiv_id,
-                )
+            return PaperContent(
+                title=title,
+                authors=authors,
+                abstract=abstract,
+                full_text=full_text,
+                sections=sections,
+                metadata=metadata,
+                doi=doi,
+                arxiv_id=arxiv_id,
+            )
 
         except ImportError:
-            logger.warning("opendataloader-pdf not installed, falling back to PyMuPDF")
+            logger.warning("markitdown not installed, falling back to PyMuPDF")
             return None
         except Exception as e:
-            logger.error(f"OpenDataLoader parsing failed: {e}")
+            logger.error(f"MarkItDown parsing failed: {e}")
             return None
 
-    def _extract_text_opendataloader(self, pdf_path: str) -> str | None:
+    def _extract_text_markitdown(self, pdf_path: str) -> str | None:
         """
-        使用 OpenDataLoader-PDF 提取 Markdown 文本（供 LLM 使用）
+        使用 MarkItDown 提取 Markdown 文本（供 LLM 使用）
         """
-        import opendataloader_pdf
+        from markitdown import MarkItDown
 
         try:
-            with tempfile.TemporaryDirectory() as tmpdir:
-                opendataloader_pdf.convert(input_path=[pdf_path], output_dir=tmpdir, format="markdown")
+            md = MarkItDown()
+            result = md.convert(pdf_path)
+            text = result.text_content if result else ""
 
-                md_path = Path(tmpdir) / f"{Path(pdf_path).stem}.md"
-                if not md_path.exists():
-                    return None
+            if not text:
+                return None
 
-                text = md_path.read_text(encoding="utf-8")
+            if len(text) > 700000:
+                text = text[:700000] + "\n\n... [文本过长，已截断]"
 
-                if len(text) > 700000:
-                    text = text[:700000] + "\n\n... [文本过长，已截断]"
-
-                return text
+            return text
 
         except ImportError:
             return None
         except Exception as e:
-            logger.error(f"OpenDataLoader text extraction failed: {e}")
+            logger.error(f"MarkItDown text extraction failed: {e}")
             return None
 
     def _extract_text_pymupdf(self, pdf_path: str) -> str | None:
@@ -209,7 +178,7 @@ class PDFParser:
         finally:
             doc.close()
 
-    # ========== OpenDataLoader Markdown 辅助方法 ==========
+    # ========== Markdown 辅助方法 ==========
 
     def _extract_title_from_markdown(self, markdown: str, metadata: dict) -> str:
         """

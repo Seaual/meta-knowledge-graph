@@ -10,7 +10,7 @@ rich>=13.7.0
 
 # PDF Processing
 pymupdf>=1.24.0
-opendataloader-pdf>=0.1.0
+markitdown>=0.1.0
 
 # Chinese text handling
 pypinyin>=0.51.0
