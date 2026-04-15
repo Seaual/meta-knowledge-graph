@@ -40,11 +40,13 @@
 
 | Feature | Description |
 |---------|-------------|
-| 📄 **PDF Parsing** | Auto-extract title, authors, abstract from research papers |
+| 📄 **PDF Parsing** | Auto-extract title, authors, abstract from research papers (MarkItDown, no Java dependency) |
+| 🌍 **Auto-Translation** | LLM-powered bilingual concept names (ZH/EN) for cross-language search |
 | 🧠 **Two-Stage Concept Extraction** | Stage 1: Paper understanding → Stage 2: Hierarchical concept extraction with 8 categories |
 | 🌐 **Semantic Scholar Integration** | Auto-enhance paper metadata (DOI, citations, venue, citation count) |
 | 📊 **Interactive Graph Visualization** | Force-directed graph with category-based node sizes, search & filter |
 | 🔍 **Research Point Discovery** | 4 methodologies: Gap Filling, Leaf Extension, Bottleneck, Transfer |
+| 🏷️ **Research Point Badges** | Difficulty, novelty, and impact ratings with color-coded badges |
 | 📤 **Multi-format Export** | HTML (interactive D3), Obsidian Canvas, Markdown |
 | 📁 **Folder Management** | Organize papers into folders with sidebar navigation |
 | ⚡ **Queue Processing** | Sequential batch processing with time estimation |
@@ -262,9 +264,9 @@ Automatically condenses long agent outputs into concise summaries.
 
 ## Tech Stack
 
-**Backend:** Python 3.10+ • FastAPI • SQLite • PyMuPDF • LangGraph
+**Backend:** Python 3.10+ • FastAPI • SQLite • MarkItDown • LangGraph
 
-**Frontend:** React 18 • TypeScript • Vite • TailwindCSS • D3.js
+**Frontend:** React 18 • TypeScript • Vite • TailwindCSS • D3.js • i18n
 
 **LLM:** Claude / Gemini / Qwen / DeepSeek / OpenRouter / OpenAI
 
@@ -343,6 +345,9 @@ Access http://localhost:8089/docs after starting the backend.
 - [x] AI Research Agents (Chat, Paper Q&A, Citation Analysis, Research)
 - [x] Deep Research with async progress tracking
 - [x] CI/CD (GitHub Actions - lint, type-check, test)
+- [x] Auto-translation for Chinese concept names (LLM-powered)
+- [x] Research points difficulty/novelty/impact badges
+- [x] MarkItDown PDF parsing (no Java dependency)
 - [ ] Real-time collaboration
 - [ ] Neo4j support
 
