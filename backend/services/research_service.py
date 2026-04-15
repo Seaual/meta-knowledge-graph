@@ -306,6 +306,7 @@ potential_impact:
             "发现方法": "discovery_method",
             "相关概念": "related_concepts",
             "难度": "difficulty",
+            "难度依据": "difficulty_reason",
             "新颖性": "novelty",
         }
 

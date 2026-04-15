@@ -9,6 +9,7 @@ interface ResearchPoint {
   hypothesis?: string;
   description: string;
   discovery_method?: string;
+  difficulty_reason?: string;
   rationale?: string;
   related_concepts?: string[];
   difficulty?: string;
@@ -130,40 +131,43 @@ function ResearchPointItem({
           )}
         </div>
 
-        {/* Rating dots */}
+        {/* Rating badges */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {point.difficulty && (
-            <div
-              className="w-2.5 h-2.5 rounded-full"
+            <span
+              className="px-1.5 py-0.5 rounded-soft text-[10px] font-medium"
               style={{
-                background:
-                  RATING_COLORS[point.difficulty.toLowerCase()] ||
-                  RATING_COLORS.medium,
+                background: RATING_COLORS[point.difficulty.toLowerCase()] || RATING_COLORS.medium,
+                color: "#fff",
               }}
-              title={`难度: ${point.difficulty}`}
-            />
+              title={`难度`}
+            >
+              难度{point.difficulty === "low" ? "·低" : point.difficulty === "medium" ? "·中" : "·高"}
+            </span>
           )}
           {point.novelty && (
-            <div
-              className="w-2.5 h-2.5 rounded-full"
+            <span
+              className="px-1.5 py-0.5 rounded-soft text-[10px] font-medium"
               style={{
-                background:
-                  RATING_COLORS[point.novelty.toLowerCase()] ||
-                  RATING_COLORS.medium,
+                background: RATING_COLORS[point.novelty.toLowerCase()] || RATING_COLORS.medium,
+                color: "#fff",
               }}
-              title={`新颖度: ${point.novelty}`}
-            />
+              title={`新颖度`}
+            >
+              新颖{point.novelty === "incremental" ? "·渐进" : point.novelty === "moderate" ? "·中等" : "·高"}
+            </span>
           )}
           {point.potential_impact && (
-            <div
-              className="w-2.5 h-2.5 rounded-full"
+            <span
+              className="px-1.5 py-0.5 rounded-soft text-[10px] font-medium"
               style={{
-                background:
-                  RATING_COLORS[point.potential_impact.toLowerCase()] ||
-                  RATING_COLORS.medium,
+                background: RATING_COLORS[point.potential_impact.toLowerCase()] || RATING_COLORS.medium,
+                color: "#fff",
               }}
-              title={`潜在影响: ${point.potential_impact}`}
-            />
+              title={`潜在影响`}
+            >
+              影响{point.potential_impact === "niche" ? "·局部" : point.potential_impact === "broad" ? "·广泛" : "·变革"}
+            </span>
           )}
         </div>
       </button>
@@ -205,6 +209,18 @@ function ResearchPointItem({
               >
                 {getMethodLabel(point.discovery_method, t)}
               </span>
+            </div>
+          )}
+
+          {/* Difficulty reason */}
+          {point.difficulty_reason && (
+            <div className="mb-3">
+              <span className="text-xs text-academic-muted font-mono uppercase tracking-wider">
+                难度依据
+              </span>
+              <p className="mt-1 font-body text-sm text-academic-ink/80">
+                {removeThinkingTags(point.difficulty_reason)}
+              </p>
             </div>
           )}
 
