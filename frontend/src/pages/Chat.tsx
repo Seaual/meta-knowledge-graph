@@ -637,7 +637,7 @@ export default function Chat() {
                   <div
                     className={
                       msg.role === "user"
-                        ? "max-w-[70%] order-1"
+                        ? "w-fit"
                         : "w-[85%] max-w-[800px]"
                     }
                   >
@@ -674,18 +674,20 @@ export default function Chat() {
                     {/* 统一消息样式 */}
                     {msg.role === "user" ? (
                       <div
-                        className="px-4 py-3"
+                        className="w-fit max-w-[70%] px-3 py-1.5 prose prose-sm prose-invert max-w-none [&_p]:m-0 [&_p:not(:first-child)]:mt-1.5 [&_ul]:mt-1 [&_ul]:mb-1 [&_ol]:mt-1 [&_ol]:mb-1 [&_li]:my-0.5"
                         style={{
                           background:
-                            "linear-gradient(135deg, #8B4513 0%, #A0522D 100%)",
-                          color: "#FFFFFF",
+                            "linear-gradient(135deg, #5D4037 0%, #6D4C41 100%)",
+                          color: "#FAFAF7",
                           borderRadius: "16px 16px 4px 16px",
-                          boxShadow: "0 2px 8px rgba(139, 69, 19, 0.15)",
+                          boxShadow: "0 2px 8px rgba(93, 64, 55, 0.25)",
                         }}
                       >
-                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                          {msg.content}
-                        </ReactMarkdown>
+                        <div className="prose-p:text-[#FAFAF7] prose-strong:text-[#FFFFFF] prose-a:text-[#FFD54F] prose-em:text-[#E0E0E0]">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                     ) : (
                       <div
