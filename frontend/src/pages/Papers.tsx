@@ -511,7 +511,7 @@ export default function Papers() {
 
       {/* Main Content */}
       <div className="flex-1 overflow-y-auto p-8 animate-fade-in">
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="max-w-7xl mx-auto space-y-6">
           {/* Header */}
           <div className="flex justify-between items-center">
             <div>
@@ -687,51 +687,51 @@ export default function Papers() {
               <table className="table min-w-full">
                 <thead>
                   <tr>
-                    <th>{t.papers.table.title}</th>
-                    <th className="w-24 min-w-[80px]">
-                      {t.papers.table.status}
-                    </th>
-                    <th>{t.papers.table.nodes}</th>
-                    <th>{t.papers.table.root}</th>
-                    <th className="text-right">{t.papers.table.actions}</th>
+                    <th className="min-w-[300px]">{t.papers.table.title}</th>
+                    <th className="w-24">{t.papers.table.status}</th>
+                    <th className="w-20">{t.papers.table.nodes}</th>
+                    <th className="w-32">{t.papers.table.root}</th>
+                    <th className="w-24 text-right">{t.papers.table.actions}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {papers.map((paper) => (
                     <tr key={paper.doi}>
                       <td>
-                        <div className="font-body font-medium text-sepia">
-                          {paper.title}
+                        <div className="max-w-xl">
+                          <div className="font-body font-medium text-sepia break-words">
+                            {paper.title}
+                          </div>
+                          {paper.authors && paper.authors.length > 0 && (
+                            <div className="font-body text-sm text-muted truncate" title={Array.isArray(paper.authors) ? paper.authors.join(", ") : paper.authors}>
+                              {Array.isArray(paper.authors)
+                                ? paper.authors.slice(0, 3).join(", ")
+                                : paper.authors}
+                            </div>
+                          )}
+                          {paper.s2_doi && (
+                            <a
+                              href={`https://doi.org/${paper.s2_doi}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-mono text-xs text-status-info hover:text-sepia hover:underline block truncate"
+                            >
+                              DOI: {paper.s2_doi}
+                            </a>
+                          )}
+                          {paper.venue && paper.year && (
+                            <div className="font-mono text-xs text-faint mt-1 truncate">
+                              {paper.venue}, {paper.year}
+                            </div>
+                          )}
+                          {paper.tldr && (
+                            <div className="font-quote text-xs text-status-success mt-1 italic line-clamp-2">
+                              TLDR: {paper.tldr}
+                            </div>
+                          )}
                         </div>
-                        {paper.authors && paper.authors.length > 0 && (
-                          <div className="font-body text-sm text-muted">
-                            {Array.isArray(paper.authors)
-                              ? paper.authors.slice(0, 3).join(", ")
-                              : paper.authors}
-                          </div>
-                        )}
-                        {paper.s2_doi && (
-                          <a
-                            href={`https://doi.org/${paper.s2_doi}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-mono text-xs text-status-info hover:text-sepia hover:underline"
-                          >
-                            DOI: {paper.s2_doi}
-                          </a>
-                        )}
-                        {paper.venue && paper.year && (
-                          <div className="font-mono text-xs text-faint mt-1">
-                            {paper.venue}, {paper.year}
-                          </div>
-                        )}
-                        {paper.tldr && (
-                          <div className="font-quote text-xs text-status-success mt-1 italic">
-                            TLDR: {paper.tldr}
-                          </div>
-                        )}
                       </td>
-                      <td className="w-24 min-w-[80px]">
+                      <td className="w-24">
                         <span
                           className={`badge-academic ${getStatusBadgeClass(paper.status)}`}
                         >
@@ -740,7 +740,7 @@ export default function Papers() {
                           ] || paper.status}
                         </span>
                       </td>
-                      <td>
+                      <td className="w-20">
                         <div className="flex items-center gap-1 text-muted">
                           <GitBranch className="w-3 h-3" />
                           <span className="font-mono text-sm">
@@ -750,14 +750,14 @@ export default function Papers() {
                           </span>
                         </div>
                       </td>
-                      <td>
-                        <span className="font-body text-sm text-muted">
+                      <td className="w-32">
+                        <span className="font-body text-sm text-muted truncate block">
                           {paper.status === "processed"
                             ? contributions[paper.doi]?.root_concept || "-"
                             : "-"}
                         </span>
                       </td>
-                      <td className="text-right">
+                      <td className="w-24 text-right">
                         <div className="flex justify-end gap-1">
                           {paper.status === "pending" && (
                             <button
