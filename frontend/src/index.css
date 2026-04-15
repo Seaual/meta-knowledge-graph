@@ -233,6 +233,15 @@ body::before {
     transition-duration: 50ms;
   }
 
+  /* Card - Academic Panel (side panels) */
+  .card-academic {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    backdrop-filter: blur(8px);
+  }
+
   /* Button - Refined */
   .btn-primary {
     display: inline-flex;
