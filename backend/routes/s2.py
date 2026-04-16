@@ -265,7 +265,7 @@ def search_papers_by_concept(concept_id: str, year: str = "2023-2026", min_citat
     """
     基于概念搜索 S2 论文
 
-    用概念名称作为搜索关键词
+    用概念名称作为搜索关键词，自动翻译中文概念为英文以提高搜索准确性
     """
     db = get_db()
     s2_client = get_s2_client()
@@ -275,7 +275,13 @@ def search_papers_by_concept(concept_id: str, year: str = "2023-2026", min_citat
     if not concept:
         raise HTTPException(status_code=404, detail="Concept not found")
 
-    concept_text = concept["text"]
+    # 如果概念缺少英文名，自动翻译
+    concept_text = concept.get("text_en")
+    if not concept_text:
+        from backend.services.concept_translation import translate_concept_if_needed
+        concept_text = translate_concept_if_needed(concept, db)
+        if not concept_text:
+            concept_text = concept["text"]  # fallback to original text
 
     # 搜索论文
     results = s2_client.search_papers(query=concept_text, year=year, limit=limit, min_citation_count=min_citations)
@@ -285,4 +291,4 @@ def search_papers_by_concept(concept_id: str, year: str = "2023-2026", min_citat
     existing_s2_ids = {p["s2_paper_id"] for p in papers if p.get("s2_paper_id")}
     filtered = [r for r in results if r.get("paperId") not in existing_s2_ids]
 
-    return {"concept_id": concept_id, "concept_text": concept_text, "papers": filtered, "total": len(filtered)}
+    return {"concept_id": concept_id, "concept_text": concept_text, "concept_text_zh": concept["text"], "papers": filtered, "total": len(filtered)}

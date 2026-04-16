@@ -10,13 +10,17 @@ logger = logging.getLogger(__name__)
 
 
 def translate_concept_if_needed(concept: dict, db: Database) -> str:
-    """如果概念缺少英文名，自动翻译并保存"""
+    """如果概念缺少英文名，自动翻译为适合学术搜索的英文关键词并保存"""
     if concept.get("text_en"):
         return concept["text_en"]
 
     try:
         llm = get_llm_or_raise()
-        prompt = f"将以下中文学术概念翻译为英文，只返回翻译结果，不要其他内容：{concept['text']}"
+        prompt = (
+            f"Translate this Chinese academic concept to English search keywords for Semantic Scholar.\n"
+            f"Return only the English keywords, nothing else.\n\n"
+            f"Concept: {concept['text']}"
+        )
         response = llm.invoke(prompt)
         content = response.content if hasattr(response, 'content') else str(response)
         if isinstance(content, list):

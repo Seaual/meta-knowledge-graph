@@ -95,9 +95,9 @@ export default function RecommendationPanel({
           20
         );
         setRecommendations(res.data.papers);
-        // If no papers and we had a concept, might be rate limited
+        // If no papers, show no results message instead of rate limited
         if (res.data.papers.length === 0) {
-          setError("rateLimited");
+          setError("noResults");
         }
       } else {
         // Single search - search each concept separately and combine results
@@ -125,7 +125,7 @@ export default function RecommendationPanel({
         );
         setRecommendations(allPapers.slice(0, 20));
         if (allPapers.length === 0) {
-          setError("rateLimited");
+          setError("noResults");
         }
       }
     } catch (err: any) {

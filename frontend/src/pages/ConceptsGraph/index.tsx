@@ -1366,43 +1366,64 @@ export default function ConceptsGraph() {
                           </div>
                         </div>
                         {/* Compact tags */}
-                        <div className="flex gap-1 flex-shrink-0">
+                        <div className="flex gap-1.5 flex-shrink-0 flex-wrap">
                           <span
-                            className="w-2 h-2 rounded-full"
+                            className="px-1.5 py-0.5 rounded text-xs font-medium"
                             style={{
                               backgroundColor:
+                                point.difficulty === "low"
+                                  ? "rgba(45, 90, 39, 0.12)"
+                                  : point.difficulty === "medium"
+                                    ? "rgba(184, 134, 11, 0.12)"
+                                    : "rgba(163, 51, 59, 0.12)",
+                              color:
                                 point.difficulty === "low"
                                   ? "#2d5a27"
                                   : point.difficulty === "medium"
                                     ? "#b8860b"
                                     : "#a33b3b",
                             }}
-                            title={`难度: ${point.difficulty}`}
-                          />
+                          >
+                            {point.difficulty === "low" ? "低难度" : point.difficulty === "medium" ? "中难度" : "高难度"}
+                          </span>
                           <span
-                            className="w-2 h-2 rounded-full"
+                            className="px-1.5 py-0.5 rounded text-xs font-medium"
                             style={{
                               backgroundColor:
+                                point.novelty === "high"
+                                  ? "rgba(194, 65, 12, 0.12)"
+                                  : point.novelty === "moderate"
+                                    ? "rgba(74, 107, 138, 0.12)"
+                                    : "rgba(168, 154, 138, 0.12)",
+                              color:
                                 point.novelty === "high"
                                   ? "#c2410c"
                                   : point.novelty === "moderate"
                                     ? "#4a6b8a"
                                     : "#a89a8a",
                             }}
-                            title={`创新性: ${point.novelty}`}
-                          />
+                          >
+                            {point.novelty === "high" ? "高创新" : point.novelty === "moderate" ? "中创新" : "低创新"}
+                          </span>
                           <span
-                            className="w-2 h-2 rounded-full"
+                            className="px-1.5 py-0.5 rounded text-xs font-medium"
                             style={{
                               backgroundColor:
+                                point.potential_impact === "transformative"
+                                  ? "rgba(212, 160, 18, 0.12)"
+                                  : point.potential_impact === "broad"
+                                    ? "rgba(74, 107, 138, 0.12)"
+                                    : "rgba(168, 154, 138, 0.12)",
+                              color:
                                 point.potential_impact === "transformative"
                                   ? "#d4a012"
                                   : point.potential_impact === "broad"
                                     ? "#4a6b8a"
                                     : "#a89a8a",
                             }}
-                            title={`影响力: ${point.potential_impact}`}
-                          />
+                          >
+                            {point.potential_impact === "transformative" ? "变革性" : point.potential_impact === "broad" ? "广泛" : "小众"}
+                          </span>
                         </div>
                       </div>
 
