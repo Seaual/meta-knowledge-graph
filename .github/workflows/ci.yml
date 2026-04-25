@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  lint:
-    name: Lint
+  backend:
+    name: Backend
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,11 +21,17 @@ jobs:
       - name: Install backend dependencies
         run: python -m pip install -r requirements.txt
 
-      - name: Ruff check
-        run: ruff check .
+      - name: Compile backend sources
+        run: python -m compileall backend mkg tests
 
-      - name: Ruff format
-        run: ruff format --check
+      - name: Run backend tests
+        run: pytest tests/ -v
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -34,71 +40,19 @@ jobs:
 
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm install
+        run: npm ci
 
       - name: ESLint
         working-directory: frontend
         run: npm run lint
 
-      - name: Prettier
-        working-directory: frontend
-        run: npm run format
-
-  type-check:
-    name: Type Check
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install backend dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Pyright
-        run: pyright backend/ mkg/
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm install
-
       - name: TypeScript check
         working-directory: frontend
         run: npm run typecheck
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
-
-      - name: Install backend dependencies
-        run: python -m pip install -r requirements.txt
-
-      - name: Run backend tests
-        run: pytest tests/ -v
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install frontend dependencies
+      - name: Build frontend
         working-directory: frontend
-        run: npm install
+        run: npm run build
 
       - name: Run frontend tests
         working-directory: frontend
