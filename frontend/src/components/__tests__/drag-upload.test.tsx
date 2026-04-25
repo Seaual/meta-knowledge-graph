@@ -1,5 +1,7 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, fireEvent } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { describe, it, vi } from "vitest";
+import { I18nProvider } from "../../i18n";
 
 // Mock lucide-react icons
 vi.mock("lucide-react", () => ({
@@ -15,9 +17,13 @@ vi.mock("../../lib/api", () => ({
 // Import after mocking
 const DragUploadZone = (await import("../DragUploadZone")).default;
 
+function renderWithProviders(ui: ReactElement) {
+  return render(<I18nProvider>{ui}</I18nProvider>);
+}
+
 describe("DragUploadZone", () => {
   it("renders without crashing", () => {
-    const { container } = render(
+    const { container } = renderWithProviders(
       <DragUploadZone
         onUploadSuccess={() => {}}
         onUploadError={() => {}}
@@ -29,7 +35,7 @@ describe("DragUploadZone", () => {
 
   it("shows upload overlay on drag enter", () => {
     // Wrap in a div since the component returns null in idle state
-    const { container } = render(
+    const { container } = renderWithProviders(
       <div style={{ position: "relative" }}>
         <DragUploadZone
           onUploadSuccess={() => {}}
@@ -42,7 +48,7 @@ describe("DragUploadZone", () => {
     // The component uses dragCounterRef internally
     const wrapper = container.firstChild as HTMLElement;
 
-    const dragEnterEvent = fireEvent.dragEnter(wrapper, {
+    fireEvent.dragEnter(wrapper, {
       dataTransfer: { types: ["Files"] },
     });
 

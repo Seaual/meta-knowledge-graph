@@ -79,6 +79,35 @@ export default function ConceptsGraph() {
   ] = useState<Concept[]>([]);
   const [isSelectingForRecommendation, setIsSelectingForRecommendation] =
     useState(false);
+  const searchQueryRef = useRef(searchQuery);
+  const selectedCategoriesRef = useRef(selectedCategories);
+  const highlightedNodeIdRef = useRef(highlightedNodeId);
+  const selectingForRecommendationRef = useRef(isSelectingForRecommendation);
+  const selectedRecommendationConceptsRef = useRef(
+    selectedConceptsForRecommendation
+  );
+  const languageRef = useRef(language);
+  const viewModeRef = useRef(viewMode);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+    selectedCategoriesRef.current = selectedCategories;
+    highlightedNodeIdRef.current = highlightedNodeId;
+    selectingForRecommendationRef.current = isSelectingForRecommendation;
+    selectedRecommendationConceptsRef.current =
+      selectedConceptsForRecommendation;
+    languageRef.current = language;
+    viewModeRef.current = viewMode;
+    graphRef.current?.refresh();
+  }, [
+    searchQuery,
+    selectedCategories,
+    highlightedNodeId,
+    isSelectingForRecommendation,
+    selectedConceptsForRecommendation,
+    language,
+    viewMode,
+  ]);
 
   // Filter handlers (UI callbacks)
   const handleSearch = useCallback((query: string) => {
@@ -213,19 +242,14 @@ export default function ConceptsGraph() {
     }
   }, [activeFolder]);
 
-  // Initialize/update ForceGraph
+  // Initialize ForceGraph once, then update data and paint state separately.
   useEffect(() => {
-    if (!containerRef.current || graphNodes.length === 0) return;
-
-    if (graphRef.current) {
-      graphRef.current._destructor();
-    }
+    if (!containerRef.current || graphRef.current) return;
 
     const graph = new ForceGraph(containerRef.current!)
-      .graphData({ nodes: graphNodes, links: graphLinks })
       .nodeId("id")
       .nodeLabel((node: any) => {
-        if (language === "en" && node.name_en) {
+        if (languageRef.current === "en" && node.name_en) {
           return node.name_en;
         }
         return node.name;
@@ -240,8 +264,10 @@ export default function ConceptsGraph() {
           const isPaper = node.type === "paper";
           const isCenter = node.type === "center";
           const isSelectedForRecommendation =
-            isSelectingForRecommendation &&
-            selectedConceptsForRecommendation.some((c) => c.id === node.id);
+            selectingForRecommendationRef.current &&
+            selectedRecommendationConceptsRef.current.some(
+              (concept) => concept.id === node.id
+            );
 
           let size: number;
           let color: string;
@@ -258,10 +284,10 @@ export default function ConceptsGraph() {
             color = CATEGORY_COLORS[node.category || "method"] || "#8a7a6a";
           }
 
-          // Calculate opacity based on search and category filter
           let opacity = 1;
-          if (searchQuery) {
-            const searchLower = searchQuery.toLowerCase();
+          const searchValue = searchQueryRef.current;
+          if (searchValue) {
+            const searchLower = searchValue.toLowerCase();
             const matchesSearch =
               node.name.toLowerCase().includes(searchLower) ||
               (node.name_en &&
@@ -269,27 +295,25 @@ export default function ConceptsGraph() {
             opacity = matchesSearch ? 1 : 0.2;
           } else if (
             node.category &&
-            !selectedCategories.includes(node.category)
+            !selectedCategoriesRef.current.includes(node.category)
           ) {
             opacity = 0.15;
           }
 
-          if (highlightedNodeId === node.id) {
+          if (highlightedNodeIdRef.current === node.id) {
             opacity = 1;
           }
 
           const x = node.x || 0;
           const y = node.y || 0;
 
-          // Highlighted node glow effect - warm amber
-          if (highlightedNodeId === node.id) {
+          if (highlightedNodeIdRef.current === node.id) {
             ctx.beginPath();
             ctx.arc(x, y, size + 8, 0, 2 * Math.PI);
             ctx.fillStyle = "rgba(184, 134, 11, 0.4)";
             ctx.fill();
           }
 
-          // Selected for recommendation indicator - green glow
           if (isSelectedForRecommendation) {
             ctx.beginPath();
             ctx.arc(x, y, size + 6, 0, 2 * Math.PI);
@@ -306,8 +330,6 @@ export default function ConceptsGraph() {
           }
 
           ctx.globalAlpha = opacity;
-
-          // Draw node
           ctx.beginPath();
           ctx.arc(x, y, size, 0, 2 * Math.PI);
 
@@ -346,7 +368,6 @@ export default function ConceptsGraph() {
             ctx.fill();
           }
 
-          // Draw label when zoomed in
           if (globalScale > 0.5) {
             const fontSize = isCenter ? 14 : 11;
             ctx.font = `${fontSize / globalScale}px 'Source Sans 3', sans-serif`;
@@ -354,7 +375,9 @@ export default function ConceptsGraph() {
             ctx.textBaseline = "top";
             ctx.fillStyle = "#2c1810";
             const displayName =
-              language === "en" && node.name_en ? node.name_en : node.name;
+              languageRef.current === "en" && node.name_en
+                ? node.name_en
+                : node.name;
             const label =
               displayName && displayName.length > 30
                 ? displayName.substring(0, 30) + "..."
@@ -421,8 +444,8 @@ export default function ConceptsGraph() {
         if (!node) return;
         setHoverNode(null);
         if (node.type === "concept") {
-          if (viewMode === "all") {
-            if (isSelectingForRecommendation) {
+          if (viewModeRef.current === "all") {
+            if (selectingForRecommendationRef.current) {
               handleToggleConceptInRecommendation(node.id);
             } else {
               handleConceptClick(node);
@@ -446,25 +469,31 @@ export default function ConceptsGraph() {
     graphRef.current = graph;
 
     return () => {
-      if (graphRef.current) {
-        graphRef.current._destructor();
-      }
+      graphRef.current?._destructor();
+      graphRef.current = null;
     };
-  }, [
-    graphNodes,
-    graphLinks,
-    viewMode,
-    handleConceptClick,
-    handlePaperClick,
-    forceStrength,
-    searchQuery,
-    selectedCategories,
-    highlightedNodeId,
-    isSelectingForRecommendation,
-    selectedConceptsForRecommendation,
-    handleToggleConceptInRecommendation,
-    language,
-  ]);
+  }, [handleConceptClick, handlePaperClick, handleToggleConceptInRecommendation]);
+
+  useEffect(() => {
+    if (!graphRef.current) return;
+    graphRef.current.graphData({ nodes: graphNodes, links: graphLinks });
+    graphRef.current.d3ReheatSimulation();
+    graphRef.current.refresh();
+  }, [graphNodes, graphLinks]);
+
+  useEffect(() => {
+    if (!graphRef.current) return;
+    graphRef.current.d3Force(
+      "charge",
+      forceManyBody().strength((node: any) => {
+        if (node.type === "paper") return -forceStrength * 0.3;
+        if (node.type === "center") return -forceStrength * 1.5;
+        const depthBonus = -(node.depth || 0) * 20;
+        return -forceStrength * 0.6 + depthBonus;
+      })
+    );
+    graphRef.current.d3ReheatSimulation();
+  }, [forceStrength]);
 
   // Wrap handleDiscoverResearchPoints to also manage UI state
   const onDiscoverResearchPoints = useCallback(async () => {

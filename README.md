@@ -330,6 +330,20 @@ Access http://localhost:8089/docs after starting the backend.
 
 ---
 
+## Recent Improvements
+
+### v0.1.1
+
+- **Agent session isolation**: chat requests now pass a `conversationId` through the frontend and backend so LangGraph checkpoints no longer share one global thread.
+- **Faster concept persistence**: concept trees are collected and written in a single database transaction, which reduces commit overhead during paper processing.
+- **More stable external calls**: LLM-backed research point discovery, concept translation, and shared text generation now use retry-aware wrappers with structured logging.
+- **Graph interaction performance**: the Concepts page keeps one ForceGraph instance alive and refreshes data incrementally instead of destroying and rebuilding the graph on common UI state changes.
+- **Initial regression coverage**: added resilience-focused tests for retry behavior and LLM wrapper handling.
+
+See [CHANGELOG.md](CHANGELOG.md) for the release summary.
+
+---
+
 ## Roadmap
 
 - [x] Two-stage concept extraction

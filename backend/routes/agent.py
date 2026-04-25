@@ -109,7 +109,8 @@ def chat(request: AgentChatRequest):
     }
 
     # 执行图
-    config = {"configurable": {"thread_id": "default"}}
+    thread_id = request.conversationId or str(uuid.uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
     result = graph.invoke(initial_state, config)
 
     # 提取概念数据（向后兼容）

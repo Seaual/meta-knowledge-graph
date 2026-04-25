@@ -6,12 +6,15 @@ import {
   useRef,
   useEffect,
   useCallback,
+  lazy,
+  Suspense,
   Component,
   ReactNode,
 } from "react";
 import { useAgentStore } from "../stores/agentStore";
 import { useConversationStore } from "../stores/conversationStore";
 import { sseManager } from "../lib/sse";
+import { papersApi } from "../lib/api";
 import {
   Send,
   X,
@@ -25,10 +28,11 @@ import {
   Wrench,
 } from "lucide-react";
 import DragUploadZone from "../components/DragUploadZone";
-import ConceptGraphInChat from "../components/ConceptGraphInChat";
 import ChatAttachments from "../components/ChatAttachments";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const ConceptGraphInChat = lazy(() => import("../components/ConceptGraphInChat"));
 
 // 解析消息中的思考过程
 function parseThinkingContent(content: string): {
@@ -261,7 +265,7 @@ export default function Chat() {
     }));
 
     // 使用 SSEManager 启动后台 SSE 连接
-    sseManager.startChatStream(userMessage, contextSummary, history, {
+    sseManager.startChatStream(userMessage, contextSummary, history, convId, {
       onToolStatus: (status) => setToolStatus(status),
       onResponse: (msg, attachments) => {
         addMessageToStore({
@@ -404,8 +408,6 @@ export default function Chat() {
 
       setIsUploading(true);
 
-      // Import papersApi
-      const { papersApi } = await import("../lib/api");
       const uploadedPapers: Array<{ doi: string; title: string }> = [];
 
       for (const file of files) {
@@ -669,7 +671,9 @@ export default function Chat() {
                     {msg.role === "assistant" &&
                       msg.conceptData &&
                       (!msg.attachments || msg.attachments.length === 0) && (
-                        <ConceptGraphInChat data={msg.conceptData} />
+                        <Suspense fallback={null}>
+                          <ConceptGraphInChat data={msg.conceptData} />
+                        </Suspense>
                       )}
                     {/* 统一消息样式 */}
                     {msg.role === "user" ? (

@@ -11,6 +11,7 @@ import json
 import sqlite3
 import threading
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 
@@ -65,6 +66,18 @@ class Database:
             cursor = self.conn.cursor()
             cursor.execute(query, params)
             return cursor
+
+    @contextmanager
+    def transaction(self):
+        """Run multiple writes inside a single locked transaction."""
+        with self._lock:
+            cursor = self.conn.cursor()
+            try:
+                yield cursor
+                self.conn.commit()
+            except Exception:
+                self.conn.rollback()
+                raise
 
     def close(self):
         """关闭连接"""

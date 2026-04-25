@@ -349,6 +349,7 @@ class AgentChatRequest(BaseModel):
     message: str
     context: ContextSummary
     history: list[AgentMessage] = []
+    conversationId: str | None = None
 
 
 class AgentChatResponse(BaseModel):
