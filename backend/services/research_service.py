@@ -4,11 +4,15 @@
 """
 
 import json
+import logging
 import re
 
 from mkg.database import Database
-from mkg.llm import get_llm_or_raise, init_llm_from_db
+from mkg.llm import extract_text_content, get_llm_or_raise, init_llm_from_db
+from mkg.resilience import RetryableExternalError, call_with_retries
 from mkg.semantic_scholar import S2Client
+
+logger = logging.getLogger(__name__)
 
 
 class ResearchService:
@@ -133,21 +137,23 @@ class ResearchService:
             )
 
             # 调用 LLM
-            response = llm.invoke(prompt)
-            content = response.content if hasattr(response, 'content') else str(response)
-            # ChatAnthropic 返回的 content 可能是 list of content blocks
-            if isinstance(content, list):
-                parts = []
-                for item in content:
-                    if isinstance(item, dict):
-                        # 只提取 text 类型的内容，忽略 thinking 等元数据
-                        if item.get('type') == 'text':
-                            parts.append(item.get('text', ''))
-                        elif 'text' in item:
-                            parts.append(item['text'])
-                    else:
-                        parts.append(str(item))
-                content = '\n'.join(parts)
+            def _invoke():
+                try:
+                    return llm.invoke(prompt)
+                except Exception as exc:
+                    error_text = str(exc).lower()
+                    if any(token in error_text for token in ("timeout", "timed out", "rate limit", "429", "503")):
+                        raise RetryableExternalError(str(exc)) from exc
+                    raise
+
+            response = call_with_retries(
+                "research_service.discover_research_points",
+                _invoke,
+                logger=logger,
+                retries=2,
+                retry_delay=1.5,
+            )
+            content = extract_text_content(response.content if hasattr(response, "content") else response)
 
             return {
                 "concept_id": concept_id,

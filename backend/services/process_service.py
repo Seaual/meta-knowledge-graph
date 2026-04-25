@@ -146,26 +146,112 @@ class ProcessService:
 
     def _save_concepts(self, doi: str, hierarchy: dict):
         """保存提取的概念到数据库"""
-        def save_node(node, parent_id=None):
-            # 添加概念（to_dict 返回 "concept" 字段）
-            concept_id = self.db.concepts.add({
-                "text": node.get("concept", ""),
-                "category": node.get("category")
-            })
+        if not hierarchy:
+            return
 
-            # 添加关系
+        concept_repo = self.db.concepts
+        concepts: dict[str, dict] = {}
+        relations: set[tuple[str, str]] = set()
+        paper_concepts: set[str] = set()
+
+        def collect_node(node: dict, parent_id: str | None = None):
+            concept_text = node.get("concept", "")
+            concept_en = node.get("concept_en")
+            concept_id = node.get("id") or concept_repo._to_slug(concept_en or concept_text)
+            existing = concepts.get(concept_id)
+
+            if existing is None:
+                concepts[concept_id] = {
+                    "id": concept_id,
+                    "text": concept_text,
+                    "text_en": concept_en,
+                    "category": node.get("category"),
+                }
+            else:
+                if not existing.get("text_en") and concept_en:
+                    existing["text_en"] = concept_en
+                if not existing.get("category") and node.get("category"):
+                    existing["category"] = node.get("category")
+
+            paper_concepts.add(concept_id)
             if parent_id:
-                self.db.concepts.add_relation(parent_id, concept_id)
+                relations.add((parent_id, concept_id))
 
-            # 添加论文关联
-            self.db.concepts.add_paper_concept(doi, concept_id)
-
-            # 递归处理子节点
             for child in node.get("children", []):
-                save_node(child, concept_id)
+                collect_node(child, concept_id)
 
-        if hierarchy:
-            save_node(hierarchy)
+        collect_node(hierarchy)
+
+        with self.db.transaction() as cursor:
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO concepts (id, text, text_en, category, paper_count)
+                VALUES (?, ?, ?, ?, 0)
+                """,
+                [
+                    (
+                        concept["id"],
+                        concept["text"],
+                        concept.get("text_en"),
+                        concept.get("category"),
+                    )
+                    for concept in concepts.values()
+                ],
+            )
+
+            cursor.executemany(
+                """
+                UPDATE concepts
+                SET text_en = COALESCE(NULLIF(text_en, ''), ?)
+                WHERE id = ?
+                """,
+                [
+                    (concept["text_en"], concept["id"])
+                    for concept in concepts.values()
+                    if concept.get("text_en")
+                ],
+            )
+
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO concept_relations (parent_id, child_id, relation_type)
+                VALUES (?, ?, 'is_subconcept_of')
+                """,
+                list(relations),
+            )
+
+            cursor.executemany(
+                """
+                INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id, confidence)
+                VALUES (?, ?, 1.0)
+                """,
+                [(doi, concept_id) for concept_id in paper_concepts],
+            )
+
+            cursor.executemany(
+                """
+                UPDATE concepts
+                SET paper_count = (
+                    SELECT COUNT(DISTINCT paper_doi)
+                    FROM paper_concepts
+                    WHERE concept_id = ?
+                )
+                WHERE id = ?
+                """,
+                [(concept_id, concept_id) for concept_id in paper_concepts],
+            )
+
+        if self.db.neo4j_store:
+            for concept in concepts.values():
+                self.db.neo4j_store.sync_concept(concept)
+            for parent_id, child_id in relations:
+                self.db.neo4j_store.sync_relation(parent_id, child_id, "parent-child")
+            for concept_id in paper_concepts:
+                count = self.db.execute_read(
+                    "SELECT paper_count FROM concepts WHERE id = ?",
+                    (concept_id,),
+                ).fetchone()["paper_count"]
+                self.db.neo4j_store.update_paper_count(concept_id, count)
 
     def _count_concepts(self, hierarchy: dict) -> int:
         """统计概念数量"""

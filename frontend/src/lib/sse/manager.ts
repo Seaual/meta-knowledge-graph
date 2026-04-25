@@ -26,6 +26,7 @@ class SSEManager {
     message: string,
     context: AgentContextSummary,
     history: AgentMessage[],
+    conversationId: string | null,
     callbacks: SSECallbacks
   ): void {
     // 新连接启动前，断开旧连接
@@ -43,7 +44,13 @@ class SSEManager {
     this.callbacks = callbacks;
 
     // 异步执行 SSE 连接（不阻塞调用方）
-    this._executeStream(message, context, history, abortController);
+    this._executeStream(
+      message,
+      context,
+      history,
+      conversationId,
+      abortController
+    );
   }
 
   /**
@@ -53,13 +60,14 @@ class SSEManager {
     message: string,
     context: AgentContextSummary,
     history: AgentMessage[],
+    conversationId: string | null,
     abortController: AbortController
   ): Promise<void> {
     try {
       const response = await fetch("/api/agent/chat/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message, context, history }),
+        body: JSON.stringify({ message, context, history, conversationId }),
         signal: abortController.signal,
       });
 

@@ -8,15 +8,19 @@
 """
 
 from typing import Any
+import logging
 
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 
+from mkg.resilience import RetryableExternalError, call_with_retries
+
 # 全局 LLM 实例
 _llm_instance: BaseChatModel | None = None
 _current_config: dict[str, Any] = {}
+logger = logging.getLogger("mkg.llm")
 
 
 def init_llm(
@@ -65,6 +69,7 @@ def init_llm(
             model=model,
             api_key=api_key,
             base_url=base_url,
+            timeout=120,
         )
 
     _current_config = {
@@ -195,7 +200,25 @@ def generate(prompt: str, system_prompt: str | None = None) -> str:
         messages.append(SystemMessage(content=system_prompt))
     messages.append(HumanMessage(content=prompt))
 
-    response = llm.invoke(messages)
+    def _invoke():
+        try:
+            return llm.invoke(messages)
+        except Exception as exc:
+            error_text = str(exc).lower()
+            if any(
+                token in error_text
+                for token in ("timeout", "timed out", "rate limit", "429", "503", "connection")
+            ):
+                raise RetryableExternalError(str(exc)) from exc
+            raise
+
+    response = call_with_retries(
+        "llm.generate",
+        _invoke,
+        logger=logger,
+        retries=2,
+        retry_delay=1.5,
+    )
 
     # 处理不同的响应格式
     content = response.content

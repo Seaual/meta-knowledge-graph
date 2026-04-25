@@ -62,12 +62,14 @@ export const agentApi = {
   chat: async (
     message: string,
     context: AgentContextSummary,
-    history: AgentMessage[]
+    history: AgentMessage[],
+    conversationId?: string | null
   ): Promise<AgentChatResponse> => {
     const response = await api.post<AgentChatResponse>("/agent/chat", {
       message,
       context,
       history,
+      conversationId,
     });
     return response.data;
   },
@@ -75,13 +77,17 @@ export const agentApi = {
   chatStream: (
     message: string,
     context: AgentContextSummary,
-    history: AgentMessage[]
+    history: AgentMessage[],
+    conversationId?: string | null
   ): string => {
     const params = new URLSearchParams({
       message,
       context: JSON.stringify(context),
       history: JSON.stringify(history),
     });
+    if (conversationId) {
+      params.set("conversationId", conversationId);
+    }
     return `/api/agent/chat/stream?${params.toString()}`;
   },
 
@@ -89,12 +95,13 @@ export const agentApi = {
     message: string,
     context: AgentContextSummary,
     history: AgentMessage[],
+    conversationId: string | null | undefined,
     onEvent: (event: { type: string; [key: string]: any }) => void
   ): Promise<void> => {
     const response = await fetch("/api/agent/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, context, history }),
+      body: JSON.stringify({ message, context, history, conversationId }),
     });
 
     if (!response.ok) {
