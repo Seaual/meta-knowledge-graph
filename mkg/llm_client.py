@@ -25,7 +25,18 @@ class LLMClient:
 
     def close(self) -> None:
         self._client.close()
-        asyncio.get_event_loop().run_until_complete(self._async_client.aclose())
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            # No loop running — safe to use run_until_complete
+            asyncio.get_event_loop().run_until_complete(self._async_client.aclose())
+        else:
+            # Already inside an event loop — schedule close as a task
+            loop.create_task(self._async_client.aclose())
+
+    async def aclose(self) -> None:
+        self._client.close()
+        await self._async_client.aclose()
 
     async def complete(self, prompt: str) -> str:
         return await self.complete_messages(

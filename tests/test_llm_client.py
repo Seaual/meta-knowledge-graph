@@ -124,3 +124,4 @@ async def test_llm_client_timeout_eventually_fails():
         with patch("asyncio.sleep", return_value=None):
             with pytest.raises(RuntimeError, match="LLM API timeout"):
                 await client.complete("say hi")
+            assert mock_client_instance.post.call_count == 3
