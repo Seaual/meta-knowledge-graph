@@ -1,7 +1,7 @@
 [project]
 name = "meta-knowledge-graph"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "requests>=2.31.0",
     "pydantic>=2.6.0",
@@ -15,6 +15,7 @@ dependencies = [
     "python-multipart>=0.0.6",
     "langchain>=0.3.0",
     "langgraph>=0.2.0",
+    "deepagents==0.5.1",
     "python-dotenv>=1.0.0",
     "cryptography>=42.0.0",
     "semanticscholar>=0.11.0",

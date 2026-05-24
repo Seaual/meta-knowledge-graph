@@ -26,6 +26,7 @@ python-multipart>=0.0.6
 # LangChain & LangGraph - Agent 框架
 langchain>=0.3.0
 langgraph>=0.2.0
+deepagents==0.5.1
 
 # Environment
 python-dotenv>=1.0.0
