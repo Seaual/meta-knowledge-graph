@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 import httpx
 
@@ -26,13 +27,15 @@ class LLMClient:
     def close(self) -> None:
         self._client.close()
         try:
-            loop = asyncio.get_running_loop()
+            asyncio.get_running_loop()
         except RuntimeError:
             # No loop running — safe to use run_until_complete
             asyncio.get_event_loop().run_until_complete(self._async_client.aclose())
         else:
-            # Already inside an event loop — schedule close as a task
-            loop.create_task(self._async_client.aclose())
+            # Inside an async context — caller should use aclose() instead
+            raise RuntimeError(
+                "close() cannot be called inside an async context. Use aclose() instead."
+            )
 
     async def aclose(self) -> None:
         self._client.close()
@@ -66,7 +69,65 @@ class LLMClient:
             return self._call_openai_sync(messages, system)
         raise ValueError(f"Unknown provider: {self.provider}")
 
-    async def _call_openai(self, messages: list[dict], system: str | None = None) -> str:
+    def _request_with_retry_sync(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        json_body: dict,
+    ) -> httpx.Response:
+        for attempt in range(3):
+            try:
+                resp = self._client.request(
+                    method, url, headers=headers, json=json_body
+                )
+                resp.raise_for_status()
+                return resp
+            except httpx.ReadTimeout as e:
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise RuntimeError(
+                    f"LLM API timeout after {attempt + 1} attempts"
+                ) from e
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < 2:
+                    time.sleep(2 ** attempt)
+                    continue
+                raise
+        raise RuntimeError("LLM request failed after all retries")
+
+    async def _request_with_retry_async(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        json_body: dict,
+    ) -> httpx.Response:
+        for attempt in range(3):
+            try:
+                resp = await self._async_client.request(
+                    method, url, headers=headers, json=json_body
+                )
+                resp.raise_for_status()
+                return resp
+            except httpx.ReadTimeout as e:
+                if attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                raise RuntimeError(
+                    f"LLM API timeout after {attempt + 1} attempts"
+                ) from e
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 429 and attempt < 2:
+                    await asyncio.sleep(2 ** attempt)
+                    continue
+                raise
+        raise RuntimeError("LLM request failed after all retries")
+
+    async def _call_openai(
+        self, messages: list[dict], system: str | None = None
+    ) -> str:
         url = (
             f"{self.base_url}/v1/chat/completions"
             if self.base_url
@@ -77,42 +138,24 @@ class LLMClient:
         if system is not None:
             msgs.insert(0, {"role": "system", "content": system})
 
-        last_err = None
-        for attempt in range(3):
-            try:
-                resp = await self._async_client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "Content-Type": "application/json",
-                    },
-                    json={
-                        "model": model,
-                        "messages": msgs,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                try:
-                    return data["choices"][0]["message"]["content"]
-                except (KeyError, IndexError) as err:
-                    raise RuntimeError(f"Unexpected OpenAI response format: {data}") from err
-            except httpx.ReadTimeout as e:
-                last_err = e
-                if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
-                    continue
-                raise RuntimeError(f"LLM API timeout after {attempt + 1} attempts") from e
-            except httpx.HTTPStatusError as e:
-                last_err = e
-                if e.response.status_code == 429 and attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
-                    continue
-                raise
-        assert last_err is not None
-        raise last_err
+        resp = await self._request_with_retry_async(
+            "POST",
+            url,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+            },
+            json_body={"model": model, "messages": msgs},
+        )
+        data = resp.json()
+        try:
+            return data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as err:
+            raise RuntimeError(f"Unexpected OpenAI response format: {data}") from err
 
-    async def _call_anthropic(self, messages: list[dict], system: str | None = None) -> str:
+    async def _call_anthropic(
+        self, messages: list[dict], system: str | None = None
+    ) -> str:
         url = (
             f"{self.base_url}/v1/messages"
             if self.base_url
@@ -127,39 +170,24 @@ class LLMClient:
         if system is not None:
             payload["system"] = system
 
-        last_err = None
-        for attempt in range(3):
-            try:
-                resp = await self._async_client.post(
-                    url,
-                    headers={
-                        "Authorization": f"Bearer {self.api_key}",
-                        "anthropic-version": "2023-06-01",
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
-                    },
-                    json=payload,
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                try:
-                    return data["content"][0]["text"]
-                except (KeyError, IndexError) as err:
-                    raise RuntimeError(f"Unexpected Anthropic response format: {data}") from err
-            except httpx.ReadTimeout as e:
-                last_err = e
-                if attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
-                    continue
-                raise RuntimeError(f"LLM API timeout after {attempt + 1} attempts") from e
-            except httpx.HTTPStatusError as e:
-                last_err = e
-                if e.response.status_code == 429 and attempt < 2:
-                    await asyncio.sleep(2 ** attempt)
-                    continue
-                raise
-        assert last_err is not None
-        raise last_err
+        resp = await self._request_with_retry_async(
+            "POST",
+            url,
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            },
+            json_body=payload,
+        )
+        data = resp.json()
+        try:
+            return data["content"][0]["text"]
+        except (KeyError, IndexError) as err:
+            raise RuntimeError(
+                f"Unexpected Anthropic response format: {data}"
+            ) from err
 
     def _call_openai_sync(
         self, messages: list[dict], system: str | None = None
@@ -174,18 +202,15 @@ class LLMClient:
         if system is not None:
             msgs.insert(0, {"role": "system", "content": system})
 
-        resp = self._client.post(
+        resp = self._request_with_retry_sync(
+            "POST",
             url,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json",
             },
-            json={
-                "model": model,
-                "messages": msgs,
-            },
+            json_body={"model": model, "messages": msgs},
         )
-        resp.raise_for_status()
         data = resp.json()
         try:
             return data["choices"][0]["message"]["content"]
@@ -209,7 +234,8 @@ class LLMClient:
         if system is not None:
             payload["system"] = system
 
-        resp = self._client.post(
+        resp = self._request_with_retry_sync(
+            "POST",
             url,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
@@ -217,11 +243,12 @@ class LLMClient:
                 "Content-Type": "application/json",
                 "Accept": "application/json",
             },
-            json=payload,
+            json_body=payload,
         )
-        resp.raise_for_status()
         data = resp.json()
         try:
             return data["content"][0]["text"]
         except (KeyError, IndexError) as err:
-            raise RuntimeError(f"Unexpected Anthropic response format: {data}") from err
+            raise RuntimeError(
+                f"Unexpected Anthropic response format: {data}"
+            ) from err
