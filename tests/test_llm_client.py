@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
@@ -67,3 +67,60 @@ def test_llm_client_http_error():
         client = LLMClient(api_key="sk-test", provider="openai", model="gpt-4o")
         with pytest.raises(httpx.HTTPStatusError):
             client.complete_sync("say hi")
+
+
+@pytest.mark.asyncio
+async def test_llm_client_openai_async():
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "choices": [{"message": {"content": "async hello"}}]
+    }
+    mock_response.raise_for_status = MagicMock()
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.post = AsyncMock(return_value=mock_response)
+
+    with patch("mkg.llm_client.httpx.AsyncClient", return_value=mock_client_instance) as MockClient:
+        client = LLMClient(api_key="sk-test", provider="openai", model="gpt-4o")
+        assert MockClient.call_count == 1
+        result = await client.complete("say hi")
+        assert result == "async hello"
+
+
+@pytest.mark.asyncio
+async def test_llm_client_retry_on_429():
+    error_response = MagicMock()
+    error_response.status_code = 429
+    error_response.raise_for_status.side_effect = httpx.HTTPStatusError(
+        "429", request=MagicMock(), response=error_response
+    )
+
+    success_response = MagicMock()
+    success_response.status_code = 200
+    success_response.json.return_value = {
+        "choices": [{"message": {"content": "retry success"}}]
+    }
+    success_response.raise_for_status = MagicMock()
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.post = AsyncMock(side_effect=[error_response, success_response])
+
+    with patch("mkg.llm_client.httpx.AsyncClient", return_value=mock_client_instance):
+        client = LLMClient(api_key="sk-test", provider="openai", model="gpt-4o")
+        with patch("asyncio.sleep", return_value=None):
+            result = await client.complete("say hi")
+            assert result == "retry success"
+            assert mock_client_instance.post.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_llm_client_timeout_eventually_fails():
+    mock_client_instance = MagicMock()
+    mock_client_instance.post = AsyncMock(side_effect=httpx.ReadTimeout("timeout"))
+
+    with patch("mkg.llm_client.httpx.AsyncClient", return_value=mock_client_instance):
+        client = LLMClient(api_key="sk-test", provider="openai", model="gpt-4o")
+        with patch("asyncio.sleep", return_value=None):
+            with pytest.raises(RuntimeError, match="LLM API timeout"):
+                await client.complete("say hi")
