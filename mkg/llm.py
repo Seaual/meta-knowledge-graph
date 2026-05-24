@@ -1,18 +1,19 @@
 # mkg/llm.py
 """
-统一 LLM 客户端 - 所有 LLM 调用通过 LangChain Chat 模型
+统一 LLM 客户端 - 所有 LLM 调用通过原生 HTTP client
 
 支持：
-- OpenAI 兼容 API（ChatOpenAI + base_url）
-- Anthropic 兼容 API（ChatAnthropic + 环境变量）
+- OpenAI 兼容 API
+- Anthropic 兼容 API
 """
 
 from typing import Any
 
-from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_openai import ChatOpenAI
+
+from mkg.llm_adapter import MKGChatModel
+from mkg.llm_client import LLMClient
 
 # 全局 LLM 实例
 _llm_instance: BaseChatModel | None = None
@@ -28,49 +29,29 @@ def init_llm(
     """
     初始化 LLM 客户端
 
-    根据 base_url 内容判断 API 格式：
-    - 含 'anthropic' → ChatAnthropic
-    - 其他 → ChatOpenAI
-
     Args:
-        provider: 服务商名称（用于日志）
+        provider: 服务商名称（openai / anthropic）
         api_key: API 密钥
         model: 模型名称
         base_url: API 地址（可选）
 
     Returns:
-        初始化好的 LLM 实例
+        初始化好的 LLM 实例（MKGChatModel）
     """
     global _llm_instance, _current_config
-    import os
 
-    # 判断 API 格式
-    use_anthropic = base_url and 'anthropic' in base_url.lower()
-
-    if use_anthropic:
-        # Anthropic 兼容 API
-        # ChatAnthropic 通过环境变量设置 base_url
-        if base_url:
-            os.environ["ANTHROPIC_BASE_URL"] = base_url
-
-        _llm_instance = ChatAnthropic(
-            model=model,
-            api_key=api_key,
-            timeout=120,
-            max_tokens=8192,
-        )
-    else:
-        # OpenAI 兼容 API
-        _llm_instance = ChatOpenAI(
-            model=model,
-            api_key=api_key,
-            base_url=base_url,
-        )
+    client = LLMClient(
+        api_key=api_key,
+        provider=provider,
+        model=model,
+        base_url=base_url or "",
+    )
+    _llm_instance = MKGChatModel(client=client)
 
     _current_config = {
-        'provider': provider,
-        'model': model,
-        'base_url': base_url,
+        "provider": provider,
+        "model": model,
+        "base_url": base_url,
     }
 
     return _llm_instance
@@ -87,18 +68,18 @@ def init_llm_from_db(db) -> BaseChatModel | None:
         初始化好的 LLM 实例，如果配置不存在返回 None
     """
     config = db.get_llm_config()
-    if not config or not config.get('providers'):
+    if not config or not config.get("providers"):
         return None
 
     provider_config = db.get_active_llm_provider()
     if not provider_config:
-        provider_config = config['providers'][0]
+        provider_config = config["providers"][0]
 
     return init_llm(
-        provider=provider_config.get('provider', 'openai'),
-        api_key=provider_config.get('api_key'),
-        model=provider_config.get('model', 'gpt-4o-mini'),
-        base_url=provider_config.get('base_url'),
+        provider=provider_config.get("provider", "openai"),
+        api_key=provider_config.get("api_key"),
+        model=provider_config.get("model", "gpt-4o-mini"),
+        base_url=provider_config.get("base_url"),
     )
 
 
@@ -167,11 +148,11 @@ def extract_text_content(content) -> str:
     if isinstance(content, list):
         text_parts = []
         for block in content:
-            if isinstance(block, dict) and block.get('type') == 'text':
-                text_parts.append(block.get('text', ''))
+            if isinstance(block, dict) and block.get("type") == "text":
+                text_parts.append(block.get("text", ""))
             elif isinstance(block, str):
                 text_parts.append(block)
-        return ''.join(text_parts)
+        return "".join(text_parts)
     return str(content)
 
 
@@ -189,23 +170,27 @@ def generate(prompt: str, system_prompt: str | None = None) -> str:
         生成的文本内容
     """
     llm = get_llm_or_raise()
+    # 直接通过底层 client 调用，避免绕 LangChain
+    if isinstance(llm, MKGChatModel):
+        return llm.client.complete_messages_sync(
+            [{"role": "user", "content": prompt}],
+            system=system_prompt,
+        )
 
+    # Fallback: 使用 LangChain 路径（理论上不会走到这里）
     messages = []
     if system_prompt:
         messages.append(SystemMessage(content=system_prompt))
     messages.append(HumanMessage(content=prompt))
 
     response = llm.invoke(messages)
-
-    # 处理不同的响应格式
     content = response.content
     if isinstance(content, list):
-        # 某些模型返回内容块列表，提取文本
         text_parts = []
         for block in content:
-            if isinstance(block, dict) and block.get('type') == 'text':
-                text_parts.append(block.get('text', ''))
+            if isinstance(block, dict) and block.get("type") == "text":
+                text_parts.append(block.get("text", ""))
             elif isinstance(block, str):
                 text_parts.append(block)
-        return ''.join(text_parts)
+        return "".join(text_parts)
     return str(content)
