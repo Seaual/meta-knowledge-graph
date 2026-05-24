@@ -1,9 +1,3 @@
-# mkg/agent/__init__.py
-"""
-LangGraph Agent 模块
-"""
+from .agent import get_main_agent, init_agent, reset_agent
 
-from .graph import get_agent_graph, reset_graph
-from .tools import ALL_TOOLS
-
-__all__ = ["get_agent_graph", "reset_graph", "ALL_TOOLS"]
+__all__ = ["get_main_agent", "init_agent", "reset_agent"]
