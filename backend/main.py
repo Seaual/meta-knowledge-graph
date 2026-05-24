@@ -70,7 +70,6 @@ from backend.routes import (
     papers,
     papers_process,
     papers_upload,
-    research,
     s2,
     semantic_scholar,
 )
@@ -119,7 +118,6 @@ app.include_router(s2.router)
 app.include_router(agent.router)
 app.include_router(conversations.router)
 app.include_router(memory.router)
-app.include_router(research.router)
 
 
 @app.get("/api")
