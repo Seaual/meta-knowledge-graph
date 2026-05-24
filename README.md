@@ -100,6 +100,37 @@ Open http://localhost:8089 — configure your LLM API key in the **Settings** pa
 
 > API Keys are saved locally in the database. Supports Claude, OpenAI, Gemini, Qwen, DeepSeek, and more.
 
+#### Docker Security (Production)
+
+When exposing MKG to the internet, enable Basic Auth:
+
+```bash
+docker run -d -p 8089:8089 \
+  -e BASIC_AUTH_USER=admin \
+  -e BASIC_AUTH_PASSWORD=your-strong-password \
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  --restart unless-stopped \
+  danceinsophy/meta-knowledge-graph:latest
+```
+
+Or use Nginx reverse proxy with HTTPS:
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:8089;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
 ### Option 2: Docker Compose
 
 ```bash
@@ -292,7 +323,7 @@ meta-knowledge-graph/
 │       ├── lib/api/          # API client modules
 │       └── store/            # Zustand state management
 ├── mkg/                      # Core library
-│   ├── database.py           # SQLite database manager
+│   ├── database/             # SQLite database package (core, schema, migrations)
 │   ├── repositories/         # Data access layer
 │   ├── agent/                # LangGraph agent system
 │   │   ├── nodes/            # Agent nodes (lead, research, citation, etc.)
@@ -300,7 +331,7 @@ meta-knowledge-graph/
 │   │   └── research_graph.py # Deep research orchestration
 │   ├── dedup/                # Concept deduplication module
 │   ├── semantic_scholar.py   # S2 API client
-│   └── llm.py                # LLM provider abstraction
+│   └── llm.py                # LLMClient + MKGChatModel adapter (native HTTP)
 ├── scripts/                  # Utility scripts (demo data generation)
 ├── docker/                   # Docker configuration
 ├── icon/                     # Project icons

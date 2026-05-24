@@ -1,0 +1,9 @@
+[shell_environment_policy]
+inherit = "core"
+
+[shell_environment_policy.set]
+ANTHROPIC_AUTH_TOKEN = "sk-cp-FcTX8NSPMJ-rCycKE62HNcNuDisEVwD6JTxkftxklc_5ta0nPx7xavfkgqWH_MSHLX167ZJMWAam2Z4vNjGHDCK6mLBTnXIbpUTPjLfL9MVeV7twH5e1hkY"
+ANTHROPIC_BASE_URL = "https://api.minimaxi.com/anthropic"
+ANTHROPIC_BUDGET_TOKENS = "60000"
+ANTHROPIC_MAX_TOKENS = "64000"
+ANTHROPIC_MODEL = "MiniMax-M2.7"

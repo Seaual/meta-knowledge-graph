@@ -2,16 +2,56 @@
 FastAPI backend for Meta Knowledge Graph
 """
 
+import base64
 import os
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.dependencies import set_language
+
+
+def _get_basic_auth_credentials() -> tuple[str, str] | None:
+    """Return (user, password) if BASIC_AUTH_USER and BASIC_AUTH_PASSWORD are set."""
+    user = os.environ.get("BASIC_AUTH_USER")
+    password = os.environ.get("BASIC_AUTH_PASSWORD")
+    if user and password:
+        return user, password
+    return None
+
+
+async def basic_auth_middleware(request: Request, call_next):
+    """Optional Basic Auth middleware (enabled when BASIC_AUTH_USER/PASSWORD env vars are set)."""
+    creds = _get_basic_auth_credentials()
+    if creds:
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header.startswith("Basic "):
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Authentication required"},
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        try:
+            decoded = base64.b64decode(auth_header[6:]).decode("utf-8")
+            provided_user, provided_pass = decoded.split(":", 1)
+        except Exception:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid authentication credentials"},
+                headers={"WWW-Authenticate": "Basic"},
+            )
+        if provided_user != creds[0] or provided_pass != creds[1]:
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid authentication credentials"},
+                headers={"WWW-Authenticate": "Basic"},
+            )
+    response = await call_next(request)
+    return response
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -37,13 +77,16 @@ from backend.routes import (
 
 app = FastAPI(title="Meta Knowledge Graph API", description="学术知识图谱引擎 API", version="0.1.0")
 
+# Optional Basic Auth (enabled via BASIC_AUTH_USER / BASIC_AUTH_PASSWORD env vars)
+app.middleware("http")(basic_auth_middleware)
+
 # CORS for frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000", "http://localhost:8089"],
+    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:8089").split(","),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept", "Accept-Language", "Authorization", "X-Requested-With"],
 )
 
 @app.middleware("http")

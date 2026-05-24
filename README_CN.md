@@ -100,6 +100,37 @@ docker run -d -p 8089:8089 \
 
 > API Key 保存在本地数据库中，无需配置环境变量。支持 Claude、OpenAI、Gemini、Qwen、DeepSeek 等。
 
+#### Docker 安全部署（生产环境）
+
+将 MKG 暴露到公网时，建议启用 Basic Auth：
+
+```bash
+docker run -d -p 8089:8089 \
+  -e BASIC_AUTH_USER=admin \
+  -e BASIC_AUTH_PASSWORD=your-strong-password \
+  -v mkg-data:/app/data \
+  -v mkg-papers:/app/papers \
+  --restart unless-stopped \
+  danceinsophy/meta-knowledge-graph:latest
+```
+
+或使用 Nginx 反向代理 + HTTPS：
+
+```nginx
+server {
+    listen 443 ssl;
+    server_name your-domain.com;
+    ssl_certificate /path/to/cert.pem;
+    ssl_certificate_key /path/to/key.pem;
+
+    location / {
+        proxy_pass http://localhost:8089;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
 ### 方式二：Docker Compose
 
 ```bash
@@ -292,7 +323,7 @@ meta-knowledge-graph/
 │       ├── lib/api/          # API 客户端模块
 │       └── store/            # Zustand 状态管理
 ├── mkg/                      # 核心库
-│   ├── database.py           # SQLite 数据库管理器
+│   ├── database/             # SQLite 数据库包（核心、schema、迁移）
 │   ├── repositories/         # 数据访问层
 │   ├── agent/                # LangGraph 代理系统
 │   │   ├── nodes/            # 代理节点
@@ -300,7 +331,7 @@ meta-knowledge-graph/
 │   │   └── research_graph.py # 深度研究编排
 │   ├── dedup/                # 概念去重模块
 │   ├── semantic_scholar.py   # S2 API 客户端
-│   └── llm.py                # LLM 提供商抽象
+│   └── llm.py                # LLMClient + MKGChatModel 适配器（原生 HTTP）
 ├── scripts/                  # 工具脚本（演示数据生成）
 ├── docker/                   # Docker 配置
 ├── icon/                     # 项目图标

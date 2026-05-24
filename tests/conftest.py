@@ -3,6 +3,10 @@ Root-level pytest configuration for MKG backend tests.
 """
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
+
+# Pre-inject mock mkg.llm so tests can run without langchain installed
+sys.modules["mkg.llm"] = MagicMock()
 
 import pytest
 
