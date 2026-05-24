@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useAgentStore } from "../stores/agentStore";
 import { useConversationStore } from "../stores/conversationStore";
-import { sseManager } from "../lib/sse";
+import { agentApi, type SSEEvent } from "../lib/api/agent";
 import {
   Send,
   X,
@@ -27,6 +27,8 @@ import {
 import DragUploadZone from "../components/DragUploadZone";
 import ConceptGraphInChat from "../components/ConceptGraphInChat";
 import ChatAttachments from "../components/ChatAttachments";
+import AgentWorkspace from "../components/AgentWorkspace";
+import SubagentBadge from "../components/SubagentBadge";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -212,6 +214,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const streamingContentRef = useRef("");
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -245,6 +248,7 @@ export default function Chat() {
     setLoading(true);
     setToolStatus(null);
     setSSEStatus("connecting");
+    streamingContentRef.current = "";
 
     // Build history from currentMessages
     const history = messages.map((m) => ({
@@ -260,49 +264,110 @@ export default function Chat() {
         | undefined,
     }));
 
-    // 使用 SSEManager 启动后台 SSE 连接
-    sseManager.startChatStream(userMessage, contextSummary, history, {
-      onToolStatus: (status) => setToolStatus(status),
-      onResponse: (msg, attachments) => {
-        addMessageToStore({
-          role: "assistant",
-          content: msg,
-          agent: "lead",
-          attachments: attachments,
-        }).catch((err) => console.error("Failed to save message:", err));
+    // Use new agentApi.chatStreamFetch with DeepAgent event handling
+    agentApi
+      .chatStreamFetch(userMessage, contextSummary, history, convId, (event: SSEEvent) => {
+        if (event.type === "todo" && Array.isArray(event.todos)) {
+          useAgentStore.getState().setTodos(event.todos);
+        } else if (event.type === "tool_call") {
+          useAgentStore.getState().addExecutionStep({
+            id: event.id || crypto.randomUUID(),
+            type: "tool_call",
+            name: event.name || event.tool || "",
+            args: event.args || event.arguments || {},
+            subagentName: event.subagentName,
+          });
+          // Maintain backward-compatible tool status UI
+          setToolStatus({
+            tool: event.name || event.tool || "",
+            label: event.label || event.name || event.tool || "",
+            status: "running",
+          });
+        } else if (event.type === "tool_result") {
+          useAgentStore.getState().addExecutionStep({
+            id: event.id || crypto.randomUUID(),
+            type: "tool_result",
+            name: event.name || event.tool || "",
+            result: event.result,
+            duration: event.duration,
+            subagentName: event.subagentName,
+          });
+        } else if (event.type === "subagent_start") {
+          const current = useAgentStore.getState().activeSubagents;
+          const incoming = Array.isArray(event.subagents)
+            ? event.subagents
+            : [{ name: event.name || "", task: event.task || "", status: "running" as const }];
+          useAgentStore.getState().setActiveSubagents([...current, ...incoming]);
+        } else if (event.type === "subagent_end") {
+          const current = useAgentStore.getState().activeSubagents;
+          const endedName = event.name || "";
+          useAgentStore.getState().setActiveSubagents(
+            current
+              .map((s) => (s.name === endedName ? { ...s, status: "completed" as const } : s))
+              .filter((s) => s.status === "running" || s.name !== endedName)
+          );
+        } else if (event.type === "approval_request") {
+          useAgentStore.getState().setPendingApproval({
+            id: event.id || crypto.randomUUID(),
+            action: event.action || "",
+            message: event.message || "",
+          });
+        } else if (event.type === "file_op" && Array.isArray(event.files)) {
+          useAgentStore.getState().updateVirtualFiles(event.files);
+        } else if (event.type === "token" && typeof event.token === "string") {
+          streamingContentRef.current += event.token;
+        } else if (event.type === "status" && event.status === "completed") {
+          // Save accumulated streaming content as assistant message
+          const content = streamingContentRef.current.trim();
+          if (content) {
+            addMessageToStore({
+              role: "assistant",
+              content,
+              agent: "lead",
+            }).catch((err) => console.error("Failed to save message:", err));
+          }
+          setLoading(false);
+          setToolStatus(null);
+          setSSEStatus("idle");
+          streamingContentRef.current = "";
 
-        // Generate title if first message
-        const { conversations, currentConversationId } =
-          useConversationStore.getState();
-        const currentConv = conversations.find(
-          (c) => c.id === currentConversationId
-        );
-        if (messages.length === 0 && !currentConv?.title) {
-          const title =
-            userMessage.slice(0, 20).replace(/[？。！.!?]/, "") || "新对话";
-          updateTitle(title).catch((err) =>
-            console.error("Failed to update title:", err)
+          // Generate title if first message
+          const { conversations, currentConversationId } = useConversationStore.getState();
+          const currentConv = conversations.find(
+            (c) => c.id === currentConversationId
           );
-          loadConversations().catch((err) =>
-            console.error("Failed to load conversations:", err)
-          );
+          if (messages.length === 0 && !currentConv?.title) {
+            const title =
+              userMessage.slice(0, 20).replace(/[？。！.!?]/, "") || "新对话";
+            updateTitle(title).catch((err) =>
+              console.error("Failed to update title:", err)
+            );
+            loadConversations().catch((err) =>
+              console.error("Failed to load conversations:", err)
+            );
+          }
+        } else if (event.type === "error") {
+          const errMsg = event.message || "Unknown error";
+          addMessageToStore({
+            role: "assistant",
+            content: `抱歉，处理请求时遇到问题：${errMsg}`,
+          }).catch((err) => console.error("Failed to save message:", err));
+          setLoading(false);
+          setToolStatus(null);
+          setSSEStatus("error");
+          streamingContentRef.current = "";
         }
-      },
-      onComplete: () => {
-        setLoading(false);
-        setToolStatus(null);
-        setSSEStatus("idle");
-      },
-      onError: (err) => {
+      })
+      .catch((err: any) => {
         addMessageToStore({
           role: "assistant",
-          content: `抱歉，处理请求时遇到问题：${err}`,
-        }).catch((err) => console.error("Failed to save message:", err));
+          content: `抱歉，处理请求时遇到问题：${err?.message || err || "未知错误"}`,
+        }).catch((e) => console.error("Failed to save message:", e));
         setLoading(false);
         setToolStatus(null);
         setSSEStatus("error");
-      },
-    });
+        streamingContentRef.current = "";
+      });
   }, [
     input,
     isLoading,
@@ -438,8 +503,9 @@ export default function Chat() {
 
   return (
     <ChatErrorBoundary>
-      <div className="chat-container h-full flex flex-col relative">
-        <style>{`
+      <AgentWorkspace>
+        <div className="chat-container h-full flex flex-col relative">
+          <style>{`
         .markdown-body {
           line-height: 1.6;
           font-size: 0.9rem;
@@ -514,367 +580,383 @@ export default function Chat() {
         .markdown-body h2 { font-size: 1.15em; }
         .markdown-body h3 { font-size: 1.05em; }
       `}</style>
-        {/* Drag upload zone */}
-        <DragUploadZone
-          onUploadSuccess={handleUploadSuccess}
-          onUploadError={handleUploadError}
-        />
+          {/* Drag upload zone */}
+          <DragUploadZone
+            onUploadSuccess={handleUploadSuccess}
+            onUploadError={handleUploadError}
+          />
 
-        {/* Header - 书卷气息 */}
-        <div className="chat-header flex-shrink-0 px-6 py-4">
-          <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <div>
-              <h1
-                className="font-display text-xl font-medium"
-                style={{ color: "var(--color-ink)" }}
-              >
-                AI 研究助手
-              </h1>
-              <p
-                className="font-body text-sm mt-0.5"
-                style={{ color: "var(--color-ink-tertiary)" }}
-              >
-                分析论文引用 · 发现研究点 · 深入研究主题
-              </p>
-            </div>
-
-            {/* Current context indicator - 书签角标 */}
-            {currentTarget && (
-              <div className="chat-context-badge flex items-center gap-2">
-                <span className="text-sm">
-                  {currentTarget.type === "paper" ? "📄" : "💡"}
-                </span>
-                <span
-                  className="font-body text-sm"
-                  style={{ color: "var(--color-ink-secondary)" }}
-                >
-                  {currentTarget.name.length > 25
-                    ? currentTarget.name.slice(0, 25) + "..."
-                    : currentTarget.name}
-                </span>
-                <button
-                  onClick={() =>
-                    useAgentStore
-                      .getState()
-                      .updateContext({ currentTarget: undefined })
-                  }
-                  className="ml-1 p-0.5 rounded hover:bg-overlay transition-colors"
-                  style={{ color: "var(--color-ink-muted)" }}
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 relative z-10">
-          <div className="max-w-4xl mx-auto space-y-5">
-            {messages.length === 0 ? (
-              // Welcome message - 卷轴展开动画
-              <div className="chat-welcome text-center py-16">
-                <div
-                  className="w-20 h-20 mx-auto mb-8 rounded-2xl flex items-center justify-center relative"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, var(--color-accent) 0%, var(--color-amber) 50%, var(--color-copper) 100%)",
-                    boxShadow: "0 8px 32px rgba(139, 69, 19, 0.2)",
-                  }}
-                >
-                  <Sparkles
-                    className="w-10 h-10"
-                    style={{ color: "var(--color-cream)" }}
-                  />
-                </div>
-                <h2
-                  className="font-display text-3xl font-medium mb-4"
+          {/* Header - 书卷气息 */}
+          <div className="chat-header flex-shrink-0 px-6 py-4">
+            <div className="max-w-4xl mx-auto flex items-center justify-between">
+              <div>
+                <h1
+                  className="font-display text-xl font-medium"
                   style={{ color: "var(--color-ink)" }}
                 >
-                  欢迎使用 AI 研究助手
-                </h2>
+                  AI 研究助手
+                </h1>
                 <p
-                  className="font-body text-base mb-10 max-w-md mx-auto"
+                  className="font-body text-sm mt-0.5"
                   style={{ color: "var(--color-ink-tertiary)" }}
                 >
-                  我可以帮你分析论文引用、发现概念研究点、深入研究主题
+                  分析论文引用 · 发现研究点 · 深入研究主题
                 </p>
-
-                {/* Quick actions - 书签标签风格 */}
-                <div className="flex flex-wrap justify-center gap-3">
-                  {[
-                    {
-                      label: "📄 分析论文引用",
-                      prompt: "分析 AgentScope 这篇论文的引用关系",
-                    },
-                    {
-                      label: "💡 发现研究点",
-                      prompt: "帮我分析多智能体系统这个概念的研究点",
-                    },
-                    {
-                      label: "🔬 深入研究",
-                      prompt: "深入研究 AgentScope 平台架构",
-                    },
-                  ].map((action, i) => (
-                    <button
-                      key={i}
-                      onClick={() => setInput(action.prompt)}
-                      className="chat-quick-action"
-                      style={{ animationDelay: `${i * 100}ms` }}
-                    >
-                      {action.label}
-                    </button>
-                  ))}
-                </div>
               </div>
-            ) : (
-              // Messages - 印章风格气泡
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={
-                      msg.role === "user"
-                        ? "w-fit"
-                        : "w-[85%] max-w-[800px]"
-                    }
+
+              {/* Current context indicator - 书签角标 */}
+              {currentTarget && (
+                <div className="chat-context-badge flex items-center gap-2">
+                  <span className="text-sm">
+                    {currentTarget.type === "paper" ? "📄" : "💡"}
+                  </span>
+                  <span
+                    className="font-body text-sm"
+                    style={{ color: "var(--color-ink-secondary)" }}
                   >
-                    {msg.role === "assistant" &&
-                      msg.agent &&
-                      msg.agent !== "lead" && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <span
-                            className="agent-badge"
-                            style={{
-                              backgroundColor: AGENT_COLORS[msg.agent] + "12",
-                              color: AGENT_COLORS[msg.agent],
-                            }}
-                          >
-                            {AGENT_LABELS[msg.agent] || msg.agent}
-                          </span>
-                        </div>
-                      )}
-                    {/* 附件卡片 — 统一渲染 */}
-                    {msg.role === "assistant" &&
-                      msg.attachments &&
-                      msg.attachments.length > 0 && (
-                        <ChatAttachments
-                          attachments={msg.attachments}
-                          onSendMessage={handleCardAction}
-                        />
-                      )}
-                    {/* 向后兼容：旧消息的 conceptData */}
-                    {msg.role === "assistant" &&
-                      msg.conceptData &&
-                      (!msg.attachments || msg.attachments.length === 0) && (
-                        <ConceptGraphInChat data={msg.conceptData} />
-                      )}
-                    {/* 统一消息样式 */}
-                    {msg.role === "user" ? (
-                      <div
-                        className="w-fit max-w-[70%] px-3 py-1.5 prose prose-sm prose-invert max-w-none [&_p]:m-0 [&_p:not(:first-child)]:mt-1.5 [&_ul]:mt-1 [&_ul]:mb-1 [&_ol]:mt-1 [&_ol]:mb-1 [&_li]:my-0.5"
-                        style={{
-                          background:
-                            "linear-gradient(135deg, #5D4037 0%, #6D4C41 100%)",
-                          color: "#FAFAF7",
-                          borderRadius: "16px 16px 4px 16px",
-                          boxShadow: "0 2px 8px rgba(93, 64, 55, 0.25)",
-                        }}
+                    {currentTarget.name.length > 25
+                      ? currentTarget.name.slice(0, 25) + "..."
+                      : currentTarget.name}
+                  </span>
+                  <button
+                    onClick={() =>
+                      useAgentStore
+                        .getState()
+                        .updateContext({ currentTarget: undefined })
+                    }
+                    className="ml-1 p-0.5 rounded hover:bg-overlay transition-colors"
+                    style={{ color: "var(--color-ink-muted)" }}
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Messages Area */}
+          <div className="flex-1 overflow-y-auto px-4 py-6 relative z-10">
+            <div className="max-w-4xl mx-auto space-y-5">
+              {messages.length === 0 ? (
+                // Welcome message - 卷轴展开动画
+                <div className="chat-welcome text-center py-16">
+                  <div
+                    className="w-20 h-20 mx-auto mb-8 rounded-2xl flex items-center justify-center relative"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, var(--color-accent) 0%, var(--color-amber) 50%, var(--color-copper) 100%)",
+                      boxShadow: "0 8px 32px rgba(139, 69, 19, 0.2)",
+                    }}
+                  >
+                    <Sparkles
+                      className="w-10 h-10"
+                      style={{ color: "var(--color-cream)" }}
+                    />
+                  </div>
+                  <h2
+                    className="font-display text-3xl font-medium mb-4"
+                    style={{ color: "var(--color-ink)" }}
+                  >
+                    欢迎使用 AI 研究助手
+                  </h2>
+                  <p
+                    className="font-body text-base mb-10 max-w-md mx-auto"
+                    style={{ color: "var(--color-ink-tertiary)" }}
+                  >
+                    我可以帮你分析论文引用、发现概念研究点、深入研究主题
+                  </p>
+
+                  {/* Quick actions - 书签标签风格 */}
+                  <div className="flex flex-wrap justify-center gap-3">
+                    {[
+                      {
+                        label: "📄 分析论文引用",
+                        prompt: "分析 AgentScope 这篇论文的引用关系",
+                      },
+                      {
+                        label: "💡 发现研究点",
+                        prompt: "帮我分析多智能体系统这个概念的研究点",
+                      },
+                      {
+                        label: "🔬 深入研究",
+                        prompt: "深入研究 AgentScope 平台架构",
+                      },
+                    ].map((action, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setInput(action.prompt)}
+                        className="chat-quick-action"
+                        style={{ animationDelay: `${i * 100}ms` }}
                       >
-                        <div className="prose-p:text-[#FAFAF7] prose-strong:text-[#FFFFFF] prose-a:text-[#FFD54F] prose-em:text-[#E0E0E0]">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {msg.content}
-                          </ReactMarkdown>
+                        {action.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                // Messages - 印章风格气泡
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={
+                        msg.role === "user"
+                          ? "w-fit"
+                          : "w-[85%] max-w-[800px]"
+                      }
+                    >
+                      {msg.role === "assistant" &&
+                        msg.agent &&
+                        msg.agent !== "lead" && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span
+                              className="agent-badge"
+                              style={{
+                                backgroundColor: AGENT_COLORS[msg.agent] + "12",
+                                color: AGENT_COLORS[msg.agent],
+                              }}
+                            >
+                              {AGENT_LABELS[msg.agent] || msg.agent}
+                            </span>
+                          </div>
+                        )}
+                      {/* Active subagent badges for assistant messages */}
+                      {msg.role === "assistant" && (
+                        <div>
+                          {useAgentStore
+                            .getState()
+                            .activeSubagents.filter((s) => s.status === "running")
+                            .map((s) => (
+                              <SubagentBadge
+                                key={s.name}
+                                name={s.name}
+                                status={s.status}
+                              />
+                            ))}
                         </div>
+                      )}
+                      {/* 附件卡片 — 统一渲染 */}
+                      {msg.role === "assistant" &&
+                        msg.attachments &&
+                        msg.attachments.length > 0 && (
+                          <ChatAttachments
+                            attachments={msg.attachments}
+                            onSendMessage={handleCardAction}
+                          />
+                        )}
+                      {/* 向后兼容：旧消息的 conceptData */}
+                      {msg.role === "assistant" &&
+                        msg.conceptData &&
+                        (!msg.attachments || msg.attachments.length === 0) && (
+                          <ConceptGraphInChat data={msg.conceptData} />
+                        )}
+                      {/* 统一消息样式 */}
+                      {msg.role === "user" ? (
+                        <div
+                          className="w-fit max-w-[70%] px-3 py-1.5 prose prose-sm prose-invert max-w-none [&_p]:m-0 [&_p:not(:first-child)]:mt-1.5 [&_ul]:mt-1 [&_ul]:mb-1 [&_ol]:mt-1 [&_ol]:mb-1 [&_li]:my-0.5"
+                          style={{
+                            background:
+                              "linear-gradient(135deg, #5D4037 0%, #6D4C41 100%)",
+                            color: "#FAFAF7",
+                            borderRadius: "16px 16px 4px 16px",
+                            boxShadow: "0 2px 8px rgba(93, 64, 55, 0.25)",
+                          }}
+                        >
+                          <div className="prose-p:text-[#FAFAF7] prose-strong:text-[#FFFFFF] prose-a:text-[#FFD54F] prose-em:text-[#E0E0E0]">
+                            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className="px-4 py-3"
+                          style={{
+                            background: "#FAFAF7",
+                            color: "#2c1810",
+                            borderRadius: "16px 16px 16px 4px",
+                            border: "1px solid #E8E4DC",
+                            boxShadow: "0 1px 4px rgba(0, 0, 0, 0.04)",
+                          }}
+                        >
+                          <div
+                            className="markdown-body"
+                            style={{ color: "#2c1810" }}
+                          >
+                            {(() => {
+                              const { thinking, response } = parseThinkingContent(
+                                msg.content
+                              );
+                              return (
+                                <>
+                                  {thinking && (
+                                    <ThinkingBlock content={thinking} />
+                                  )}
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                    {response}
+                                  </ReactMarkdown>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+
+              {/* Loading indicator - 简洁加载动画 + Tool Status */}
+              {isLoading && (
+                <div className="flex justify-start">
+                  <div
+                    className="px-4 py-3"
+                    style={{
+                      background: "#f5f0e8",
+                      borderRadius: "16px",
+                      border: "1px solid #d4c4b0",
+                      boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                    }}
+                  >
+                    {toolStatus && toolStatus.status === "running" ? (
+                      <div className="flex items-center gap-2">
+                        <Wrench
+                          className="w-4 h-4"
+                          style={{ color: "var(--color-accent)" }}
+                        />
+                        <span
+                          className="font-body text-sm"
+                          style={{ color: "var(--color-ink-secondary)" }}
+                        >
+                          正在调用：{toolStatus.label}
+                          {toolStatus.step && toolStatus.maxSteps && (
+                            <span className="ml-1" style={{ opacity: 0.7 }}>
+                              （步骤 {toolStatus.step}/{toolStatus.maxSteps}）
+                            </span>
+                          )}
+                        </span>
+                        <Loader2
+                          className="w-4 h-4 animate-spin"
+                          style={{ color: "var(--color-accent)" }}
+                        />
                       </div>
                     ) : (
-                      <div
-                        className="px-4 py-3"
-                        style={{
-                          background: "#FAFAF7",
-                          color: "#2c1810",
-                          borderRadius: "16px 16px 16px 4px",
-                          border: "1px solid #E8E4DC",
-                          boxShadow: "0 1px 4px rgba(0, 0, 0, 0.04)",
-                        }}
-                      >
-                        <div
-                          className="markdown-body"
-                          style={{ color: "#2c1810" }}
+                      <div className="flex items-center gap-2">
+                        <Loader2
+                          className="w-4 h-4 animate-spin"
+                          style={{ color: "var(--color-accent)" }}
+                        />
+                        <span
+                          className="font-body text-sm"
+                          style={{ color: "var(--color-ink-secondary)" }}
                         >
-                          {(() => {
-                            const { thinking, response } = parseThinkingContent(
-                              msg.content
-                            );
-                            return (
-                              <>
-                                {thinking && (
-                                  <ThinkingBlock content={thinking} />
-                                )}
-                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                                  {response}
-                                </ReactMarkdown>
-                              </>
-                            );
-                          })()}
-                        </div>
+                          思考中...
+                        </span>
                       </div>
                     )}
                   </div>
                 </div>
-              ))
-            )}
+              )}
 
-            {/* Loading indicator - 简洁加载动画 + Tool Status */}
-            {isLoading && (
-              <div className="flex justify-start">
-                <div
-                  className="px-4 py-3"
+              <div ref={messagesEndRef} />
+            </div>
+          </div>
+
+          {/* Input Area - 印章风格输入框 */}
+          <div
+            className="flex-shrink-0 px-4 py-4"
+            style={{
+              background:
+                "linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%)",
+            }}
+          >
+            <div className="max-w-4xl mx-auto">
+              {/* Hidden file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf"
+                multiple
+                onChange={handleFileSelect}
+                style={{ display: "none" }}
+              />
+              <div
+                className="flex items-end gap-3"
+                style={{
+                  background: "#FFFFFF",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: "24px",
+                  boxShadow: "0 2px 12px rgba(139, 69, 19, 0.1)",
+                  padding: "20px 24px",
+                  minHeight: "80px",
+                }}
+              >
+                {/* Upload button */}
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
                   style={{
-                    background: "#f5f0e8",
-                    borderRadius: "16px",
-                    border: "1px solid #d4c4b0",
-                    boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
+                    background: "rgba(139, 69, 19, 0.08)",
+                    color: "var(--color-ink-secondary)",
+                  }}
+                  title="上传 PDF"
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <FileText className="w-5 h-5" />
+                  )}
+                </button>
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="输入消息..."
+                  rows={1}
+                  className="flex-1 font-body text-base resize-none outline-none"
+                  style={{
+                    color: "var(--color-ink)",
+                    background: "transparent",
+                    maxHeight: "200px",
+                    minHeight: "52px",
+                    lineHeight: "1.6",
+                  }}
+                />
+                <button
+                  onClick={handleSend}
+                  disabled={!input.trim() || isLoading}
+                  className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
+                  style={{
+                    background:
+                      input.trim() && !isLoading
+                        ? "linear-gradient(135deg, #8B4513 0%, #A0522D 100%)"
+                        : "rgba(139, 69, 19, 0.1)",
+                    color:
+                      input.trim() && !isLoading
+                        ? "#FFFFFF"
+                        : "var(--color-ink-muted)",
                   }}
                 >
-                  {toolStatus && toolStatus.status === "running" ? (
-                    <div className="flex items-center gap-2">
-                      <Wrench
-                        className="w-4 h-4"
-                        style={{ color: "var(--color-accent)" }}
-                      />
-                      <span
-                        className="font-body text-sm"
-                        style={{ color: "var(--color-ink-secondary)" }}
-                      >
-                        正在调用：{toolStatus.label}
-                        {toolStatus.step && toolStatus.maxSteps && (
-                          <span className="ml-1" style={{ opacity: 0.7 }}>
-                            （步骤 {toolStatus.step}/{toolStatus.maxSteps}）
-                          </span>
-                        )}
-                      </span>
-                      <Loader2
-                        className="w-4 h-4 animate-spin"
-                        style={{ color: "var(--color-accent)" }}
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <Loader2
-                        className="w-4 h-4 animate-spin"
-                        style={{ color: "var(--color-accent)" }}
-                      />
-                      <span
-                        className="font-body text-sm"
-                        style={{ color: "var(--color-ink-secondary)" }}
-                      >
-                        思考中...
-                      </span>
-                    </div>
-                  )}
-                </div>
+                  <Send className="w-5 h-5" />
+                </button>
               </div>
-            )}
 
-            <div ref={messagesEndRef} />
-          </div>
-        </div>
-
-        {/* Input Area - 印章风格输入框 */}
-        <div
-          className="flex-shrink-0 px-4 py-4"
-          style={{
-            background:
-              "linear-gradient(180deg, var(--color-base) 0%, var(--color-surface) 100%)",
-          }}
-        >
-          <div className="max-w-4xl mx-auto">
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf"
-              multiple
-              onChange={handleFileSelect}
-              style={{ display: "none" }}
-            />
-            <div
-              className="flex items-end gap-3"
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid var(--color-border)",
-                borderRadius: "24px",
-                boxShadow: "0 2px 12px rgba(139, 69, 19, 0.1)",
-                padding: "20px 24px",
-                minHeight: "80px",
-              }}
-            >
-              {/* Upload button */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
-                className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
-                style={{
-                  background: "rgba(139, 69, 19, 0.08)",
-                  color: "var(--color-ink-secondary)",
-                }}
-                title="上传 PDF"
-              >
-                {isUploading ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <FileText className="w-5 h-5" />
-                )}
-              </button>
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="输入消息..."
-                rows={1}
-                className="flex-1 font-body text-base resize-none outline-none"
-                style={{
-                  color: "var(--color-ink)",
-                  background: "transparent",
-                  maxHeight: "200px",
-                  minHeight: "52px",
-                  lineHeight: "1.6",
-                }}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!input.trim() || isLoading}
-                className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center transition-all"
-                style={{
-                  background:
-                    input.trim() && !isLoading
-                      ? "linear-gradient(135deg, #8B4513 0%, #A0522D 100%)"
-                      : "rgba(139, 69, 19, 0.1)",
-                  color:
-                    input.trim() && !isLoading
-                      ? "#FFFFFF"
-                      : "var(--color-ink-muted)",
-                }}
-              >
-                <Send className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="mt-2 text-center">
-              <span
-                className="font-mono text-xs"
-                style={{ color: "var(--color-ink-muted)" }}
-              >
-                Shift + Enter 换行 · Enter 发送
-              </span>
+              <div className="mt-2 text-center">
+                <span
+                  className="font-mono text-xs"
+                  style={{ color: "var(--color-ink-muted)" }}
+                >
+                  Shift + Enter 换行 · Enter 发送
+                </span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </AgentWorkspace>
     </ChatErrorBoundary>
   );
 }
