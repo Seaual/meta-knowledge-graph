@@ -15,28 +15,21 @@ markitdown>=0.1.0
 # Chinese text handling
 pypinyin>=0.51.0
 
-# Neo4j (optional)
-neo4j>=5.0.0
+# Neo4j (optional) - install with: pip install neo4j>=5.0.0
+# neo4j>=5.0.0
 
 # Web UI
 fastapi>=0.109.0
 uvicorn>=0.27.0
 python-multipart>=0.0.6
 
-# LLM APIs - LiteLLM 统一支持所有主流服务商
-litellm>=1.50.0
-anthropic>=0.18.0
-# google-generativeai>=0.4.0
-openai>=1.0.0
-
 # LangChain & LangGraph - Agent 框架
 langchain>=0.3.0
-langchain-openai>=0.2.0
-langchain-anthropic>=0.2.0
 langgraph>=0.2.0
 
 # Environment
 python-dotenv>=1.0.0
+cryptography>=42.0.0
 
 # Semantic Scholar API
 semanticscholar>=0.11.0
