@@ -215,6 +215,17 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const streamingContentRef = useRef("");
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount: abort any active stream
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
 
   // Auto scroll to bottom
   useEffect(() => {
@@ -243,6 +254,12 @@ export default function Chat() {
       convId = await createConversation();
     }
 
+    // Abort any previous stream
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
     // Add user message to store (and backend)
     await addMessageToStore({ role: "user", content: userMessage });
     setLoading(true);
@@ -266,33 +283,38 @@ export default function Chat() {
 
     // Use new agentApi.chatStreamFetch with DeepAgent event handling
     agentApi
-      .chatStreamFetch(userMessage, contextSummary, history, convId, (event: SSEEvent) => {
-        if (event.type === "todo" && Array.isArray(event.todos)) {
-          useAgentStore.getState().setTodos(event.todos);
-        } else if (event.type === "tool_call") {
-          useAgentStore.getState().addExecutionStep({
-            id: event.id || crypto.randomUUID(),
-            type: "tool_call",
-            name: event.name || event.tool || "",
-            args: event.args || event.arguments || {},
-            subagentName: event.subagentName,
-          });
-          // Maintain backward-compatible tool status UI
-          setToolStatus({
-            tool: event.name || event.tool || "",
-            label: event.label || event.name || event.tool || "",
-            status: "running",
-          });
-        } else if (event.type === "tool_result") {
-          useAgentStore.getState().addExecutionStep({
-            id: event.id || crypto.randomUUID(),
-            type: "tool_result",
-            name: event.name || event.tool || "",
-            result: event.result,
-            duration: event.duration,
-            subagentName: event.subagentName,
-          });
-        } else if (event.type === "subagent_start") {
+      .chatStreamFetch(
+        userMessage,
+        contextSummary,
+        history,
+        convId,
+        (event: SSEEvent) => {
+          if (event.type === "todo" && Array.isArray(event.todos)) {
+            useAgentStore.getState().setTodos(event.todos);
+          } else if (event.type === "tool_call") {
+            useAgentStore.getState().addExecutionStep({
+              id: event.id || `${event.name || "tool"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              type: "tool_call",
+              name: event.name || event.tool || "",
+              args: event.args || event.arguments || {},
+              subagentName: event.subagentName,
+            });
+            // Maintain backward-compatible tool status UI
+            setToolStatus({
+              tool: event.name || event.tool || "",
+              label: event.label || event.name || event.tool || "",
+              status: "running",
+            });
+          } else if (event.type === "tool_result") {
+            useAgentStore.getState().addExecutionStep({
+              id: event.id || `${event.name || "tool"}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+              type: "tool_result",
+              name: event.name || event.tool || "",
+              result: event.result,
+              duration: event.duration,
+              subagentName: event.subagentName,
+            });
+          } else if (event.type === "subagent_start") {
           const current = useAgentStore.getState().activeSubagents;
           const incoming = Array.isArray(event.subagents)
             ? event.subagents
@@ -308,7 +330,7 @@ export default function Chat() {
           );
         } else if (event.type === "approval_request") {
           useAgentStore.getState().setPendingApproval({
-            id: event.id || crypto.randomUUID(),
+            id: event.id || `approval-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             action: event.action || "",
             message: event.message || "",
           });
@@ -357,7 +379,7 @@ export default function Chat() {
           setSSEStatus("error");
           streamingContentRef.current = "";
         }
-      })
+      }, abortControllerRef.current!.signal)
       .catch((err: any) => {
         addMessageToStore({
           role: "assistant",

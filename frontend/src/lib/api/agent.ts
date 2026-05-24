@@ -143,12 +143,14 @@ export const agentApi = {
     context: AgentContextSummary,
     history: AgentMessage[],
     conversationId: string | null,
-    onEvent: (event: SSEEvent) => void
+    onEvent: (event: SSEEvent) => void,
+    signal?: AbortSignal
   ): Promise<void> => {
     const response = await fetch("/api/agent/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message, context, history, conversationId }),
+      signal,
     });
 
     if (!response.ok) {
@@ -161,26 +163,31 @@ export const agentApi = {
     const decoder = new TextDecoder();
     let buffer = "";
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    try {
+      while (true) {
+        if (signal?.aborted) break;
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      buffer += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
 
-      const lines = buffer.split("\n\n");
-      buffer = lines.pop() || "";
+        const lines = buffer.split("\n\n");
+        buffer = lines.pop() || "";
 
-      for (const line of lines) {
-        if (line.startsWith("data: ")) {
-          const data = line.slice(6);
-          try {
-            const event = JSON.parse(data);
-            onEvent(event);
-          } catch (e) {
-            console.warn("Failed to parse SSE event:", data);
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            const data = line.slice(6);
+            try {
+              const event = JSON.parse(data);
+              onEvent(event);
+            } catch (e) {
+              console.warn("Failed to parse SSE event:", data);
+            }
           }
         }
       }
+    } finally {
+      reader.releaseLock();
     }
   },
 
