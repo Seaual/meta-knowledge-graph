@@ -23,7 +23,6 @@ export interface ContextSummary {
     | "paper_qa";
 }
 
-// 概念图谱节点数据
 export interface ConceptNode {
   id: string;
   name: string;
@@ -34,7 +33,6 @@ export interface ConceptNode {
   parents?: ConceptNode[];
 }
 
-// 统一附件类型
 export interface ChatAttachment {
   type:
     | "research_points"
@@ -44,6 +42,43 @@ export interface ChatAttachment {
     | "recommendation"
     | "citation_analysis";
   data: any;
+}
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  status: "pending" | "running" | "completed" | "failed";
+  detail?: string;
+  toolName?: string;
+  timestamp: number;
+}
+
+export interface ExecutionStep {
+  id: string;
+  type: "tool_call" | "tool_result" | "subagent_start" | "subagent_end";
+  name: string;
+  args?: Record<string, any>;
+  result?: string;
+  duration?: number;
+  subagentName?: string;
+}
+
+export interface VirtualFile {
+  path: string;
+  content?: string;
+  modifiedAt: number;
+}
+
+export interface ActiveSubagent {
+  name: string;
+  task: string;
+  status: "running" | "completed";
+}
+
+export interface ApprovalRequest {
+  id: string;
+  action: string;
+  message: string;
 }
 
 export interface Message {
@@ -58,27 +93,24 @@ export interface Message {
     | "merge"
     | "paper_qa";
   researchSessionId?: string;
-  conceptData?: ConceptNode; // deprecated，向后兼容
-  attachments?: ChatAttachment[]; // 新增：结构化附件
+  conceptData?: ConceptNode;
+  attachments?: ChatAttachment[];
   timestamp: number;
 }
 
-// Tool Status for SSE streaming
 export interface ToolStatus {
-  tool: string; // 工具名称 (英文)
-  label: string; // 工具名称 (中文)
+  tool: string;
+  label: string;
   status: "idle" | "running" | "completed";
-  step?: number; // 当前是第几步
-  maxSteps?: number; // 最大步数
+  step?: number;
+  maxSteps?: number;
 }
 
 interface AgentState {
-  // UI State
   isOpen: boolean;
   isMinimized: boolean;
   position: { x: number; y: number };
 
-  // Conversation State
   messages: Message[];
   currentAgent:
     | "lead"
@@ -90,18 +122,20 @@ interface AgentState {
   contextSummary: ContextSummary;
   isLoading: boolean;
 
-  // Tool Status (SSE streaming)
   toolStatus: ToolStatus | null;
-
-  // SSE Status (background execution)
   sseStatus: SSEStatus;
 
-  // Deep Research State
   researchSessionId?: string;
   researchProgress: number;
   researchDimensions: string[];
 
-  // Actions
+  // DeepAgent state
+  todos: TodoItem[];
+  executionSteps: ExecutionStep[];
+  virtualFiles: VirtualFile[];
+  activeSubagents: ActiveSubagent[];
+  pendingApproval: ApprovalRequest | null;
+
   toggleOpen: () => void;
   setOpen: (open: boolean) => void;
   minimize: () => void;
@@ -114,10 +148,7 @@ interface AgentState {
   updateContext: (ctx: Partial<ContextSummary>) => void;
   setLoading: (loading: boolean) => void;
 
-  // Tool Status Actions
   setToolStatus: (status: ToolStatus | null) => void;
-
-  // SSE Status Action
   setSSEStatus: (status: SSEStatus) => void;
 
   addUploadedPapers: (papers: Array<{ doi: string; title: string }>) => void;
@@ -126,17 +157,22 @@ interface AgentState {
   setResearchSession: (sessionId: string) => void;
   setResearchProgress: (progress: number, dimensions: string[]) => void;
   resetResearch: () => void;
+
+  // DeepAgent actions
+  setTodos: (todos: TodoItem[]) => void;
+  addExecutionStep: (step: ExecutionStep) => void;
+  updateVirtualFiles: (files: VirtualFile[]) => void;
+  setActiveSubagents: (subagents: ActiveSubagent[]) => void;
+  setPendingApproval: (req: ApprovalRequest | null) => void;
 }
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const useAgentStore = create<AgentState>((set) => ({
-  // UI State
-  isOpen: true, // 默认显示透明浮框
+  isOpen: true,
   isMinimized: false,
   position: { x: 0, y: 0 },
 
-  // Conversation State
   messages: [],
   currentAgent: "lead",
   contextSummary: {
@@ -147,18 +183,19 @@ export const useAgentStore = create<AgentState>((set) => ({
   },
   isLoading: false,
 
-  // Tool Status
   toolStatus: null,
-
-  // SSE Status
   sseStatus: "idle",
 
-  // Deep Research State
   researchSessionId: undefined,
   researchProgress: 0,
   researchDimensions: [],
 
-  // Actions
+  todos: [],
+  executionSteps: [],
+  virtualFiles: [],
+  activeSubagents: [],
+  pendingApproval: null,
+
   toggleOpen: () =>
     set((state) => ({ isOpen: !state.isOpen, isMinimized: false })),
   setOpen: (open) => set({ isOpen: open }),
@@ -189,10 +226,8 @@ export const useAgentStore = create<AgentState>((set) => ({
 
   setLoading: (loading) => set({ isLoading: loading }),
 
-  // Tool Status
   setToolStatus: (status) => set({ toolStatus: status }),
 
-  // SSE Status
   setSSEStatus: (status) => set({ sseStatus: status }),
 
   addUploadedPapers: (papers) =>
@@ -228,4 +263,11 @@ export const useAgentStore = create<AgentState>((set) => ({
       researchProgress: 0,
       researchDimensions: [],
     }),
+
+  setTodos: (todos) => set({ todos }),
+  addExecutionStep: (step) =>
+    set((state) => ({ executionSteps: [...state.executionSteps, step] })),
+  updateVirtualFiles: (files) => set({ virtualFiles: files }),
+  setActiveSubagents: (activeSubagents) => set({ activeSubagents }),
+  setPendingApproval: (pendingApproval) => set({ pendingApproval }),
 }));

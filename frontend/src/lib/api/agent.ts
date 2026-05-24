@@ -48,6 +48,59 @@ export type AttachmentType =
   | "recommendation"
   | "citation_analysis";
 
+export interface SSEEvent {
+  type:
+    | "status"
+    | "todo"
+    | "tool_call"
+    | "tool_result"
+    | "file_op"
+    | "subagent_start"
+    | "subagent_end"
+    | "token"
+    | "progress"
+    | "approval_request"
+    | "error";
+  [key: string]: any;
+}
+
+export interface TodoItem {
+  id: string;
+  title: string;
+  status: "pending" | "running" | "completed" | "failed";
+  detail?: string;
+  toolName?: string;
+  timestamp: number;
+}
+
+export interface ExecutionStep {
+  id: string;
+  type: "tool_call" | "tool_result" | "subagent_start" | "subagent_end";
+  name: string;
+  args?: Record<string, any>;
+  result?: string;
+  duration?: number;
+  subagentName?: string;
+}
+
+export interface VirtualFile {
+  path: string;
+  content?: string;
+  modifiedAt: number;
+}
+
+export interface ActiveSubagent {
+  name: string;
+  task: string;
+  status: "running" | "completed";
+}
+
+export interface ApprovalRequest {
+  id: string;
+  action: string;
+  message: string;
+}
+
 export interface AgentChatResponse {
   message: string;
   agent: string;
@@ -89,12 +142,13 @@ export const agentApi = {
     message: string,
     context: AgentContextSummary,
     history: AgentMessage[],
-    onEvent: (event: { type: string; [key: string]: any }) => void
+    conversationId: string | null,
+    onEvent: (event: SSEEvent) => void
   ): Promise<void> => {
     const response = await fetch("/api/agent/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, context, history }),
+      body: JSON.stringify({ message, context, history, conversationId }),
     });
 
     if (!response.ok) {
@@ -162,6 +216,14 @@ export const agentApi = {
     const response = await api.get<{ report: string; format: string }>(
       `/agent/deep-research/${sessionId}/report`
     );
+    return response.data;
+  },
+
+  approveAction: async (approvalId: string, approved: boolean) => {
+    const response = await api.post<{ status: string }>("/agent/approve", {
+      approvalId,
+      approved,
+    });
     return response.data;
   },
 };
