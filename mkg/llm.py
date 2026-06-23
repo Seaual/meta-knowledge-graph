@@ -8,6 +8,7 @@
 """
 
 from typing import Any
+import logging
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -15,9 +16,12 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from mkg.llm_adapter import MKGChatModel
 from mkg.llm_client import LLMClient
 
+from mkg.resilience import RetryableExternalError, call_with_retries
+
 # 全局 LLM 实例
 _llm_instance: BaseChatModel | None = None
 _current_config: dict[str, Any] = {}
+logger = logging.getLogger("mkg.llm")
 
 
 def init_llm(

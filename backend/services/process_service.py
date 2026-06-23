@@ -153,14 +153,34 @@ class ProcessService:
                 "category": node.get("category")
             })
 
-            # 添加关系
+        concept_repo = self.db.concepts
+        concepts: dict[str, dict] = {}
+        relations: set[tuple[str, str]] = set()
+        paper_concepts: set[str] = set()
+
+        def collect_node(node: dict, parent_id: str | None = None):
+            concept_text = node.get("concept", "")
+            concept_en = node.get("concept_en")
+            concept_id = node.get("id") or concept_repo._to_slug(concept_en or concept_text)
+            existing = concepts.get(concept_id)
+
+            if existing is None:
+                concepts[concept_id] = {
+                    "id": concept_id,
+                    "text": concept_text,
+                    "text_en": concept_en,
+                    "category": node.get("category"),
+                }
+            else:
+                if not existing.get("text_en") and concept_en:
+                    existing["text_en"] = concept_en
+                if not existing.get("category") and node.get("category"):
+                    existing["category"] = node.get("category")
+
+            paper_concepts.add(concept_id)
             if parent_id:
-                self.db.concepts.add_relation(parent_id, concept_id)
+                relations.add((parent_id, concept_id))
 
-            # 添加论文关联
-            self.db.concepts.add_paper_concept(doi, concept_id)
-
-            # 递归处理子节点
             for child in node.get("children", []):
                 save_node(child, concept_id, depth + 1)
 

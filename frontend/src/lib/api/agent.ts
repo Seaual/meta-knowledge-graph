@@ -115,12 +115,14 @@ export const agentApi = {
   chat: async (
     message: string,
     context: AgentContextSummary,
-    history: AgentMessage[]
+    history: AgentMessage[],
+    conversationId?: string | null
   ): Promise<AgentChatResponse> => {
     const response = await api.post<AgentChatResponse>("/agent/chat", {
       message,
       context,
       history,
+      conversationId,
     });
     return response.data;
   },
@@ -128,13 +130,17 @@ export const agentApi = {
   chatStream: (
     message: string,
     context: AgentContextSummary,
-    history: AgentMessage[]
+    history: AgentMessage[],
+    conversationId?: string | null
   ): string => {
     const params = new URLSearchParams({
       message,
       context: JSON.stringify(context),
       history: JSON.stringify(history),
     });
+    if (conversationId) {
+      params.set("conversationId", conversationId);
+    }
     return `/api/agent/chat/stream?${params.toString()}`;
   },
 

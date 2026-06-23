@@ -79,6 +79,35 @@ export default function ConceptsGraph() {
   ] = useState<Concept[]>([]);
   const [isSelectingForRecommendation, setIsSelectingForRecommendation] =
     useState(false);
+  const searchQueryRef = useRef(searchQuery);
+  const selectedCategoriesRef = useRef(selectedCategories);
+  const highlightedNodeIdRef = useRef(highlightedNodeId);
+  const selectingForRecommendationRef = useRef(isSelectingForRecommendation);
+  const selectedRecommendationConceptsRef = useRef(
+    selectedConceptsForRecommendation
+  );
+  const languageRef = useRef(language);
+  const viewModeRef = useRef(viewMode);
+
+  useEffect(() => {
+    searchQueryRef.current = searchQuery;
+    selectedCategoriesRef.current = selectedCategories;
+    highlightedNodeIdRef.current = highlightedNodeId;
+    selectingForRecommendationRef.current = isSelectingForRecommendation;
+    selectedRecommendationConceptsRef.current =
+      selectedConceptsForRecommendation;
+    languageRef.current = language;
+    viewModeRef.current = viewMode;
+    graphRef.current?.refresh();
+  }, [
+    searchQuery,
+    selectedCategories,
+    highlightedNodeId,
+    isSelectingForRecommendation,
+    selectedConceptsForRecommendation,
+    language,
+    viewMode,
+  ]);
 
   // Refs for visual states used inside the canvas callback. Using refs avoids
   // recreating the ForceGraph instance on every visual state change.
@@ -385,17 +414,12 @@ export default function ConceptsGraph() {
 
   // Initialize/update ForceGraph
   useEffect(() => {
-    if (!containerRef.current || graphNodes.length === 0) return;
-
-    if (graphRef.current) {
-      graphRef.current._destructor();
-    }
+    if (!containerRef.current || graphRef.current) return;
 
     const graph = new ForceGraph(containerRef.current!)
-      .graphData({ nodes: graphNodes, links: graphLinks })
       .nodeId("id")
       .nodeLabel((node: any) => {
-        if (language === "en" && node.name_en) {
+        if (languageRef.current === "en" && node.name_en) {
           return node.name_en;
         }
         return node.name;
@@ -462,8 +486,8 @@ export default function ConceptsGraph() {
         if (!node) return;
         setHoverNode(null);
         if (node.type === "concept") {
-          if (viewMode === "all") {
-            if (isSelectingForRecommendation) {
+          if (viewModeRef.current === "all") {
+            if (selectingForRecommendationRef.current) {
               handleToggleConceptInRecommendation(node.id);
             } else {
               handleConceptClick(node);
@@ -487,9 +511,8 @@ export default function ConceptsGraph() {
     graphRef.current = graph;
 
     return () => {
-      if (graphRef.current) {
-        graphRef.current._destructor();
-      }
+      graphRef.current?._destructor();
+      graphRef.current = null;
     };
   }, [
     graphNodes,

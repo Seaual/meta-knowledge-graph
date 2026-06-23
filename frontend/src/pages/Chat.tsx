@@ -6,6 +6,8 @@ import {
   useRef,
   useEffect,
   useCallback,
+  lazy,
+  Suspense,
   Component,
   ReactNode,
 } from "react";
@@ -25,12 +27,13 @@ import {
   Wrench,
 } from "lucide-react";
 import DragUploadZone from "../components/DragUploadZone";
-import ConceptGraphInChat from "../components/ConceptGraphInChat";
 import ChatAttachments from "../components/ChatAttachments";
 import AgentWorkspace from "../components/AgentWorkspace";
 import SubagentBadge from "../components/SubagentBadge";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+const ConceptGraphInChat = lazy(() => import("../components/ConceptGraphInChat"));
 
 // 解析消息中的思考过程
 function parseThinkingContent(content: string): {
@@ -491,8 +494,6 @@ export default function Chat() {
 
       setIsUploading(true);
 
-      // Import papersApi
-      const { papersApi } = await import("../lib/api");
       const uploadedPapers: Array<{ doi: string; title: string }> = [];
 
       for (const file of files) {
