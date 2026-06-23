@@ -3,6 +3,7 @@ Semantic Scholar API routes
 """
 
 import json
+import os
 
 from fastapi import APIRouter, HTTPException
 
@@ -20,8 +21,8 @@ from mkg.semantic_scholar import S2Client
 
 router = APIRouter(prefix="/api/s2", tags=["semantic-scholar"])
 
-# Semantic Scholar API Key（硬编码）
-S2_API_KEY = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
+# Semantic Scholar API Key（优先从环境变量读取）
+S2_API_KEY = os.environ.get("SEMANTIC_SCHOLAR_API_KEY", "")
 
 
 @router.get("/config", response_model=S2ConfigResponse)

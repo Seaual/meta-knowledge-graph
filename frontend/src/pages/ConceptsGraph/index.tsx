@@ -80,6 +80,35 @@ export default function ConceptsGraph() {
   const [isSelectingForRecommendation, setIsSelectingForRecommendation] =
     useState(false);
 
+  // Refs for visual states used inside the canvas callback. Using refs avoids
+  // recreating the ForceGraph instance on every visual state change.
+  const visualStateRef = useRef({
+    searchQuery: "",
+    selectedCategories: DEFAULT_CATEGORIES,
+    highlightedNodeId: null as string | null,
+    isSelectingForRecommendation: false,
+    selectedConceptsForRecommendation: [] as Concept[],
+    language,
+  });
+
+  useEffect(() => {
+    visualStateRef.current = {
+      searchQuery,
+      selectedCategories,
+      highlightedNodeId,
+      isSelectingForRecommendation,
+      selectedConceptsForRecommendation,
+      language,
+    };
+  }, [
+    searchQuery,
+    selectedCategories,
+    highlightedNodeId,
+    isSelectingForRecommendation,
+    selectedConceptsForRecommendation,
+    language,
+  ]);
+
   // Filter handlers (UI callbacks)
   const handleSearch = useCallback((query: string) => {
     setSearchQuery(query);
@@ -213,6 +242,147 @@ export default function ConceptsGraph() {
     }
   }, [activeFolder]);
 
+  const nodeCanvasObject = useCallback(
+    (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
+      const {
+        searchQuery,
+        selectedCategories,
+        highlightedNodeId,
+        isSelectingForRecommendation,
+        selectedConceptsForRecommendation,
+        language,
+      } = visualStateRef.current;
+
+      const isPaper = node.type === "paper";
+      const isCenter = node.type === "center";
+      const isSelectedForRecommendation =
+        isSelectingForRecommendation &&
+        selectedConceptsForRecommendation.some((c) => c.id === node.id);
+
+      let size: number;
+      let color: string;
+
+      if (isCenter) {
+        size = 20;
+        color = CENTER_COLOR;
+      } else if (isPaper) {
+        size = 8;
+        color = PAPER_COLOR;
+      } else {
+        const baseSize = CATEGORY_SIZES[node.category || "method"] || 10;
+        size = baseSize + Math.sqrt(node.paperCount || 0) * 0.3;
+        color = CATEGORY_COLORS[node.category || "method"] || "#8a7a6a";
+      }
+
+      // Calculate opacity based on search and category filter
+      let opacity = 1;
+      if (searchQuery) {
+        const searchLower = searchQuery.toLowerCase();
+        const matchesSearch =
+          node.name.toLowerCase().includes(searchLower) ||
+          (node.name_en &&
+            node.name_en.toLowerCase().includes(searchLower));
+        opacity = matchesSearch ? 1 : 0.2;
+      } else if (
+        node.category &&
+        !selectedCategories.includes(node.category)
+      ) {
+        opacity = 0.15;
+      }
+
+      if (highlightedNodeId === node.id) {
+        opacity = 1;
+      }
+
+      const x = node.x || 0;
+      const y = node.y || 0;
+
+      // Highlighted node glow effect - warm amber
+      if (highlightedNodeId === node.id) {
+        ctx.beginPath();
+        ctx.arc(x, y, size + 8, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(184, 134, 11, 0.4)";
+        ctx.fill();
+      }
+
+      // Selected for recommendation indicator - green glow
+      if (isSelectedForRecommendation) {
+        ctx.beginPath();
+        ctx.arc(x, y, size + 6, 0, 2 * Math.PI);
+        ctx.fillStyle = "rgba(45, 90, 39, 0.4)";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + size * 0.7, y - size * 0.7, 4, 0, 2 * Math.PI);
+        ctx.fillStyle = "#2d5a27";
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(x + size * 0.7, y - size * 0.7, 2, 0, 2 * Math.PI);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = opacity;
+
+      // Draw node
+      ctx.beginPath();
+      ctx.arc(x, y, size, 0, 2 * Math.PI);
+
+      if (isPaper) {
+        ctx.fillStyle = color + "40";
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.35, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+      } else if (isCenter) {
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, color + "60");
+        gradient.addColorStop(1, color + "20");
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.5, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+      } else {
+        ctx.fillStyle = color + "30";
+        ctx.fill();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2 / globalScale;
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.3, 0, 2 * Math.PI);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+
+      // Draw label when zoomed in
+      if (globalScale > 0.5) {
+        const fontSize = isCenter ? 14 : 11;
+        ctx.font = `${fontSize / globalScale}px 'Source Sans 3', sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top";
+        ctx.fillStyle = "#2c1810";
+        const displayName =
+          language === "en" && node.name_en ? node.name_en : node.name;
+        const label =
+          displayName && displayName.length > 30
+            ? displayName.substring(0, 30) + "..."
+            : displayName || "";
+        ctx.fillText(label, x, y + size + 4 / globalScale);
+      }
+
+      ctx.globalAlpha = 1;
+    },
+    []
+  );
+
   // Initialize/update ForceGraph
   useEffect(() => {
     if (!containerRef.current || graphNodes.length === 0) return;
@@ -235,136 +405,7 @@ export default function ConceptsGraph() {
         if (node.type === "paper") return 1.5;
         return 1 + Math.sqrt(node.paperCount || 0) * 0.3;
       })
-      .nodeCanvasObject(
-        (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-          const isPaper = node.type === "paper";
-          const isCenter = node.type === "center";
-          const isSelectedForRecommendation =
-            isSelectingForRecommendation &&
-            selectedConceptsForRecommendation.some((c) => c.id === node.id);
-
-          let size: number;
-          let color: string;
-
-          if (isCenter) {
-            size = 20;
-            color = CENTER_COLOR;
-          } else if (isPaper) {
-            size = 8;
-            color = PAPER_COLOR;
-          } else {
-            const baseSize = CATEGORY_SIZES[node.category || "method"] || 10;
-            size = baseSize + Math.sqrt(node.paperCount || 0) * 0.3;
-            color = CATEGORY_COLORS[node.category || "method"] || "#8a7a6a";
-          }
-
-          // Calculate opacity based on search and category filter
-          let opacity = 1;
-          if (searchQuery) {
-            const searchLower = searchQuery.toLowerCase();
-            const matchesSearch =
-              node.name.toLowerCase().includes(searchLower) ||
-              (node.name_en &&
-                node.name_en.toLowerCase().includes(searchLower));
-            opacity = matchesSearch ? 1 : 0.2;
-          } else if (
-            node.category &&
-            !selectedCategories.includes(node.category)
-          ) {
-            opacity = 0.15;
-          }
-
-          if (highlightedNodeId === node.id) {
-            opacity = 1;
-          }
-
-          const x = node.x || 0;
-          const y = node.y || 0;
-
-          // Highlighted node glow effect - warm amber
-          if (highlightedNodeId === node.id) {
-            ctx.beginPath();
-            ctx.arc(x, y, size + 8, 0, 2 * Math.PI);
-            ctx.fillStyle = "rgba(184, 134, 11, 0.4)";
-            ctx.fill();
-          }
-
-          // Selected for recommendation indicator - green glow
-          if (isSelectedForRecommendation) {
-            ctx.beginPath();
-            ctx.arc(x, y, size + 6, 0, 2 * Math.PI);
-            ctx.fillStyle = "rgba(45, 90, 39, 0.4)";
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x + size * 0.7, y - size * 0.7, 4, 0, 2 * Math.PI);
-            ctx.fillStyle = "#2d5a27";
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(x + size * 0.7, y - size * 0.7, 2, 0, 2 * Math.PI);
-            ctx.fillStyle = "#ffffff";
-            ctx.fill();
-          }
-
-          ctx.globalAlpha = opacity;
-
-          // Draw node
-          ctx.beginPath();
-          ctx.arc(x, y, size, 0, 2 * Math.PI);
-
-          if (isPaper) {
-            ctx.fillStyle = color + "40";
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, size * 0.35, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-          } else if (isCenter) {
-            const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
-            gradient.addColorStop(0, color + "60");
-            gradient.addColorStop(1, color + "20");
-            ctx.fillStyle = gradient;
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, size * 0.5, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-          } else {
-            ctx.fillStyle = color + "30";
-            ctx.fill();
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2 / globalScale;
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.arc(x, y, size * 0.3, 0, 2 * Math.PI);
-            ctx.fillStyle = color;
-            ctx.fill();
-          }
-
-          // Draw label when zoomed in
-          if (globalScale > 0.5) {
-            const fontSize = isCenter ? 14 : 11;
-            ctx.font = `${fontSize / globalScale}px 'Source Sans 3', sans-serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "top";
-            ctx.fillStyle = "#2c1810";
-            const displayName =
-              language === "en" && node.name_en ? node.name_en : node.name;
-            const label =
-              displayName && displayName.length > 30
-                ? displayName.substring(0, 30) + "..."
-                : displayName || "";
-            ctx.fillText(label, x, y + size + 4 / globalScale);
-          }
-
-          ctx.globalAlpha = 1;
-        }
-      )
+      .nodeCanvasObject(nodeCanvasObject)
       .linkColor((link: any) => {
         const source = link.source;
         if (source.type === "center") return PAPER_COLOR + "60";
@@ -457,13 +498,22 @@ export default function ConceptsGraph() {
     handleConceptClick,
     handlePaperClick,
     forceStrength,
+    nodeCanvasObject,
+  ]);
+
+  // Update node rendering when visual-only states change without rebuilding the graph
+  useEffect(() => {
+    if (graphRef.current) {
+      graphRef.current.nodeCanvasObject(nodeCanvasObject);
+    }
+  }, [
     searchQuery,
     selectedCategories,
     highlightedNodeId,
     isSelectingForRecommendation,
     selectedConceptsForRecommendation,
-    handleToggleConceptInRecommendation,
     language,
+    nodeCanvasObject,
   ]);
 
   // Wrap handleDiscoverResearchPoints to also manage UI state

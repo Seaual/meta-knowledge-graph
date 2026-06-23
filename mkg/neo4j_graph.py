@@ -6,8 +6,11 @@ Neo4j 知识图谱操作模块
 """
 
 import json
+import logging
 import os
 from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -76,12 +79,12 @@ class Neo4jGraph:
 
             self.connected = True
             self._init_schema()
-            print("[OK] Neo4j 连接成功")
+            logger.info("[OK] Neo4j 连接成功")
         except ImportError:
-            print("[WARN] neo4j 库未安装，请运行：pip install neo4j")
+            logger.warning("[WARN] neo4j 库未安装，请运行：pip install neo4j")
         except Exception as e:
-            print(f"[WARN] Neo4j 连接失败：{e}")
-            print("       请确保 Neo4j 已启动或使用 SQLite 版本")
+            logger.warning("[WARN] Neo4j 连接失败：%s", e)
+            logger.warning("       请确保 Neo4j 已启动或使用 SQLite 版本")
 
     def close(self):
         """关闭连接"""
@@ -155,7 +158,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 return data
             return None
@@ -173,7 +176,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 return data
             return None
@@ -201,7 +204,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 papers.append(data)
             return papers
@@ -219,7 +222,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 papers.append(data)
             return papers
@@ -329,7 +332,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 papers.append(data)
             return papers
@@ -476,7 +479,7 @@ class Neo4jGraph:
                 if 'authors' in data and data['authors']:
                     try:
                         data['authors'] = json.loads(data['authors'])
-                    except:
+                    except (json.JSONDecodeError, TypeError):
                         pass
                 papers.append(data)
             return papers

@@ -44,7 +44,10 @@ def get_pdf_parser():
     global _pdf_parser
     if _pdf_parser is None:
         from mkg.pdf_parser import PDFParser
-        _pdf_parser = PDFParser()
+        root = Path(__file__).parent.parent
+        _pdf_parser = PDFParser(
+            allowed_base_dirs=[root / "papers", root / "data" / "agent_files"]
+        )
     return _pdf_parser
 
 

@@ -97,63 +97,64 @@ export default function DragUploadZone({
     [onUploadSuccess, onUploadError]
   );
 
-  if (!isDragging && !isUploading) {
-    return null;
-  }
-
   return (
     <div
-      className="absolute inset-0 z-50 flex items-center justify-center"
+      className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
       style={{
-        background: "rgba(250, 248, 245, 0.95)",
-        backdropFilter: "blur(4px)",
+        background:
+          isDragging || isUploading
+            ? "rgba(250, 248, 245, 0.95)"
+            : "transparent",
+        backdropFilter: isDragging || isUploading ? "blur(4px)" : undefined,
       }}
       onDragEnter={handleDragEnter}
       onDragLeave={handleDragLeave}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div
-        className="w-full max-w-md mx-4 p-8 rounded-2xl text-center"
-        style={{
-          border: "2px dashed rgba(184, 134, 11, 0.4)",
-          background: "rgba(255, 254, 249, 0.8)",
-        }}
-      >
-        {isUploading ? (
-          <>
-            <Loader2
-              className="w-12 h-12 mx-auto mb-4 animate-spin"
-              style={{ color: "var(--color-amber)" }}
-            />
-            <p
-              className="font-body text-sm"
-              style={{ color: "var(--color-sepia)" }}
-            >
-              {t.common.uploading} {uploadProgress}%
-            </p>
-          </>
-        ) : (
-          <>
-            <Upload
-              className="w-12 h-12 mx-auto mb-4"
-              style={{ color: "var(--color-amber)" }}
-            />
-            <p
-              className="font-display text-lg mb-2"
-              style={{ color: "var(--color-sepia)" }}
-            >
-              {t.common.dragDropPdf}
-            </p>
-            <p
-              className="font-body text-sm"
-              style={{ color: "var(--color-muted)" }}
-            >
-              {t.common.multiPdfSupport}
-            </p>
-          </>
-        )}
-      </div>
+      {(isDragging || isUploading) && (
+        <div
+          className="pointer-events-auto w-full max-w-md mx-4 p-8 rounded-2xl text-center"
+          style={{
+            border: "2px dashed rgba(184, 134, 11, 0.4)",
+            background: "rgba(255, 254, 249, 0.8)",
+          }}
+        >
+          {isUploading ? (
+            <>
+              <Loader2
+                className="w-12 h-12 mx-auto mb-4 animate-spin"
+                style={{ color: "var(--color-amber)" }}
+              />
+              <p
+                className="font-body text-sm"
+                style={{ color: "var(--color-sepia)" }}
+              >
+                {t.common.uploading} {uploadProgress}%
+              </p>
+            </>
+          ) : (
+            <>
+              <Upload
+                className="w-12 h-12 mx-auto mb-4"
+                style={{ color: "var(--color-amber)" }}
+              />
+              <p
+                className="font-display text-lg mb-2"
+                style={{ color: "var(--color-sepia)" }}
+              >
+                {t.common.dragDropPdf}
+              </p>
+              <p
+                className="font-body text-sm"
+                style={{ color: "var(--color-muted)" }}
+              >
+                {t.common.multiPdfSupport}
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

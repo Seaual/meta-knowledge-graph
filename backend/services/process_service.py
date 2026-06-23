@@ -87,13 +87,9 @@ class ProcessService:
             except Exception:
                 pass
 
-        if not api_key:
-            # 使用默认硬编码 Key（与 semantic_scholar.py 路由一致）
-            api_key = "HdvhTeK6be5JUDCMKhwXa66QibQ2Qn171FL0Kkns"
-
-        print(f"[S2增强] PDF解析DOI: '{paper_content.doi}'")
-        print(f"[S2增强] PDF解析arXivID: '{paper_content.arxiv_id}'")
-        print(f"[S2增强] PDF解析标题: '{paper_content.title}'")
+        logger.info("[S2增强] PDF解析DOI: '%s'", paper_content.doi)
+        logger.info("[S2增强] PDF解析arXivID: '%s'", paper_content.arxiv_id)
+        logger.info("[S2增强] PDF解析标题: '%s'", paper_content.title)
 
         try:
             client = S2Client(api_key=api_key)
@@ -105,7 +101,7 @@ class ProcessService:
                 title=paper_content.title or None,
             )
 
-            print(f"[S2增强] S2匹配结果: {s2_result}")
+            logger.info("[S2增强] S2匹配结果: %s", s2_result)
 
             if not s2_result:
                 logger.info(f"S2 match failed for DOI={paper_content.doi}, title={paper_content.title}")
@@ -133,20 +129,24 @@ class ProcessService:
                 "s2_matched_at": datetime.now().isoformat(),
             })
 
-            logger.info(f"S2 metadata enhanced: paperId={s2_result.get('paperId')}, doi={matched_doi}")
-            print(f"[S2增强] 元数据更新成功: paperId={s2_result.get('paperId')}, doi={matched_doi}")
+            logger.info("S2 metadata enhanced: paperId=%s, doi=%s", s2_result.get('paperId'), matched_doi)
             return {"success": True, "s2_paper_id": s2_result.get("paperId"), "doi": matched_doi}
 
         except Exception as e:
             import traceback
-            print(f"[S2增强] 异常: {e}")
-            print(traceback.format_exc())
-            logger.error(f"S2 metadata enhancement failed: {e}")
+            logger.error("[S2增强] 异常: %s", e)
+            logger.debug(traceback.format_exc())
+            logger.error("S2 metadata enhancement failed: %s", e)
             return {"success": False, "reason": str(e)}
 
     def _save_concepts(self, doi: str, hierarchy: dict):
         """保存提取的概念到数据库"""
-        def save_node(node, parent_id=None):
+        MAX_DEPTH = 20
+
+        def save_node(node, parent_id=None, depth: int = 0):
+            if depth > MAX_DEPTH:
+                raise ValueError(f"Concept hierarchy exceeds maximum depth ({MAX_DEPTH})")
+
             # 添加概念（to_dict 返回 "concept" 字段）
             concept_id = self.db.concepts.add({
                 "text": node.get("concept", ""),
@@ -162,10 +162,11 @@ class ProcessService:
 
             # 递归处理子节点
             for child in node.get("children", []):
-                save_node(child, concept_id)
+                save_node(child, concept_id, depth + 1)
 
         if hierarchy:
-            save_node(hierarchy)
+            with self.db.transaction():
+                save_node(hierarchy)
 
     def _count_concepts(self, hierarchy: dict) -> int:
         """统计概念数量"""

@@ -1,6 +1,10 @@
 """LLM 概念提取器"""
 
+import logging
+
 from mkg.pdf_models import ConceptTree, LLMExtractedContent, PaperContent
+
+logger = logging.getLogger(__name__)
 
 STAGE1_SUMMARY_PROMPT = """<s>
 You are a senior academic literature analyst with expertise in identifying the precise contribution boundaries of research papers. Your core skill is distinguishing what a paper actually contributed from what it merely mentioned or used as background.
@@ -326,7 +330,7 @@ class LLMConceptExtractor:
             json_str = json_match.group(1) if json_match else response.strip()
             return json.loads(json_str)
         except json.JSONDecodeError as e:
-            print(f"Stage 1 解析失败: {e}")
+            logger.warning("Stage 1 解析失败: %s", e)
             return {
                 "one_sentence_summary": "",
                 "research_context": {},
@@ -371,7 +375,7 @@ class LLMConceptExtractor:
             json_str = json_match.group(1) if json_match else response.strip()
             return json.loads(json_str)
         except json.JSONDecodeError as e:
-            print(f"Stage 2 解析失败: {e}")
+            logger.warning("Stage 2 解析失败: %s", e)
             return {"paper_summary": "", "concept_tree": {}, "methodology": "", "datasets": [], "metrics": []}
 
     def extract(self, paper_content: PaperContent, existing_concepts: str = "") -> LLMExtractedContent:
@@ -668,7 +672,7 @@ class LLMConceptExtractor:
             )
 
         except Exception as e:
-            print(f"解析 LLM 响应失败：{e}")
+            logger.warning("解析 LLM 响应失败：%s", e)
             # 回退到基础解析
             return LLMExtractedContent(
                 title=original_content.title,

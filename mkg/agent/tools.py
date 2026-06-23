@@ -140,7 +140,7 @@ def read_paper_content(title: str, max_chars: int = 10000) -> str:
     pdf_parser = _get_pdf_parser()
     if not pdf_parser:
         from mkg.pdf_parser import PDFParser
-        pdf_parser = PDFParser()
+        pdf_parser = PDFParser(allowed_base_dirs=["papers", "data/agent_files"])
 
     try:
         text = pdf_parser.extract_text(pdf_path)

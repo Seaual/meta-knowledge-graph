@@ -6,8 +6,11 @@ Obsidian 知识图谱导出器
 """
 
 import json
+import logging
 from datetime import datetime
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 class ObsidianExporter:
@@ -21,8 +24,23 @@ class ObsidianExporter:
     └── Maps/             # 索引文件
     """
 
-    def __init__(self, vault_path: str = "obsidian_vault"):
-        self.vault_path = Path(vault_path)
+    def __init__(self, vault_path: str = "obsidian_vault", allow_outside_cwd: bool = False):
+        """
+        Args:
+            vault_path: 导出目录路径。
+            allow_outside_cwd: 是否允许导出到当前工作目录之外。
+                后端调用应保持 False 以防路径遍历；CLI 可由用户显式开启。
+        """
+        vault = Path(vault_path)
+        if not allow_outside_cwd:
+            if vault.is_absolute() or ".." in vault.parts:
+                raise ValueError("vault_path must be relative and not contain '..'")
+            resolved = vault.resolve()
+            cwd = Path.cwd().resolve()
+            if not resolved.is_relative_to(cwd):
+                raise ValueError(f"vault_path must be inside current working directory: {cwd}")
+
+        self.vault_path = vault
         self.papers_dir = self.vault_path / "Papers"
         self.concepts_dir = self.vault_path / "Concepts"
         self.maps_dir = self.vault_path / "Maps"
@@ -36,18 +54,18 @@ class ObsidianExporter:
 
     def export_from_sqlite(self, db, graph, output_name: str = "mkg_knowledge"):
         """从 SQLite 数据库导出"""
-        print(f"\n导出到: {self.vault_path}\n")
+        logger.info("\n导出到: %s\n", self.vault_path)
 
         # 导出所有概念
         all_concepts = db.get_all_concepts()
-        print(f"导出 {len(all_concepts)} 个概念...")
+        logger.info("导出 %d 个概念...", len(all_concepts))
         for concept in all_concepts:
             self._export_concept(concept, db)
             self.stats['concepts'] += 1
 
         # 导出所有论文
         all_papers = db.get_all_papers()
-        print(f"导出 {len(all_papers)} 篇论文...")
+        logger.info("导出 %d 篇论文...", len(all_papers))
         for paper in all_papers:
             self._export_paper(paper, db)
             self.stats['papers'] += 1
@@ -55,10 +73,10 @@ class ObsidianExporter:
         # 创建索引
         self._create_index(all_concepts, all_papers, output_name)
 
-        print("\n✓ 导出完成!")
-        print(f"  论文: {self.stats['papers']} 篇")
-        print(f"  概念: {self.stats['concepts']} 个")
-        print(f"  路径: {self.vault_path.absolute()}")
+        logger.info("\n✓ 导出完成!")
+        logger.info("  论文: %d 篇", self.stats['papers'])
+        logger.info("  概念: %d 个", self.stats['concepts'])
+        logger.info("  路径: %s", self.vault_path.absolute())
 
     def export_overview(self, db, graph, folder_id=None) -> str:
         """导出图谱总览（单个Markdown文件）
@@ -662,14 +680,14 @@ class ObsidianExporter:
 
     def export_from_neo4j(self, neo4j_graph, output_name: str = "mkg_knowledge"):
         """从 Neo4j 导出"""
-        print(f"\n导出到: {self.vault_path}\n")
+        logger.info("\n导出到: %s\n", self.vault_path)
 
         if not neo4j_graph.connected:
-            print("Neo4j 未连接")
+            logger.warning("Neo4j 未连接")
             return
 
         # TODO: 实现 Neo4j 导出
-        print("Neo4j 导出待实现")
+        logger.warning("Neo4j 导出待实现")
 
     def _export_concept(self, concept: dict, db):
         """导出概念"""
@@ -741,7 +759,7 @@ class ObsidianExporter:
         if isinstance(authors, str):
             try:
                 authors = json.loads(authors)
-            except:
+            except (json.JSONDecodeError, TypeError):
                 authors = []
 
         filename = f"{self._safe_filename(title[:50])}.md"

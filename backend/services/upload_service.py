@@ -3,6 +3,7 @@
 上传服务 - 论文上传处理
 """
 
+import time
 import uuid
 from pathlib import Path
 
@@ -56,30 +57,61 @@ class UploadService:
     async def upload_batch(self, files: list[UploadFile], folder: str = "default") -> dict:
         """批量上传论文"""
         job_id = str(uuid.uuid4())
-        results = []
+        total = len(files)
 
-        for file in files:
+        # Persist the batch job so /batch-status/{job_id} can actually find it.
+        self.db.execute_write(
+            """
+            INSERT INTO batch_jobs (id, total, completed, successful, failed, status)
+            VALUES (?, ?, 0, 0, 0, 'running')
+            """,
+            (job_id, total),
+        )
+
+        results = []
+        successful = 0
+        failed = 0
+
+        for i, file in enumerate(files):
+            file_result = None
             try:
                 if file.filename.endswith('.pdf'):
-                    result = await self.upload_single(file, folder)
-                    results.append(result)
+                    file_result = await self.upload_single(file, folder)
+                    successful += 1
                 else:
-                    results.append({
+                    file_result = {
                         "filename": file.filename,
                         "success": False,
                         "error": "Not a PDF file"
-                    })
+                    }
+                    failed += 1
             except Exception as e:
-                results.append({
+                file_result = {
                     "filename": file.filename,
                     "success": False,
                     "error": str(e)
-                })
+                }
+                failed += 1
+
+            results.append(file_result)
+
+            # Update progress after each file.
+            self.db.execute_write(
+                """
+                UPDATE batch_jobs
+                SET completed = ?, successful = ?, failed = ?, status = ?
+                WHERE id = ?
+                """,
+                (i + 1, successful, failed,
+                 'completed' if i + 1 == total else 'running', job_id),
+            )
 
         return {
             "job_id": job_id,
             "uploaded": results,
-            "total": len(results)
+            "total": total,
+            "successful": successful,
+            "failed": failed
         }
 
     def get_batch_status(self, job_id: str) -> dict | None:

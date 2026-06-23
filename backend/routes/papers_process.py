@@ -3,7 +3,9 @@
 论文处理路由 - PDF 解析和概念提取相关端点
 """
 
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,6 +15,31 @@ from ..dependencies import get_db, get_process_service
 from ..services.process_service import ProcessService
 
 router = APIRouter(prefix="/api/papers", tags=["papers-process"])
+
+# S2 paper ids are hex strings; allow alphanumerics, dashes, underscores and colons.
+_S2_PAPER_ID_RE = re.compile(r"^[a-zA-Z0-9:_-]+$")
+
+
+def _safe_filename(name: str) -> str:
+    """Sanitize a user-provided identifier for use as a file name."""
+    safe = re.sub(r"[^a-zA-Z0-9._-]", "_", name)
+    safe = safe.strip("._")
+    if not safe:
+        raise HTTPException(status_code=400, detail="Invalid file name")
+    return safe
+
+
+def _validate_pdf_url(url: str) -> str:
+    """Validate that the supplied URL is a safe http(s) URL for PDF download."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise HTTPException(status_code=400, detail="PDF URL must use http or https")
+    if not parsed.netloc:
+        raise HTTPException(status_code=400, detail="PDF URL is missing a host")
+    # Reject URLs that embed credentials or common traversal tricks.
+    if "@" in parsed.netloc or ".." in parsed.path:
+        raise HTTPException(status_code=400, detail="Invalid PDF URL")
+    return url
 
 
 class ProcessRequest(BaseModel):
@@ -142,10 +169,15 @@ def add_paper_from_s2(request: AddFromS2Request):
 @router.post("/download-and-process")
 async def download_and_process_paper(request: DownloadAndProcessRequest):
     """下载 PDF 并处理"""
+    if not _S2_PAPER_ID_RE.match(request.s2_paper_id):
+        raise HTTPException(status_code=400, detail="Invalid S2 paper id")
+
+    _validate_pdf_url(request.open_access_pdf_url)
+
     pdf_dir = Path("papers")
     pdf_dir.mkdir(exist_ok=True)
 
-    pdf_path = pdf_dir / f"{request.s2_paper_id}.pdf"
+    pdf_path = pdf_dir / f"{_safe_filename(request.s2_paper_id)}.pdf"
 
     # 下载 PDF
     async with httpx.AsyncClient(timeout=60.0) as client:

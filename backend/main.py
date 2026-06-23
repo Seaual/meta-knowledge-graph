@@ -3,6 +3,7 @@ FastAPI backend for Meta Knowledge Graph
 """
 
 import base64
+import logging
 import os
 import sys
 from pathlib import Path
@@ -143,11 +144,19 @@ def startup():
         if assets_path.exists():
             app.mount("/assets", StaticFiles(directory=str(assets_path)), name="assets")
 
-        print(f"Serving frontend from {frontend_dist}")
+        logging.getLogger(__name__).info("Serving frontend from %s", frontend_dist)
 
 
 # Serve frontend index.html for all non-API routes (SPA support)
 # Only handle non-api paths to avoid conflicting with API routes
+def _is_safe_path(base: Path, target: Path) -> bool:
+    """Verify target resolves to a location inside base (path traversal guard)."""
+    try:
+        return target.resolve().is_relative_to(base.resolve())
+    except (ValueError, OSError):
+        return False
+
+
 @app.get("/{path:path}")
 async def serve_frontend(path: str):
     # Skip API routes - they should be handled by routers
@@ -159,14 +168,16 @@ async def serve_frontend(path: str):
 
     frontend_dist = os.environ.get("FRONTEND_DIST")
     if frontend_dist and Path(frontend_dist).exists():
+        base = Path(frontend_dist)
+
         # Check if it's a static file request
-        file_path = Path(frontend_dist) / path
-        if file_path.exists() and file_path.is_file():
+        file_path = base / path
+        if _is_safe_path(base, file_path) and file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
 
         # For SPA, return index.html for all other routes
-        index_path = Path(frontend_dist) / "index.html"
-        if index_path.exists():
+        index_path = base / "index.html"
+        if _is_safe_path(base, index_path) and index_path.exists():
             return FileResponse(str(index_path))
 
     return {"error": "Frontend not available"}

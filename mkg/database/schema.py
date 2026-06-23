@@ -395,23 +395,23 @@ class SchemaMixin:
         # 迁移：添加 citing_title 和 citing_year 字段到 paper_citations 表
         try:
             cursor.execute("ALTER TABLE paper_citations ADD COLUMN citing_title TEXT")
-        except:
+        except sqlite3.OperationalError:
             pass  # 字段已存在
         try:
             cursor.execute("ALTER TABLE paper_citations ADD COLUMN citing_year INTEGER")
-        except:
+        except sqlite3.OperationalError:
             pass  # 字段已存在
 
         # 迁移：添加 text_en 字段到 concepts 表（英文概念名）
         try:
             cursor.execute("ALTER TABLE concepts ADD COLUMN text_en TEXT")
-        except:
+        except sqlite3.OperationalError:
             pass  # 字段已存在
 
         # 迁移：添加 text_zh 字段到 concepts 表（中文概念名）
         try:
             cursor.execute("ALTER TABLE concepts ADD COLUMN text_zh TEXT")
-        except:
+        except sqlite3.OperationalError:
             pass  # 字段已存在
 
         # Research sessions table

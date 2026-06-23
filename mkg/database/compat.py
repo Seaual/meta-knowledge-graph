@@ -137,22 +137,22 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
             if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
                     paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["s2_fields_of_study"] = []
             return paper
         return None
@@ -168,22 +168,22 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
             if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
                     paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["s2_fields_of_study"] = []
             return paper
         return None
@@ -198,22 +198,22 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
             if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
                     paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["s2_fields_of_study"] = []
         return papers
 
@@ -235,17 +235,17 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
         return papers
 
@@ -259,22 +259,22 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
             if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
                     paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["s2_fields_of_study"] = []
         return papers
 
@@ -963,9 +963,17 @@ class CompatMixin:
                 import json
 
                 result["suggestions"] = json.loads(result["suggestions"])
-            except:
+            except (json.JSONDecodeError, TypeError):
                 result["suggestions"] = None
         return result
+
+    # Allowed columns for dynamic update (prevents SQL injection via key names)
+    _SCAN_JOB_COLUMNS = {
+        "status", "phase", "total_concepts", "concepts_scanned",
+        "batches_total", "batches_completed", "filtered_count",
+        "high_confidence_count", "suggestions", "error",
+        "created_at", "started_at", "completed_at",
+    }
 
     def update_scan_job(self, scan_id: str, **kwargs):
         """更新扫描任务状态"""
@@ -975,6 +983,8 @@ class CompatMixin:
         set_parts = []
         values = []
         for key, value in kwargs.items():
+            if key not in self._SCAN_JOB_COLUMNS:
+                raise ValueError(f"Invalid scan_jobs column: {key}")
             if key == "suggestions" and isinstance(value, (list, dict)):
                 import json
 
@@ -1218,22 +1228,22 @@ class CompatMixin:
             if paper.get("authors") and isinstance(paper["authors"], str):
                 try:
                     paper["authors"] = json.loads(paper["authors"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["authors"] = []
             if paper.get("keywords") and isinstance(paper["keywords"], str):
                 try:
                     paper["keywords"] = json.loads(paper["keywords"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["keywords"] = []
             if paper.get("contributions") and isinstance(paper["contributions"], str):
                 try:
                     paper["contributions"] = json.loads(paper["contributions"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["contributions"] = []
             if paper.get("s2_fields_of_study") and isinstance(paper["s2_fields_of_study"], str):
                 try:
                     paper["s2_fields_of_study"] = json.loads(paper["s2_fields_of_study"])
-                except:
+                except (json.JSONDecodeError, TypeError):
                     paper["s2_fields_of_study"] = []
         return papers
 

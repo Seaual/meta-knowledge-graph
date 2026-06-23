@@ -74,7 +74,7 @@ class PaperService:
 
         # 读取 PDF 文本
         from mkg.pdf_parser import PDFParser
-        parser = PDFParser()
+        parser = PDFParser(allowed_base_dirs=["papers", "data/agent_files"])
         try:
             return parser.extract_text(str(pdf_path))
         except Exception:

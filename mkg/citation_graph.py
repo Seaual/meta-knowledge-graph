@@ -48,10 +48,9 @@ def build_citation_graph(db, s2_client, progress_callback=None):
     # 构建 S2 paper ID 到本地 DOI 的映射
     s2_to_doi = {p['s2_paper_id']: p['doi'] for p in papers if p.get('s2_paper_id')}
 
-    # 清除旧数据
-    db.clear_paper_citations()
-
     for i, paper in enumerate(papers):
+        # 只清除当前论文的引用数据，避免一次失败导致整个图谱引用丢失
+        db.clear_paper_citations(paper['doi'])
         paper_doi = paper['doi']
         s2_id = paper['s2_paper_id']
 

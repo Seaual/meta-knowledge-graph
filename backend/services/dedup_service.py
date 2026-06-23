@@ -14,6 +14,14 @@ from mkg.database import Database
 class DedupService:
     """概念去重服务"""
 
+    # Allowed columns for dynamic UPDATE (prevents SQL injection via key names)
+    _SCAN_COLUMNS = {
+        "folder_id", "total_concepts", "status", "progress", "phase",
+        "filtered_count", "batches_total", "batches_completed",
+        "high_confidence_count", "suggestions", "error",
+        "created_at", "completed_at",
+    }
+
     def __init__(self, db: Database):
         self.db = db
         self._scans: dict[str, dict] = {}  # in-memory scan threads
@@ -222,6 +230,8 @@ class DedupService:
         updates = []
         values = []
         for key, value in kwargs.items():
+            if key not in self._SCAN_COLUMNS:
+                raise ValueError(f"Invalid dedup_scans column: {key}")
             updates.append(f"{key} = ?")
             values.append(value)
 
@@ -290,63 +300,73 @@ class DedupService:
             source_id = sug["source"]["id"]
             target_id = sug["target"]["id"]
 
-            try:
-                # === 1. 保存 source 的层级关系 ===
-                # 获取 source 的子概念 → 需要重新连接到 target
-                children = self.db.concepts.get_children(source_id)
-                # 获取 source 的父概念 → target 需要连接到它们
-                parents = self.db.concepts.get_parents(source_id)
+            if not source_id or not target_id or source_id == target_id:
+                details.append({
+                    "source": sug["source"].get("text", "unknown"),
+                    "target": sug["target"].get("text", "unknown"),
+                    "status": "failed",
+                    "message": "Invalid source/target concept ids",
+                })
+                continue
 
-                # === 2. 迁移论文关联 ===
-                source_papers = self.db.concepts.get_papers(source_id)
-                for p in source_papers:
-                    paper_doi = p.get("paper_doi")
-                    if paper_doi:
+            try:
+                with self.db.transaction():
+                    # === 1. 保存 source 的层级关系 ===
+                    # 获取 source 的子概念 → 需要重新连接到 target
+                    children = self.db.concepts.get_children(source_id)
+                    # 获取 source 的父概念 → target 需要连接到它们
+                    parents = self.db.concepts.get_parents(source_id)
+
+                    # === 2. 迁移论文关联 ===
+                    source_papers = self.db.concepts.get_papers(source_id)
+                    for p in source_papers:
+                        paper_doi = p.get("paper_doi")
+                        if paper_doi:
+                            self.db.execute_write(
+                                "INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id) VALUES (?, ?)",
+                                (paper_doi, target_id),
+                            )
+
+                    # === 3. 更新 paper_count ===
+                    new_count = sug["source"].get("paper_count", 0) + sug["target"].get("paper_count", 0)
+                    self.db.execute_write(
+                        "UPDATE concepts SET paper_count = ? WHERE id = ?",
+                        (new_count, target_id),
+                    )
+
+                    # === 4. 重连子节点到 target ===
+                    for child in children:
                         self.db.execute_write(
-                            "INSERT OR IGNORE INTO paper_concepts (paper_doi, concept_id) VALUES (?, ?)",
-                            (paper_doi, target_id),
+                            "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
+                            (target_id, child["id"]),
                         )
 
-                # === 3. 更新 paper_count ===
-                new_count = sug["source"]["paper_count"] + sug["target"]["paper_count"]
-                self.db.execute_write(
-                    "UPDATE concepts SET paper_count = ? WHERE id = ?",
-                    (new_count, target_id),
-                )
+                    # === 5. 连接 target 到 source 的父概念 ===
+                    for parent in parents:
+                        self.db.execute_write(
+                            "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
+                            (parent["id"], target_id),
+                        )
 
-                # === 4. 重连子节点到 target ===
-                for child in children:
+                    # === 6. 删除 source 的所有关联 ===
                     self.db.execute_write(
-                        "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
-                        (target_id, child["id"]),
+                        "DELETE FROM paper_concepts WHERE concept_id = ?",
+                        (source_id,),
+                    )
+                    self.db.execute_write(
+                        "DELETE FROM concept_relations WHERE parent_id = ?",
+                        (source_id,),
+                    )
+                    self.db.execute_write(
+                        "DELETE FROM concept_relations WHERE child_id = ?",
+                        (source_id,),
                     )
 
-                # === 5. 连接 target 到 source 的父概念 ===
-                for parent in parents:
+                    # === 7. 删除概念本身 ===
                     self.db.execute_write(
-                        "INSERT OR IGNORE INTO concept_relations (parent_id, child_id) VALUES (?, ?)",
-                        (parent["id"], target_id),
+                        "DELETE FROM concepts WHERE id = ?",
+                        (source_id,),
                     )
-
-                # === 6. 删除 source 的所有关联 ===
-                self.db.execute_write(
-                    "DELETE FROM paper_concepts WHERE concept_id = ?",
-                    (source_id,),
-                )
-                self.db.execute_write(
-                    "DELETE FROM concept_relations WHERE parent_id = ?",
-                    (source_id,),
-                )
-                self.db.execute_write(
-                    "DELETE FROM concept_relations WHERE child_id = ?",
-                    (source_id,),
-                )
-
-                # === 7. 删除概念本身 ===
-                self.db.execute_write(
-                    "DELETE FROM concepts WHERE id = ?",
-                    (source_id,),
-                )
 
                 executed += 1
                 details.append({

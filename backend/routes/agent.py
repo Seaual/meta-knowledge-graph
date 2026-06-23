@@ -1,6 +1,8 @@
 """Agent API routes — DeepAgents version."""
 
 import json
+import re
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
@@ -15,6 +17,27 @@ from mkg.llm import init_llm_from_db
 
 router = APIRouter(prefix="/api/agent", tags=["agent"])
 
+# Allow UUIDs, URL-safe slugs, or the literal "default"
+_CONVERSATION_ID_RE = re.compile(r"^[a-zA-Z0-9._-]+$")
+_AGENT_BASE_DIR = Path("data/agent_files").resolve()
+
+
+def _safe_agent_workspace(conversation_id: str | None) -> str:
+    """Return a validated workspace directory path for the agent.
+
+    Raises HTTPException if the conversation id is unsafe or the resolved
+    directory would escape the configured base directory.
+    """
+    cid = conversation_id or "default"
+    if not _CONVERSATION_ID_RE.match(cid):
+        raise HTTPException(status_code=400, detail="Invalid conversation id")
+
+    workspace = (_AGENT_BASE_DIR / cid).resolve()
+    if not workspace.is_relative_to(_AGENT_BASE_DIR):
+        raise HTTPException(status_code=400, detail="Invalid workspace path")
+
+    return str(workspace)
+
 
 @router.post("/chat/stream")
 async def chat_stream(request: AgentChatRequest):
@@ -26,7 +49,7 @@ async def chat_stream(request: AgentChatRequest):
     if not config or not config.get("providers"):
         raise HTTPException(status_code=500, detail="LLM not configured")
 
-    workspace_dir = f"data/agent_files/{request.conversationId or 'default'}"
+    workspace_dir = _safe_agent_workspace(request.conversationId)
     agent = get_main_agent(db_path="data/mkg.db", workspace_dir=workspace_dir)
 
     messages = []

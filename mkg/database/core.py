@@ -18,6 +18,7 @@ import platform
 import sqlite3
 import threading
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 from cryptography.fernet import Fernet
@@ -37,8 +38,10 @@ class DatabaseCore:
     def __init__(self, db_path: str = "mkg.db"):
         self.db_path = Path(db_path)
         self.conn: sqlite3.Connection | None = None
-        self._lock = threading.Lock()
+        # RLock allows nested acquisition inside explicit transactions.
+        self._lock = threading.RLock()
         self._fernet = Fernet(_derive_encryption_key())
+        self._in_transaction = False
 
         # Repository 实例（延迟初始化）
         self._papers = None
@@ -90,7 +93,8 @@ class DatabaseCore:
         with self._lock:
             cursor = self.conn.cursor()
             cursor.execute(query, params)
-            self.conn.commit()
+            if not self._in_transaction:
+                self.conn.commit()
             return cursor
 
     def execute_read(self, query: str, params: tuple = ()) -> sqlite3.Cursor:
@@ -99,6 +103,28 @@ class DatabaseCore:
             cursor = self.conn.cursor()
             cursor.execute(query, params)
             return cursor
+
+    @contextmanager
+    def transaction(self):
+        """显式事务上下文管理器。
+
+        在事务块内，所有 execute_write 调用不会自动 commit；
+        块正常结束时统一 commit，发生异常时 rollback。
+        不支持嵌套事务。
+        """
+        if self._in_transaction:
+            raise RuntimeError("Nested transactions are not supported")
+        with self._lock:
+            self.conn.execute("BEGIN")
+            self._in_transaction = True
+            try:
+                yield self
+                self.conn.commit()
+            except Exception:
+                self.conn.rollback()
+                raise
+            finally:
+                self._in_transaction = False
 
     def close(self):
         """关闭连接"""

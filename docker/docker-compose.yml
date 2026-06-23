@@ -11,8 +11,6 @@ services:
       # Persist data
       - mkg-data:/app/data
       - mkg-papers:/app/papers
-      # Persist database
-      - mkg-db:/app
     environment:
       - PYTHONUNBUFFERED=1
       - FRONTEND_DIST=/app/frontend/dist
@@ -29,5 +27,3 @@ volumes:
     name: mkg-data
   mkg-papers:
     name: mkg-papers
-  mkg-db:
-    name: mkg-db

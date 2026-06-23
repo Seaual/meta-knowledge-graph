@@ -27,6 +27,26 @@ logger = logging.getLogger(__name__)
 class PDFParser:
     """PDF 解析器 - 首选 MarkItDown，PyMuPDF fallback"""
 
+    def __init__(self, allowed_base_dirs: list[str | Path] | None = None):
+        """
+        Args:
+            allowed_base_dirs: 允许解析的 PDF 所在基础目录列表。
+                为 None 时不限制（保留 CLI 等场景的自由度）。
+        """
+        if allowed_base_dirs is None:
+            self._allowed_base_dirs = None
+        else:
+            self._allowed_base_dirs = [Path(d).resolve() for d in allowed_base_dirs]
+
+    def _validate_pdf_path(self, pdf_path: str) -> Path:
+        """校验 PDF 路径安全并返回解析后的 Path。"""
+        path = Path(pdf_path)
+        if self._allowed_base_dirs is not None:
+            resolved = path.resolve()
+            if not any(resolved.is_relative_to(base) for base in self._allowed_base_dirs):
+                raise ValueError(f"PDF path outside allowed directories: {pdf_path}")
+        return path
+
     def parse(self, pdf_path: str) -> PaperContent | None:
         """
         解析 PDF 文件（自动选择引擎）
@@ -37,17 +57,18 @@ class PDFParser:
         Returns:
             论文内容，解析失败返回 None
         """
+        self._validate_pdf_path(pdf_path)
         result = self._parse_with_markitdown(pdf_path)
         if result:
             return result
-        logger.warning("MarkItDown parsing failed, falling back to PyMuPDF")
-        print("[PDF] MarkItDown 解析失败，回退到 PyMuPDF")
+        logger.warning("[PDF] MarkItDown 解析失败，回退到 PyMuPDF")
         return self._parse_with_pymupdf(pdf_path)
 
     def extract_text(self, pdf_path: str) -> str | None:
         """
         只提取纯文本（供 LLM 使用，自动选择引擎）
         """
+        self._validate_pdf_path(pdf_path)
         text = self._extract_text_markitdown(pdf_path)
         if text:
             return text
@@ -491,7 +512,8 @@ class PDFParser:
                     match = re.search(r"<dc:title>.*?<rdf:li[^>]*>(.*?)</rdf:li>", xmp, re.DOTALL | re.IGNORECASE)
                     if match:
                         return match.group(1).strip()
-        except:
+        except Exception as e:
+            logger.debug("XMP title extraction failed: %s", e)
             pass
 
         return ""
@@ -710,7 +732,7 @@ class PDFParser:
                 return " ".join(title_parts)
 
         except Exception as e:
-            print(f"字体大小提取失败: {e}")
+            logger.warning("字体大小提取失败: %s", e)
 
         return ""
 
